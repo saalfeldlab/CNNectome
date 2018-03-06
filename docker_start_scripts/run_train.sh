@@ -3,7 +3,7 @@
 NAME=$(basename $(pwd)-training)
 USER_ID=${UID}
 GUNPOWDER_PATH=$(readlink -f $HOME/Projects/mygunpowder/gunpowder/)
-TRAIN_PATH=$(readlink -f $HOME/Projects/CNNectomics/)
+TRAIN_PATH=$(readlink -f $HOME/Projects/CNNectome/)
 docker rm -f $NAME
 #rm snapshots/*
 echo "Starting as user ${USER_ID}"
