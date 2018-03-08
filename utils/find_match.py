@@ -1,5 +1,6 @@
 from __future__ import print_function
 import h5py
+import z5py
 import numpy as np
 import os
 import sys
@@ -9,39 +10,55 @@ import sys
 def match_slice_by_slice(large_ds, patterns_ds, axis_orders):
     patterns = [np.array(pattern_ds) for pattern_ds in patterns_ds]
     values = [pattern[0, 0, 0] for pattern in patterns]
-    plane_of_ds = np.zeros((1, large_ds.shape[1], large_ds.shape[2]), dtype=np.uint8)
+    print("looking for values", values)
+    #plane_of_ds = np.zeros((1, large_ds.shape[1], large_ds.shape[2]), dtype=np.uint8)
     finds = [False]*len(patterns_ds)
     no_match_found = len(patterns_ds)
     print(large_ds.shape)
-    for z in range(0,1000):
-        if z % 10 == 0:
+    for z_in_ds in range(0, large_ds.shape[0], large_ds.chunks[0]):
+        tile_slice = (slice(z_in_ds, z_in_ds+large_ds.chunks[0], None), slice(0, large_ds.shape[1], None), slice(0,
+                                                                                                      large_ds.shape[2], None))
+        tile = np.array(large_ds[tile_slice])
+        print("Tile loaded")
+        for z_in_tile in range(0, large_ds.chunks[0]):
+            z = z_in_ds+z_in_tile
+            if z % 10 == 0:
+                print(z, end='\n')
+                sys.stdout.flush()
             print('.', end='')
-            sys.stdout.flush()
-        if no_match_found>0:
-            #for y in range(large_ds.shape[1]):
-            plane_slice = (slice(z, z+1, None), slice(0, large_ds.shape[1], None), slice(0, large_ds.shape[2], None))
-            large_ds.read_direct(plane_of_ds, plane_slice, slice(None, None, None))
-            plane_of_ds = plane_of_ds.squeeze()
-            #print(plane_of_ds.shape)
-            for y in range(plane_of_ds.shape[0]):
-                for x in range(plane_of_ds.shape[1]):
-                    v = plane_of_ds[y, x]
-                    for pattern_num, v_target in enumerate(values):
-                        if v_target is not None and v == v_target:
-                            found, aos = match_one_block_arr(np.expand_dims(plane_of_ds, 0),
-                                                             patterns[pattern_num][:5, :5, :5],
-                                                             (0, y, x),
-                                                             axis_orders=axis_orders)
-                            if found:
-                                found, ao = match_one_block_ds(large_ds, patterns[pattern_num], (z, y, x),
-                                                               axis_orders=aos)
+            if no_match_found>0:
+                #for y in range(large_ds.shape[1]):
+                plane_slice = (slice(z_in_tile, z_in_tile+1, None), slice(0, large_ds.shape[1], None), slice(0,
+                                                                                                       large_ds.shape[2], None))
+                plane_of_ds = tile[plane_slice]
+                #large_ds.read_direct(plane_of_ds, plane_slice, slice(None, None, None))
+                #plane_of_ds = plane_of_ds.squeeze()
+                #print(plane_of_ds.shape)
+                assert plane_of_ds.shape[0] == 1
+                for y in range(plane_of_ds.shape[0]):
+                    for x in range(plane_of_ds.shape[1]):
+                        v = plane_of_ds[0,y, x]
+                        for pattern_num, v_target in enumerate(values):
+                            if v_target is not None and v == v_target:
+                                #print("checking at", z, y, x)
+                                found, aos = match_one_block_arr(plane_of_ds,
+                                                                 patterns[pattern_num][:5, :5, :5],
+                                                                 (0, y, x),
+                                                                 axis_orders=axis_orders)
                                 if found:
-                                    finds[pattern_num] = tuple((z, y, x)[a] for a in ao)
-                                    values[pattern_num] = None
-                                    no_match_found -= 1
-                                    break
-        else:
-            break
+                                    print("good candidate at", z,y,x)
+                                    found, ao = match_one_block_ds(large_ds, patterns[pattern_num], (z, y, x),
+                                                                   axis_orders=aos)
+                                    if found:
+                                        finds[pattern_num] = tuple((z, y, x)[a] for a in ao)
+                                        values[pattern_num] = None
+                                        print("FOUND ONE", finds)
+                                        no_match_found -= 1
+                                        break
+                                    else:
+                                        print("...but nope")
+            else:
+                break
     return finds
 
 
@@ -65,7 +82,7 @@ def match_one_block_ds(large_ds, pattern_arr, candidate, axis_orders=(0, 1, 2), 
             slice_to_dest = (slice(None, None, None), slice(None, None, None), slice(None, None, None))
         #print(candidate_block.shape, candidate_block.shape)
 
-            large_ds.read_direct(candidate_block, slice_from_large, slice_to_dest)
+            candidate_block[slice_to_dest] = large_ds[slice_from_large]
             if (candidate_block == pattern_arr.transpose(ao)).all():
                 if verbose:
                     print()
@@ -163,7 +180,7 @@ def main(large_h5, patterns_h5, axis_orders=[(0,1,2)]):
     #test()
 
     # read dense gt
-    lds_f = h5py.File(large_h5[0], 'r')
+    lds_f = z5py.File(large_h5[0], use_zarr_format=False)
     large_ds = lds_f[large_h5[1]]
 
     patterns_ds = []
@@ -173,11 +190,11 @@ def main(large_h5, patterns_h5, axis_orders=[(0,1,2)]):
         patterns_ds.append(pds_fs[-1][pattern_h5[1]])
 
     finds = match_slice_by_slice(large_ds, patterns_ds,
-                                 axis_orders=[(0, 1, 2),(0, 2, 1),(1, 0, 2),(1, 2, 0),(2, 0, 1), (2, 1, 0)])
+                                 axis_orders=axis_orders)
 
     # read large ds
     # get values
-    lds_f.close()
+    #lds_f.close()
     for pds_f in pds_fs:
         pds_f.close()
     return finds
@@ -187,12 +204,18 @@ def main(large_h5, patterns_h5, axis_orders=[(0,1,2)]):
     #    match_blocks(patterns[pattern_num], candidate_locations)
 
 if __name__ == '__main__':
-    large_ds_file = ('/groups/saalfeld/saalfeldlab/larissa/data/fib25/grayscale.h5', 'data')
-    pattern_files = [('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/trvol-250-1-h5/im_uint8.h5', 'main'),
-                     ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/trvol-250-2-h5/im_uint8.h5', 'main'),
-                     ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/tstvol-520-1-h5/im_uint8.h5', 'main'),
-                     ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/tstvol-520-2-h5/im_uint8.h5', 'main')]
+    #large_ds_file = ('/groups/saalfeld/saalfeldlab/larissa/data/fib25/grayscale.h5', 'data')
+    #pattern_files = [('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/trvol-250-1-h5/im_uint8.h5', 'main'),
+    #                 ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/trvol-250-2-h5/im_uint8.h5', 'main'),
+    #                 ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/tstvol-520-1-h5/im_uint8.h5', 'main'),
+    #                 ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/tstvol-520-2-h5/im_uint8.h5', 'main')]
+    large_ds_file = ('/nrs/turaga/funkej/fib19/fib19', 'volumes/raw')
+    pattern_files = [('/nrs/turaga/funkej/fib19/dense_labelled/cube01.hdf', 'volumes/raw'),
+                     ('/nrs/turaga/funkej/fib19/dense_labelled/cube02.hdf', 'volumes/raw'),
+                     ('/nrs/turaga/funkej/fib19/dense_labelled/cube03.hdf', 'volumes/raw')
+                     ]
     finds = main(large_ds_file, pattern_files,
                  axis_orders=[(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)])
+    print(finds)
     #test()
     #main(('/groups/saalfeld/saalfeldlab/larissa/data/fib25/grayscale.h5', 'data'), '/')
