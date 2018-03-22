@@ -209,7 +209,7 @@ if __name__ == '__main__':
     #                 ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/trvol-250-2-h5/im_uint8.h5', 'main'),
     #                 ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/tstvol-520-1-h5/im_uint8.h5', 'main'),
     #                 ('/groups/turaga/turagalab/data/FlyEM/fibsem_medulla_7col/tstvol-520-2-h5/im_uint8.h5', 'main')]
-    large_ds_file = ('/nrs/turaga/funkej/fib19/fib19', 'volumes/raw')
+    large_ds_file = ('/nrs/turaga/funkej/fib19/fib19.n5', 'volumes/raw/s0')
     pattern_files = [('/nrs/turaga/funkej/fib19/dense_labelled/cube01.hdf', 'volumes/raw'),
                      ('/nrs/turaga/funkej/fib19/dense_labelled/cube02.hdf', 'volumes/raw'),
                      ('/nrs/turaga/funkej/fib19/dense_labelled/cube03.hdf', 'volumes/raw')
