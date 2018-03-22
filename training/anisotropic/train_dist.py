@@ -43,12 +43,8 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         )
         data_providers.append(h5_source)
 
-    #todo: dvid source
-
     with open('net_io_names.json', 'r') as f:
         net_io_names = json.load(f)
-
-
 
     voxel_size = Coordinate((40, 4, 4))
     input_size = Coordinate(input_shape) * voxel_size
@@ -73,14 +69,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(
-            {
-                ArrayKeys.RAW: Coordinate((8, 8, 8)) * voxel_size,
-                ArrayKeys.GT_MASK: Coordinate((8, 8, 8)) * voxel_size,
-                ArrayKeys.TRAINING_MASK: Coordinate((8, 8, 8)) * voxel_size
-              #ArrayKeys.GT_LABELS: Coordinate((100, 100, 100)) * voxel_size # added later
-            }
-        ) +
+        Pad(ArrayKeys.RAW, Coordinate((8, 8, 8)) * voxel_size)+
+        Pad(ArrayKeys.GT_MASK, Coordinate((8, 8, 8)) * voxel_size)+
+        Pad(ArrayKeys.TRAINING_MASK, Coordinate((8, 8, 8)) * voxel_size)+
         RandomLocation() + # chose a random location inside the provided arrays
         Reject(ArrayKeys.GT_MASK) + # reject batches wich do contain less than 50% labelled data
         Reject(ArrayKeys.TRAINING_MASK, min_masked=0.99) +
@@ -111,7 +102,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         Normalize(ArrayKeys.RAW) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         ElasticAugment((4, 40, 40), (0, 2, 2), (0, math.pi/2.0), subsample=8) +
-        SimpleAugment(transpose_only_xy=True)
+        SimpleAugment(transpose_only=[1,2])
     )
 
     train_pipeline = (
@@ -120,7 +111,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         ElasticAugment((4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
                        prob_slip=0.05, prob_shift=0.05, max_misalign=10,
                        subsample=8) +
-        SimpleAugment(transpose_only_xy=True) +
+        SimpleAugment(transpose_only=[1,2]) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         DefectAugment(ArrayKeys.RAW,
                       prob_missing=0.03,

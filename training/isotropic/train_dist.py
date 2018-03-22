@@ -1,23 +1,34 @@
 from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
-#from tf_training.python_scripts.gunpowder_wrappers import prepare_h5source
+from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance
+import tensorflow as tf
 import os
 import math
 import json
 
-def train_until(max_iteration, data_sources):
+
+def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
+    ArrayKey('RAW')
+    ArrayKey('ALPHA_MASK')
+    ArrayKey('GT_LABELS')
+
+    ArrayKey('GT_SCALE')
+    ArrayKey('LOSS_GRADIENT')
+    ArrayKey('GT_DIST')
+    ArrayKey('PREDICTED_DIST')
+
     data_providers = []
     fib25_dir = "/groups/saalfeld/saalfeldlab/larissa/data/gunpowder/fib25/"
     if 'fib25h5' in data_sources:
 
         for volume_name in ("tstvol-520-1", "tstvol-520-2", "trvol-250-1", "trvol-250-2"):
             h5_source = Hdf5Source(os.path.join(fib25_dir, volume_name+'.hdf'),
-                                   datasets={VolumeTypes.RAW: 'volumes/raw',
-                                             VolumeTypes.GT_LABELS:'volumes/labels/neuron_ids',
-                                             VolumeTypes.GT_MASK: 'volumes/labels/mask',},
+                                   datasets={ArrayKeys.RAW: 'volumes/raw',
+                                             ArrayKeys.GT_LABELS:'volumes/labels/clefts',
+                                             ArrayKeys.GT_MASK: 'volumes/masks/groundtruth'},
                                    volume_specs={
-                                       VolumeTypes.GT_MASK: VolumeSpec(interpolatable=False)
+                                       Array.GT_MASK: ArraySpec(interpolatable=False)
                                    }
             )
             data_providers.append(h5_source)
@@ -33,17 +44,6 @@ def train_until(max_iteration, data_sources):
     with open('net_io_names.json', 'r') as f:
         net_io_names = json.load(f)
 
-    register_volume_type('RAW')
-    register_volume_type('ALPHA_MASK')
-    register_volume_type('GT_LABELS')
-    register_volume_type('GT_MASK')
-    register_volume_type('GT_SCALE')
-    #register_volume_type('GT_AFFINITIES')
-    #register_volume_type('PREDICTED_AFFS')
-    register_volume_type('LOSS_GRADIENT')
-    register_volume_type('GT_DIST')
-    register_volume_type('PREDICTED_DIST')
-
     voxel_size = Coordinate((8, 8, 8))
     input_size = Coordinate((196,)*3) * voxel_size
     output_size = Coordinate((92,)*3) * voxel_size
@@ -52,11 +52,11 @@ def train_until(max_iteration, data_sources):
 
     # specifiy which volumes should be requested for each batch
     request = BatchRequest()
-    request.add(VolumeTypes.RAW, input_size)
-    request.add(VolumeTypes.GT_LABELS, output_size)
-    request.add(VolumeTypes.GT_MASK, output_size)
+    request.add(ArrayKeys.RAW, input_size)
+    request.add(ArrayKeys.GT_LABELS, output_size)
+    request.add(ArrayKeys.GT_MASK, output_size)
     #request.add(VolumeTypes.GT_SCALE, output_size)
-    request.add(VolumeTypes.GT_DIST, output_size)
+    request.add(ArrayKeys.GT_DIST, output_size)
 
     # create a tuple of data sources, one for each HDF file
     data_sources = tuple(
@@ -66,21 +66,17 @@ def train_until(max_iteration, data_sources):
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(
-            {
-                VolumeTypes.RAW: Coordinate((100, 100, 100)) * voxel_size,
-                VolumeTypes.GT_MASK: Coordinate((100, 100, 100)) * voxel_size,
-                #VolumeTypes.GT_LABELS: Coordinate((100, 100, 100)) * voxel_size # added later
-            }
-        ) +
+        Pad(ArrayKeys.RAW, Coordinate((100, 100, 100)) * voxel_size)+
+        Pad(ArrayKeys.GT_MASK, Coordinate((100, 100, 100)) * voxel_size)+
+
         RandomLocation() + # chose a random location inside the provided volumes
         Reject() # reject batches wich do contain less than 50% labelled data
         for provider in data_providers)
 
     snapshot_request = BatchRequest({
-        VolumeTypes.LOSS_GRADIENT: request[VolumeTypes.GT_LABELS],
-        VolumeTypes.PREDICTED_DIST: request[VolumeTypes.GT_LABELS],
-        VolumeTypes.LOSS_GRADIENT: request[VolumeTypes.GT_DIST],
+        ArrayKeys.LOSS_GRADIENT: request[ArrayKeys.GT_LABELS],
+        ArrayKeys.PREDICTED_DIST: request[ArrayKeys.GT_LABELS],
+        ArrayKeys.LOSS_GRADIENT: request[ArrayKeys.GT_DIST],
 
     })
 
@@ -109,17 +105,18 @@ def train_until(max_iteration, data_sources):
         ElasticAugment([40,40,40], [2,2,2], [0,math.pi/2.0], prob_slip=0.01,prob_shift=0.05,max_misalign=1,
                        subsample=8) +
         SimpleAugment() +
-        IntensityAugment(0.9, 1.1, -0.1, 0.1) +
-        IntensityScaleShift(2, -1) +
-        ZeroOutConstSections() +
+        IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1) +
+        IntensityScaleShift(ArrayKeys.RAW, 2, -1) +
+        ZeroOutConstSections(ArrayKeys.RAW) +
         GrowBoundary(steps=1) +
-        SplitAndRenumberSegmentationLabels() +
+        #SplitAndRenumberSegmentationLabels() +
         #AddGtAffinities(malis.mknhood3d()) +
-        AddBoundaryDistance(label_volume_type=VolumeTypes.GT_LABELS,
-                            distance_volume_type=VolumeTypes.GT_DIST,
+        AddBoundaryDistance(label_volume_type=ArrayKeys.GT_LABELS,
+                            distance_volume_type=ArrayKeys.GT_DIST,
                             normalize='tanh',
-                            normalize_args=150
+                            normalize_args=dt_scaling_factor
                             )+
+        BalanceLabels(ArrayKeys.GT_LABELs, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK)+
         #BalanceByThreshold(
         #    labels=VolumeTypes.GT_DIST,
         #    scales= VolumeTypes.GT_SCALE) +
@@ -141,26 +138,26 @@ def train_until(max_iteration, data_sources):
         Train(
             'unet',
             optimizer=net_io_names['optimizer'],
-            loss=net_io_names['loss'],
+            loss=net_io_names[loss_name],
             inputs={
-                net_io_names['raw']: VolumeTypes.RAW,
-                net_io_names['gt_dist']: VolumeTypes.GT_DIST,
+                net_io_names['raw']: ArrayKeys.RAW,
+                net_io_names['gt_dist']: ArrayKeys.GT_DIST,
                 #net_io_names['loss_weights']: VolumeTypes.GT_SCALE
             },
             summary=net_io_names['summary'],
             log_dir='log',
             outputs={
-                net_io_names['dist']: VolumeTypes.PREDICTED_DIST
+                net_io_names['dist']: ArrayKeys.PREDICTED_DIST
             },
             gradients={
-                net_io_names['dist']: VolumeTypes.LOSS_GRADIENT
+                net_io_names['dist']: ArrayKeys.LOSS_GRADIENT
             }) +
         Snapshot({
-                VolumeTypes.RAW: 'volumes/raw',
-                VolumeTypes.GT_LABELS: 'volumes/labels/neuron_ids',
-                VolumeTypes.GT_DIST: 'volumes/labels/distances',
-                VolumeTypes.PREDICTED_DIST: 'volumes/labels/pred_distances',
-                VolumeTypes.LOSS_GRADIENT: 'volumes/loss_gradient',
+                ArrayKeys.RAW: 'volumes/raw',
+                ArrayKeys.GT_LABELS: 'volumes/labels/neuron_ids',
+                ArrayKeys.GT_DIST: 'volumes/labels/distances',
+                ArrayKeys.PREDICTED_DIST: 'volumes/labels/pred_distances',
+                ArrayKeys.LOSS_GRADIENT: 'volumes/loss_gradient',
             },
             every=1000,
             output_filename='batch_{iteration}.hdf',
@@ -180,4 +177,8 @@ if __name__ == "__main__":
     set_verbose(False)
     data_sources = ['fib25h5']#, 'fib19h5']
     max_iteration = 400000
-    train_until(max_iteration, data_sources)
+    dt_scaling_factor = 50
+    input_shape = (430,430,430)
+    output_shape = (218,218,218)
+    loss_name = 'loss_balanced_syn'
+    train_until(max_iteration, data_sources, input_Shape, output_shape, dt_scaling_factor, loss_name)
