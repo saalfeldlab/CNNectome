@@ -127,7 +127,7 @@ def crop_zyx(fmaps_in, shape):
 def unet(
         fmaps_in,
         num_fmaps,
-        fmap_inc_factor,
+        fmap_inc_factors,
         downsample_factors,
         kernel_size_down,
         kernel_size_up,
@@ -158,7 +158,7 @@ def unet(
         num_fmaps:
             The number of feature maps in the first layer. This is also the
             number of output feature maps.
-        fmap_inc_factor:
+        fmap_inc_factors:
             By how much to multiply the number of feature maps between layers.
             If layer 0 has ``k`` feature maps, layer ``l`` will have
             ``k*fmap_inc_factor**l``.
@@ -189,7 +189,9 @@ def unet(
     prefix = "    "*layer
     print(prefix + "Creating U-Net layer %i"%layer)
     print(prefix + "f_in: " + str(fmaps_in.shape))
-
+    if isinstance(fmap_inc_factors, int):
+        fmap_inc_factors = [fmap_inc_factors]*len(downsample_factors)
+    assert len(fmap_inc_factors) == len(downsample_factors) == len(kernel_size_down) - 1 == len(kernel_size_up) - 1
     # convolve
     with tf.name_scope("lev%i"%layer):
 
@@ -226,8 +228,8 @@ def unet(
         # recursive U-net
         g_out, fov, voxel_size = unet(
             g_in,
-            num_fmaps=num_fmaps*fmap_inc_factor,
-            fmap_inc_factor=fmap_inc_factor,
+            num_fmaps=num_fmaps*fmap_inc_factors[layer],
+            fmap_inc_factors=fmap_inc_factors,
             downsample_factors=downsample_factors,
             kernel_size_down=kernel_size_down,
             kernel_size_up=kernel_size_up,
