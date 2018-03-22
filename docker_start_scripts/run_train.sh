@@ -2,7 +2,7 @@
 
 NAME=$(basename $(pwd)-training)
 USER_ID=${UID}
-GUNPOWDER_PATH=$(readlink -f $HOME/Projects/mygunpowder/gunpowder/)
+GUNPOWDER_PATH=$(readlink -f $HOME/Projects/git_repos/gunpowder/)
 TRAIN_PATH=$(readlink -f $HOME/Projects/CNNectome/)
 docker rm -f $NAME
 #rm snapshots/*
