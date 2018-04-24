@@ -40,6 +40,7 @@ class ResultFile:
             return self.results['v_fp']
         else:
             raise ValueError('Unknown mode {0:}'.format(self.mode))
+
     def get_geometric_cremi_score(self):
         if self.mode == 'training':
             return (self.results['t_dgt']['mean'] * self.results['t_df']['mean'])**0.5
@@ -199,36 +200,39 @@ if __name__ == '__main__':
     # 'DTU2_Aonly',
     # 'DTU2_Bonly',
     # 'DTU2_Conly',
-    main()
-    #samples = ('A', 'B', 'C')
-    #experiment_names = ['baseline_DTU2', 'baseline_DTU1', 'DTU2_unbalanced', 'DTU1_unbalanced']
-    #for experiment_name in experiment_names:
-    #    iterations = tuple(range(2000, 70000, 2000))
+    #main()
+    samples = ('A', 'B', 'C')
+    experiment_names = ['baseline_DTU2', 'DTU2_100tanh', 'DTU2_150tanh']
+    for experiment_name in experiment_names:
+        iterations = tuple(range(2000, 84000, 2000))
     #    if experiment_name == 'DTU2_Bonly':
     #        iterations = tuple(range(2000, 42000, 2000))
-    #    er = ExpResult(experiment_name, all_iterations=iterations)
-    #    x = er.get_all_it_adf('validation', sample=samples, json_name='validation_saturated_s100')
-    #    x2 = er.get_all_it_adgt('validation', sample=samples, json_name='validation_saturated_s100')
-    #    new_it, new_x = smooth(iterations, x)
-    #    new_it2, new_x2 = smooth(iterations, x2)
-    #    plt.subplot(211)
-    #    plt.plot(new_it, new_x, label=er.experiment_name+'adf')
-    #    plt.plot(new_it2, new_x2, label=er.experiment_name+'adgt')
-    #    plt.legend()
-    #    y = er.get_all_it_adf('validation', sample=samples, json_name='validation')
-    #    y2 = er.get_all_it_adgt('validation', sample=samples, json_name='validation')
-    #    new_it, new_y = smooth(iterations, y)
-    #    new_it2, new_y2 = smooth(iterations, y2)
-    #    plt.subplot(212)
-    #    plt.plot(new_it, new_y, label=er.experiment_name+'adf')
-    #    plt.plot(new_it2, new_y2, label=er.experiment_name+'adgt')
-    #    plt.legend()
+        er = ExpResult(experiment_name, all_iterations=iterations)
+        #x = er.get_all_it_adf('validation', sample=samples, json_name='validation_saturated_s100')
+        #x2 = er.get_all_it_adgt('validation', sample=samples, json_name='validation_saturated_s100')
+        #new_it, new_x = smooth(iterations, x)
+        #new_it2, new_x2 = smooth(iterations, x2)
+        #plt.subplot(211)
+        #plt.plot(new_it, new_x, label=er.experiment_name+'adf')
+        #plt.plot(new_it2, new_x2, label=er.experiment_name+'adgt')
+        #plt.legend()
+        y = er.get_all_it_adf('validation', sample=samples, json_name='validation')
+        y2 = er.get_all_it_adgt('validation', sample=samples, json_name='validation')
+        y3 = er.get_all_it_gcs('validation', sample=samples, json_name='validation')
+        new_it, new_y = smooth(iterations, y)
+        new_it2, new_y2 = smooth(iterations, y2)
+        new_it3, new_y3 = smooth(iterations, y3)
+        #plt.subplot(212)
+        #plt.plot(new_it, new_y, label=er.experiment_name+'adf')
+        #plt.plot(new_it2, new_y2, label=er.experiment_name+'adgt')
+        plt.plot(new_it3, new_y3, label=er.experiment_name)
+        plt.legend()
     ##    #y = er.get_all_it_adf('validation', sample=samples)
     ##    #plt.plot(iterations, smooth(y), label='ADF: '+ er.experiment_name)
     ##    #z = er.get_all_it_adgt('validation', sample=samples)
     ##    #plt.plot(iterations,smooth(z), label='ADGT: '+ er.experiment_name)
 #
-    #plt.show()
+    plt.show()
     #er = ExpResult('baseline_DTU1', all_iterations=(10000, 20000, 30000))
     #print(er.get_all_it('validation', 'A'))
     ##er = ExpResult('DTU2_150tanh', all_iterations=(10000, 20000, 30000))

@@ -19,4 +19,3 @@ nvidia-docker run --rm \
     /bin/bash -c "export CUDA_VISIBLE_DEVICES=$2;
     PYTHONPATH=${GUNPOWDER_PATH}:\$PYTHONPATH;
     python -u $1 2>&1 | tee -a logfile"
-
