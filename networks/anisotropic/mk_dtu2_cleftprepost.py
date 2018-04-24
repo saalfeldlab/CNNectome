@@ -28,31 +28,39 @@ def train_net():
 
     output_shape = cleft_dist.get_shape().as_list()
 
-    gt_cleft_dist = tf.placeholder(tf.float32, shape=output_shape)
-    gt_pre_dist = tf.placeholder(tf.float32, shape=output_shape)
-    gt_post_dist = tf.placeholder(tf.float32, shape=output_shape)
+    gt_cleft_dist = tf.placeholder(tf.float32, shape=output_shape[1:])
+    gt_pre_dist = tf.placeholder(tf.float32, shape=output_shape[1:])
+    gt_post_dist = tf.placeholder(tf.float32, shape=output_shape[1:])
+    gt_cleft_dist_batched = tf.reshape(gt_cleft_dist, shape=output_shape)
+    gt_pre_dist_batched   = tf.reshape(gt_pre_dist,   shape=output_shape)
+    gt_post_dist_batched  = tf.reshape(gt_post_dist,  shape=output_shape)
 
-    loss_weights = tf.placeholder(tf.float32, shape=output_shape[1:])
-    loss_weights_batched = tf.reshape(loss_weights, shape=output_shape)
+
+    loss_weights_cleft = tf.placeholder(tf.float32, shape=output_shape[1:])
+    loss_weights_pre   = tf.placeholder(tf.float32, shape=output_shape[1:])
+    loss_weights_post  = tf.placeholder(tf.float32, shape=output_shape[1:])
+    loss_weights_cleft_batched = tf.reshape(loss_weights_cleft, shape=output_shape)
+    loss_weights_pre_batched   = tf.reshape(loss_weights_pre,   shape=output_shape)
+    loss_weights_post_batched  = tf.reshape(loss_weights_post,  shape=output_shape)
 
     loss_balanced_cleft = tf.losses.mean_squared_error(
-        gt_cleft_dist,
+        gt_cleft_dist_batched,
         cleft_dist,
-        loss_weights_batched
+        loss_weights_cleft_batched
     )
     loss_balanced_pre = tf.losses.mean_squared_error(
-        gt_pre_dist,
+        gt_pre_dist_batched,
         pre_dist,
-        loss_weights_batched
+        loss_weights_pre_batched
     )
     loss_balanced_post = tf.losses.mean_squared_error(
-        gt_post_dist,
+        gt_post_dist_batched,
         post_dist,
-        loss_weights_batched
+        loss_weights_post_batched
     )
-    loss_unbalanced_cleft = tf.losses.mean_squared_error(gt_cleft_dist, cleft_dist)
-    loss_unbalanced_pre = tf.losses.mean_squared_error(gt_pre_dist, pre_dist)
-    loss_unbalanced_post = tf.losses.mean_squared_error(gt_post_dist, post_dist)
+    loss_unbalanced_cleft = tf.losses.mean_squared_error(gt_cleft_dist_batched, cleft_dist)
+    loss_unbalanced_pre = tf.losses.mean_squared_error(gt_pre_dist_batched, pre_dist)
+    loss_unbalanced_post = tf.losses.mean_squared_error(gt_post_dist_batched, post_dist)
 
     loss_total = loss_balanced_cleft + loss_unbalanced_pre + loss_unbalanced_post
     tf.summary.scalar('loss_balanced_syn', loss_balanced_cleft)
@@ -90,7 +98,9 @@ def train_net():
         'loss_unbalanced_pre': loss_unbalanced_pre.name,
         'loss_unbalanced_post': loss_unbalanced_post.name,
         'loss_total': loss_total.name,
-        'loss_weights': loss_weights.name,
+        'loss_weights_cleft': loss_weights_cleft.name,
+        'loss_weights_pre': loss_weights_pre.name,
+        'loss_weights_post': loss_weights_post.name,
         'optimizer': optimizer.name,
         'summary': merged.name}
 

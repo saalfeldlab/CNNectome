@@ -18,8 +18,14 @@ def make_cleft_to_prepostsyn_neuron_id_dict(csv_files):
         reader.next()
         for row in reader:
             if int(row[10]) != -1:
-                cleft_to_pre[int(row[10])] = int(row[0])
-                cleft_to_post[int(row[10])] = int(row[5])
+                try:
+                    cleft_to_pre[int(row[10])].add(int(row[0]))
+                except KeyError:
+                    cleft_to_pre[int(row[10])] = {int(row[0])}
+                try:
+                    cleft_to_post[int(row[10])].add(int(row[5]))
+                except KeyError:
+                    cleft_to_post[int(row[10])] = {int(row[5])}
     return cleft_to_pre, cleft_to_post
 
 
@@ -29,7 +35,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     ArrayKey('GT_LABELS')
     ArrayKey('GT_CLEFTS')
     ArrayKey('GT_MASK')
-    ArrayKey('GT_SCALE')
+    ArrayKey('CLEFT_SCALE')
+    ArrayKey('PRE_SCALE')
+    ArrayKey('POST_SCALE')
     ArrayKey('LOSS_GRADIENT')
     ArrayKey('GT_CLEFT_DIST')
     ArrayKey('PRED_CLEFT_DIST')
@@ -69,8 +77,6 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     with open('net_io_names.json', 'r') as f:
         net_io_names = json.load(f)
 
-
-
     voxel_size = Coordinate((40, 4, 4))
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
@@ -83,7 +89,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     request.add(ArrayKeys.GT_LABELS, output_size)
     request.add(ArrayKeys.GT_CLEFTS, output_size)
     request.add(ArrayKeys.GT_MASK, output_size)
-    request.add(ArrayKeys.GT_SCALE, output_size)
+    request.add(ArrayKeys.CLEFT_SCALE, output_size)
+    #request.add(ArrayKeys.PRE_SCALE, output_size)
+    #request.add(ArrayKeys.POST_SCALE, output_size)
     request.add(ArrayKeys.GT_CLEFT_DIST, output_size)
     request.add(ArrayKeys.GT_PRE_DIST, output_size)
     request.add(ArrayKeys.GT_POST_DIST, output_size)
@@ -167,12 +175,22 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                                 cleft_to_pre,
                                 cleft_to_post,
                                 normalize='tanh',
-                                normalize_args=dt_scaling_factor
+                                normalize_args=dt_scaling_factor,
+                                include_cleft=True
                                 )+
-        BalanceLabels(ArrayKeys.GT_CLEFTS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK) +
-        #BalanceByThreshold(
-        #    labels=ArrayKeys.GT_DIST,
-        #    scales= ArrayKeys.GT_SCALE) +
+        #BalanceLabels(ArrayKeys.GT_CLEFTS, ArrayKeys.CLEFT_SCALE, ArrayKeys.GT_MASK) +
+        BalanceByThreshold(labels=ArrayKeys.GT_CLEFT_DIST,
+                           scales=ArrayKeys.CLEFT_SCALE,
+                           mask=ArrayKeys.GT_MASK,
+                           threshold=-0.5)+
+        #BalanceByThreshold(labels=ArrayKeys.GT_PRE_DIST,
+        #                   scales=ArrayKeys.PRE_SCALE,
+        #                   mask=ArrayKeys.GT_MASK,
+        #                   threshold=-0.5) +
+        #BalanceByThreshold(labels=ArrayKeys.GT_POST_DIST,
+        #                   scales=ArrayKeys.POST_SCALE,
+        #                   mask=ArrayKeys.GT_MASK,
+        #                   threshold=-0.5) +
           #{
             #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_SCALE
             # },
@@ -191,14 +209,16 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['gt_cleft_dist']: ArrayKeys.GT_CLEFT_DIST,
                 net_io_names['gt_pre_dist']: ArrayKeys.GT_PRE_DIST,
                 net_io_names['gt_post_dist']: ArrayKeys.GT_POST_DIST,
-                net_io_names['loss_weights']: ArrayKeys.GT_SCALE
+                net_io_names['loss_weights_cleft']: ArrayKeys.CLEFT_SCALE,
+                net_io_names['loss_weights_pre']: ArrayKeys.CLEFT_SCALE,
+                net_io_names['loss_weights_post']: ArrayKeys.CLEFT_SCALE
             },
             summary=net_io_names['summary'],
             log_dir='log',
             outputs={
                 net_io_names['cleft_dist']: ArrayKeys.PRED_CLEFT_DIST,
-                net_io_names['pre_dist']:ArrayKeys.PRED_PRE_DIST,
-                net_io_names['post_dist']:ArrayKeys.PRED_POST_DIST
+                net_io_names['pre_dist']: ArrayKeys.PRED_PRE_DIST,
+                net_io_names['post_dist']: ArrayKeys.PRED_POST_DIST
             },
             gradients={
                 net_io_names['cleft_dist']: ArrayKeys.LOSS_GRADIENT
