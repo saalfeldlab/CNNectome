@@ -1,102 +1,6 @@
 from __future__ import print_function
 import tensorflow as tf
-
-
-def conv_pass(
-        fmaps_in,
-        kernel_size,
-        num_fmaps,
-        activation='relu',
-        name='conv_pass',
-        fov=(1, 1, 1),
-        voxel_size=(1, 1, 1),
-        prefix=''):
-    '''Create a convolution pass::
-        f_in --> f_1 --> ... --> f_n
-    where each ``-->`` is a convolution followed by a (non-linear) activation
-    function and ``n`` ``num_repetitions``. Each convolution will decrease the
-    size of the feature maps by ``kernel_size-1``.
-    Args:
-        f_in:
-            The input tensor of shape ``(batch_size, channels, depth, height, width)``.
-        kernel_size:
-            List of sizes of kernels. Length determines number of convolutional layers.
-            Kernel size forwarded to tf.layers.conv3d.
-        num_fmaps:
-            The number of feature maps to produce with each convolution.
-        activation:
-            Which activation to use after a convolution. Accepts the name of any
-            tensorflow activation function (e.g., ``relu`` for ``tf.nn.relu``).
-        name:
-            Base name for the conv layer.
-        fov:
-            Field of view of fmaps_in, in physical units.
-        voxel_size:
-            Size of a voxel in the input data, in physical units.
-
-
-    '''
-
-    fmaps = fmaps_in
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-
-    for i, ks in enumerate(kernel_size):
-        fov = tuple(f + (k-1) * vs for f, k, vs in zip(fov, ks, voxel_size))
-        print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
-        fmaps = tf.layers.conv3d(
-            inputs=fmaps,
-            filters=num_fmaps,
-            kernel_size=ks,
-            padding='valid',
-            data_format='channels_first',
-            activation=activation,
-            name=name + '_%i'%i)
-
-    return fmaps, fov
-
-
-def downsample(fmaps_in, factors, num_fmaps, name='down', fov=(1,1,1), voxel_size=(1, 1, 1), prefix='',
-               activation='relu'):
-    #fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-    voxel_size = tuple(vs * fac for vs, fac in zip(voxel_size, factors))
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
-    fmaps = tf.layers.conv3d(
-        inputs=fmaps_in,
-        filters=num_fmaps,
-        kernel_size=factors,
-        strides=factors,
-        padding='valid',
-        data_format='channels_first',
-        activation=activation,
-        name=name)
-
-    return fmaps, fov, voxel_size
-
-
-def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up', fov=(1, 1, 1), voxel_size=(1, 1, 1),
-             prefix=''):
-
-    voxel_size = tuple(vs / fac for vs, fac in zip(voxel_size, factors))
-
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-
-    fmaps = tf.layers.conv3d_transpose(
-        fmaps_in,
-        filters=num_fmaps,
-        kernel_size=factors,
-        strides=factors,
-        padding='valid',
-        data_format='channels_first',
-        activation=activation,
-        name=name)
-
-    return fmaps, voxel_size
-
+import ops3d
 
 def strided_autoencoder(
         fmaps_in,
@@ -168,7 +72,7 @@ def strided_autoencoder(
     # convolve
     with tf.name_scope("lev%i"%layer):
 
-        f_left, fov = conv_pass(
+        f_left, fov = ops3d.conv_pass(
             fmaps_in,
             kernel_size=kernel_size_down[layer],
             num_fmaps=num_fmaps,
@@ -189,7 +93,7 @@ def strided_autoencoder(
 
         # downsample
 
-        g_in, fov, voxel_size = downsample(
+        g_in, fov, voxel_size = ops3d.downsample_stridedconv(
             f_left,
             downsample_factors[layer],
             num_fmaps=num_fmaps,
@@ -215,7 +119,7 @@ def strided_autoencoder(
         print(prefix + "g_out: " + str(g_out.shape))
 
         # upsample
-        g_out_upsampled, voxel_size = upsample(
+        g_out_upsampled, voxel_size = ops3d.upsample(
             g_out,
             downsample_factors[layer],
             num_fmaps,
@@ -228,7 +132,7 @@ def strided_autoencoder(
         print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 
         # convolve
-        f_out,  fov = conv_pass(
+        f_out,  fov = ops3d.conv_pass(
             g_out_upsampled,
             kernel_size=kernel_size_up[layer],
             num_fmaps=num_fmaps,
@@ -255,7 +159,7 @@ if __name__ == "__main__":
                              [(3, 3, 3), (3, 3, 3)]],
                              voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    output, full_fov = conv_pass(
+    output, full_fov = ops3d.conv_pass(
         model,
         kernel_size=[(1, 1, 1)],
         num_fmaps=1,

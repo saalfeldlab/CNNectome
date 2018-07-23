@@ -1,4 +1,4 @@
-from networks import unet
+from networks import unet, ops3d
 import tensorflow as tf
 import json
 
@@ -15,7 +15,7 @@ def train_net():
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    logits_batched, fov = unet.conv_pass(
+    logits_batched, fov = ops3d.conv_pass(
         last_fmap,
         kernel_size=[[1, 1, 1]],
         num_fmaps=2,
@@ -85,7 +85,7 @@ def inference_net():
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    logits_batched, fov = unet.conv_pass(
+    logits_batched, fov = ops3d.conv_pass(
         last_fmap,
         kernel_size=[[1, 1, 1]],
         num_fmaps=2,

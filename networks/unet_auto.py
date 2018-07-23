@@ -1,137 +1,22 @@
 import tensorflow as tf
 import numpy as np
-
-def conv_pass(
-        fmaps_in,
-        kernel_size,
-        num_fmaps,
-        num_repetitions,
-        activation='relu',
-        name='conv_pass'):
-    '''Create a convolution pass::
-        f_in --> f_1 --> ... --> f_n
-    where each ``-->`` is a convolution followed by a (non-linear) activation
-    function and ``n`` ``num_repetitions``. Each convolution will decrease the
-    size of the feature maps by ``kernel_size-1``.
-    Args:
-        f_in:
-            The input tensor of shape ``(batch_size, channels, depth, height, width)``.
-        kernel_size:
-            Size of the kernel. Forwarded to tf.layers.conv3d.
-        num_fmaps:
-            The number of feature maps to produce with each convolution.
-        num_repetitions:
-            How many convolutions to apply.
-        activation:
-            Which activation to use after a convolution. Accepts the name of any
-            tensorflow activation function (e.g., ``relu`` for ``tf.nn.relu``).
-    '''
-
-    fmaps = fmaps_in
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-
-    for i in range(num_repetitions):
-        fmaps = tf.layers.conv3d(
-            inputs=fmaps,
-            filters=num_fmaps,
-            kernel_size=kernel_size,
-            padding='valid',
-            data_format='channels_first',
-            activation=activation,
-            name=name + '_%i'%i)
-
-    return fmaps
-
-
-def crossmod_conv_pass(
-        fmaps_in,
-        pmaps_in,
-        num_fmaps,
-        activation='relu',
-        name='crossmod_conv_pass'):
-    in_ch, z = fmaps_in.get_shape().as_list()[1:3]
-    in_pred_ch, z_pred = pmaps_in.get_shape().as_list()[1:3]
-    assert in_ch == in_pred_ch
-    assert z == z_pred
-
-    fp_maps = tf.concat([fmaps_in, pmaps_in], 2)
-    num_mods = fp_maps.get_shape().as_list()[2]/z
-    f = tf.get_variable('crossmod_filter_of_' + name, (num_mods, 1, 1, in_ch, num_fmaps), trainable=True)
-    return tf.nn.convolution(input=fp_maps, filter=f, padding='VALID', strides=[1, 1, 1],
-                             dilation_rate=[z, 1, 1], data_format='NCDHW', name=name)
-
-
-
-def downsample(fmaps_in, factors, name='down'):
-    fmaps = tf.layers.max_pooling3d(
-        fmaps_in,
-        pool_size=factors,
-        strides=factors,
-        padding='valid',
-        data_format='channels_first',
-        name=name)
-
-    return fmaps
-
-
-def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up'):
-
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-
-    fmaps = tf.layers.conv3d_transpose(
-        fmaps_in,
-        filters=num_fmaps,
-        kernel_size=factors,
-        strides=factors,
-        padding='valid',
-        data_format='channels_first',
-        activation=activation,
-        name=name)
-
-    return fmaps
-
-
-def crop_zyx(fmaps_in, shape):
-    '''Crop only the spacial dimensions to match shape.
-    Args:
-        fmaps_in:
-            The input tensor.
-        shape:
-            A list (not a tensor) with the requested shape [_, _, z, y, x].
-    '''
-
-    in_shape = fmaps_in.get_shape().as_list()
-
-    offset = [
-        0, # batch
-        0, # channel
-        (in_shape[2] - shape[2])//2, # z
-        (in_shape[3] - shape[3])//2, # y
-        (in_shape[4] - shape[4])//2, # x
-    ]
-    size = [
-        in_shape[0],
-        in_shape[1],
-        shape[2],
-        shape[3],
-        shape[4],
-    ]
-
-    fmaps = tf.slice(fmaps_in, offset, size)
-
-    return fmaps
-
+import ops3d
+import warnings
 
 def unet_auto(
         fmaps_in,
         pmaps_in,
         num_fmaps,
-        fmap_inc_factor,
+        fmap_inc_factors,
         downsample_factors,
+        fkernel_size_down,
+        pkernel_size_down,
+        kernel_size_up,
         activation='relu',
-        layer=0):
+        layer=0,
+        fov=(1, 1, 1),
+        voxel_size=(1, 1, 1)
+        ):
     '''Create a U-Net::
         f_in --> f_left --------------------------->> f_right--> f_out
                     |                                   ^
@@ -150,45 +35,70 @@ def unet_auto(
     Args:
         fmaps_in:
             The input tensor.
+        pmaps_in:
+            TODO
         num_fmaps:
             The number of feature maps in the first layer. This is also the
             number of output feature maps.
-        fmap_inc_factor:
+        fmap_inc_factors:
             By how much to multiply the number of feature maps between layers.
             If layer 0 has ``k`` feature maps, layer ``l`` will have
             ``k*fmap_inc_factor**l``.
         downsample_factors:
             List of lists ``[z, y, x]`` to use to down- and up-sample the
             feature maps between layers.
+        kernel_size_down:
+            List of lists of tuples ``(z, y, x)`` of kernel sizes. The number of
+            tuples in a list determines the number of convolutional layers in the
+            corresponding level of the build on the left side.
+        kernel_size_up:
+            List of lists of tuples ``(z, y, x)`` of kernel sizes. The number of
+            tuples in a list determines the number of convolutional layers in the
+            corresponding level of the build on the right side. Within one of the
+            lists going from left to right.
         activation:
             Which activation to use after a convolution. Accepts the name of any
             tensorflow activation function (e.g., ``relu`` for ``tf.nn.relu``).
         layer:
             Used internally to build the U-Net recursively.
+        fov:
+            Initial field of view in physical units
+        voxel_size:
+            Size of a voxel in the input data, in physical units
     '''
 
     prefix = "    "*layer
     print(prefix + "Creating U-Net layer %i"%layer)
     print(prefix + "f_in: " + str(fmaps_in.shape))
-
+    if isinstance(fmap_inc_factors, int):
+        fmap_inc_factors = [fmap_inc_factors] * len(downsample_factors)
+    assert len(fmap_inc_factors) == len(downsample_factors) == len(fkernel_size_down) - 1 == len(pkernel_size_down) \
+                                                                                             -1==len(kernel_size_up) - 1
+    if layer == 0:
+        warnings.warn('FOV calculation does not respect autocontext yet')
     # convolve
-    f_left = conv_pass(
+    f_left, fov = ops3d.conv_pass(
         fmaps_in,
-        kernel_size=3,
+        kernel_size=fkernel_size_down[layer],
         num_fmaps=num_fmaps,
-        num_repetitions=2,
         activation=activation,
-        name='unet_layer_%i_left'%layer)
+        name='unet_layer_%i_left'%layer,
+        fov=fov,
+        voxel_size=voxel_size,
+        prefix=prefix
+    )
 
-    p_left = conv_pass(
+    p_left, _ = ops3d.conv_pass(
         pmaps_in,
-        kernel_size=3,
+        kernel_size=pkernel_size_down[layer],
         num_fmaps=num_fmaps,
-        num_repetitions=2,
         activation=activation,
-        name='unet_layer_pred_%i_left'%layer)
+        name='unet_layer_pred_%i_left'%layer,
+        fov=fov,
+        voxel_size=voxel_size,
+        prefix=prefix)
 
-    fp_left = crossmod_conv_pass(
+    fp_left = ops3d.crossmod_conv_pass(
         f_left, p_left,
         num_fmaps=num_fmaps,
         activation=activation,
@@ -200,43 +110,55 @@ def unet_auto(
     if bottom_layer:
         print(prefix + "bottom layer")
         print(prefix + "f_out: " + str(f_left.shape))
-        return fp_left
+        return fp_left, fov, voxel_size
 
     # downsample
-    g_in = downsample(
+    g_in,fov,voxel_size = ops3d.downsample(
         fp_left,
         downsample_factors[layer],
-        'unet_down_%i_to_%i'%(layer, layer + 1))
+        'unet_down_%i_to_%i'%(layer, layer + 1),
+        fov=fov,
+        voxel_size=voxel_size,
+        prefix=prefix)
 
-    q_in = downsample(
+    q_in, _, _ = ops3d.downsample(
         p_left,
         downsample_factors[layer],
         'unet_down_pred_%i_to_%i'%(layer, layer + 1))
 
     # recursive U-net
-    g_out = unet_auto(
+    g_out, fov, voxel_size = unet_auto(
         g_in,
         q_in,
-        num_fmaps=num_fmaps*fmap_inc_factor,
-        fmap_inc_factor=fmap_inc_factor,
+        num_fmaps=num_fmaps*fmap_inc_factors[layer],
+        fmap_inc_factors=fmap_inc_factors,
         downsample_factors=downsample_factors,
+        fkernel_size_down=fkernel_size_down,
+        pkernel_size_down=pkernel_size_down,
+        kernel_size_up=kernel_size_up,
         activation=activation,
-        layer=layer+1)
+        layer=layer+1,
+        fov=fov,
+        voxel_size=voxel_size)
 
     print(prefix + "g_out: " + str(g_out.shape))
 
     # upsample
-    g_out_upsampled = upsample(
+    g_out_upsampled, voxel_size = ops3d.upsample(
         g_out,
         downsample_factors[layer],
         num_fmaps,
         activation=activation,
-        name='unet_up_%i_to_%i'%(layer + 1, layer))
+        name='unet_up_%i_to_%i'%(layer + 1, layer),
+        fov=fov,
+        voxel_size=voxel_size,
+        prefix=prefix
+    )
 
     print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 
     # copy-crop
-    fp_left_cropped = crop_zyx(fp_left, g_out_upsampled.get_shape().as_list())
+    fp_left_cropped = ops3d.crop_zyx(fp_left, g_out_upsampled.get_shape().as_list())
 
     print(prefix + "fp_left_cropped: " + str(fp_left_cropped.shape))
 
@@ -246,29 +168,15 @@ def unet_auto(
     print(prefix + "f_right: " + str(f_right.shape))
 
     # convolve
-    f_out = conv_pass(
+    f_out, fov = ops3d.conv_pass(
         f_right,
-        kernel_size=3,
+        kernel_size=kernel_size_up[layer],
         num_fmaps=num_fmaps,
-        num_repetitions=2,
-        name='unet_layer_%i_right'%layer)
+        name='unet_layer_%i_right'%layer,
+        fov=fov,
+        voxel_size=voxel_size,
+        prefix=prefix)
 
     print(prefix + "f_out: " + str(f_out.shape))
 
-    return f_out
-
-if __name__ == "__main__":
-
-    # test
-    raw = tf.placeholder(tf.float32, shape=(1, 1, 84, 268, 268))
-
-    model = unet(raw, 12, 5, [[1,3,3],[1,3,3],[1,3,3]])
-    tf.train.export_meta_graph(filename='unet.meta')
-
-    with tf.Session() as session:
-        session.run(tf.initialize_all_variables())
-        tf.summary.FileWriter('.', graph=tf.get_default_graph())
-        # writer = tf.train.SummaryWriter(logs_path, graph=tf.get_default_graph())
-
-
-    print(model.shape)
+    return f_out, fov, voxel_size

@@ -1,4 +1,4 @@
-import networks
+from networks import unet_auto, ops3d
 import tensorflow as tf
 import json
 
@@ -10,14 +10,24 @@ if __name__ == "__main__":
     pred = tf.placeholder(tf.float32, shape=(132,)*3)
     pred_batched = tf.reshape(pred, (1,1,)+(132,)*3)
 
-    unet = networks.unet_auto(raw_batched, pred_batched, 24, 3, [2, 2, 2])
+    last_fmap, fov, anisotropy = unet_auto.unet_auto(raw_batched, pred_batched, 24, 3,
+                                                     [[2, 2, 2], [2, 2, 2], [2, 2, 2]],
+                                                     [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
+                                                      [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
+                                                     [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
+                                                      [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3,3)]],
+                                                     [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
+                                                      [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]]
+                                                     )
 
-    affs_batched = networks.conv_pass(
-        unet,
-        kernel_size=1,
+    affs_batched, fov = ops3d.conv_pass(
+        last_fmap,
+        kernel_size=[[1,1,1]],
         num_fmaps=3,
-        num_repetitions=1,
-        activation='sigmoid')
+        activation='sigmoid',
+        fov=fov,
+        voxel_size=anisotropy
+    )
 
     output_shape_batched = affs_batched.get_shape().as_list()
     output_shape = output_shape_batched[1:] # strip the batch dimension
