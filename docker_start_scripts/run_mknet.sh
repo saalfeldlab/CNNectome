@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NAME=$(basename $(pwd)-training)
+NAME=$(basename $(pwd)-mknet)
 USER_ID=${UID}
 GUNPOWDER_PATH=$(readlink -f $HOME/Projects/git_repos/gunpowder)
 TRAIN_PATH=$(readlink -f $HOME/Projects/CNNectome)
