@@ -1,11 +1,12 @@
 from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance
+from gunpowder.contrib import ZeroOutConstSections, AddDistance
 import tensorflow as tf
 import os
 import math
 import json
+import logging
 
 
 def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
@@ -69,9 +70,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(ArrayKeys.RAW, Coordinate((8, 8, 8)) * voxel_size)+
-        Pad(ArrayKeys.GT_MASK, Coordinate((8, 8, 8)) * voxel_size)+
-        Pad(ArrayKeys.TRAINING_MASK, Coordinate((8, 8, 8)) * voxel_size)+
+        Pad(ArrayKeys.RAW, None) +
+        Pad(ArrayKeys.GT_MASK, None) +
+        Pad(ArrayKeys.TRAINING_MASK, None)+
         RandomLocation() + # chose a random location inside the provided arrays
         Reject(ArrayKeys.GT_MASK) + # reject batches wich do contain less than 50% labelled data
         Reject(ArrayKeys.TRAINING_MASK, min_masked=0.99) +
@@ -127,11 +128,16 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         #GrowBoundary(steps=1) +
         #SplitAndRenumberSegmentationLabels() +
         #AddGtAffinities(malis.mknhood3d()) +
-        AddBoundaryDistance(label_array_key=ArrayKeys.GT_LABELS,
-                            distance_array_key=ArrayKeys.GT_DIST,
-                            normalize='tanh',
-                            normalize_args=dt_scaling_factor
-                            ) +
+        #AddBoundaryDistance(label_array_key=ArrayKeys.GT_LABELS,
+        #                    distance_array_key=ArrayKeys.GT_DIST,
+        #                    normalize='tanh',
+        #                    normalize_args=dt_scaling_factor
+        #                    ) +
+        AddDistance(label_array_key=ArrayKeys.GT_LABELS,
+                    distance_array_key=ArrayKeys.GT_DIST,
+                    normalize='tanh',
+                    normalize_args=dt_scaling_factor
+                    ) +
         BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK) +
         #BalanceByThreshold(
         #    labels=ArrayKeys.GT_DIST,
@@ -186,7 +192,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
 
 if __name__ == "__main__":
-    set_verbose(False)
+    logging.basicConfig(level=logging.INFO)
     data_sources = ['A', 'B', 'C']#, 'B', 'C']
     input_shape = (43, 430, 430)
     output_shape = (23, 218, 218)

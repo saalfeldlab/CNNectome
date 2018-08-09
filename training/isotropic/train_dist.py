@@ -6,7 +6,7 @@ import tensorflow as tf
 import os
 import math
 import json
-
+import logging
 
 def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
     ArrayKey('RAW')
@@ -66,8 +66,8 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(ArrayKeys.RAW, Coordinate((100, 100, 100)) * voxel_size)+
-        Pad(ArrayKeys.GT_MASK, Coordinate((100, 100, 100)) * voxel_size)+
+        Pad(ArrayKeys.RAW, None) +
+        Pad(ArrayKeys.GT_MASK, None) +
 
         RandomLocation() + # chose a random location inside the provided volumes
         Reject() # reject batches wich do contain less than 50% labelled data
@@ -174,11 +174,11 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     print("Training finished")
 
 if __name__ == "__main__":
-    set_verbose(False)
+    logging.basicConfig(level=logging.INFO)
     data_sources = ['fib25h5']#, 'fib19h5']
     max_iteration = 400000
     dt_scaling_factor = 50
     input_shape = (430,430,430)
     output_shape = (218,218,218)
     loss_name = 'loss_balanced_syn'
-    train_until(max_iteration, data_sources, input_Shape, output_shape, dt_scaling_factor, loss_name)
+    train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name)

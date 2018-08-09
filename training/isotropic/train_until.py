@@ -130,7 +130,7 @@ def train_until(max_iteration, data_sources):
         #    artifact_source=artifact_source,
         #    contrast_scale=0.5) +
         Train(
-            'unet',
+            'build',
             optimizer=net_io_names['optimizer'],
             loss=net_io_names['loss'],
             summary=net_io_names['summary'],

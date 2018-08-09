@@ -1,12 +1,13 @@
 from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance
+from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance, AddDistance
 import tensorflow as tf
 import malis
 import os
 import math
 import json
+import logging
 
 
 def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
@@ -80,14 +81,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(
-            {
-                ArrayKeys.RAW: Coordinate((8, 8, 8)) * voxel_size,
-                ArrayKeys.GT_MASK: Coordinate((8, 8, 8)) * voxel_size,
-                ArrayKeys.TRAINING_MASK: Coordinate((8, 8, 8)) * voxel_size
-              #ArrayKeys.GT_LABELS: Coordinate((100, 100, 100)) * voxel_size # added later
-            }
-        ) +
+        Pad(ArrayKeys.RAW, None) +
+        Pad(ArrayKeys.GT_MASK, None) +
+        Pad(ArrayKeys.TRAINING_MASK, None) +
         RandomLocation() + # chose a random location inside the provided arrays
         Reject(ArrayKeys.GT_MASK) + # reject batches wich do contain less than 50% labelled data
         Reject(ArrayKeys.TRAINING_MASK, min_masked=0.99) +
@@ -119,7 +115,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         Normalize(ArrayKeys.RAW) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         ElasticAugment((4, 40, 40), (0, 2, 2), (0, math.pi/2.0), subsample=8) +
-        SimpleAugment(transpose_only_xy=True)
+        SimpleAugment(transpose_only=[1,2])
     )
 
     train_pipeline = (
@@ -128,7 +124,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         ElasticAugment((4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
                        prob_slip=0.05, prob_shift=0.05, max_misalign=10,
                        subsample=8) +
-        SimpleAugment(transpose_only_xy=True) +
+        SimpleAugment(transpose_only=[1,2]) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         DefectAugment(ArrayKeys.RAW,
                       prob_missing=0.03,
@@ -149,7 +145,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         #GrowBoundary(steps=1) +
         #SplitAndRenumberSegmentationLabels() +
         #AddGtAffinities(malis.mknhood3d(), ArrayKeys.GT_LABELS, ArrayKeys.GT_BDY_DIST) +
-        AddBoundaryDistance(label_array_key=ArrayKeys.GT_SYN_LABELS,
+        AddDistance(label_array_key=ArrayKeys.GT_SYN_LABELS,
                             distance_array_key=ArrayKeys.GT_SYN_DIST,
                             normalize='tanh',
                             normalize_args=dt_scaling_factor
@@ -214,10 +210,10 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
 
 if __name__ == "__main__":
-    set_verbose(False)
+    logging.basicConfig(level=logging.INFO)
     data_sources = ['A', 'B', 'C']
-    input_shape = (84, 268, 268)
-    output_shape = (56, 56, 56)
+    input_shape = (43, 430, 430)
+    output_shape = (23, 218, 218)
     dt_scaling_factor = 50
     max_iteration = 400000
     loss_name = 'loss_total'

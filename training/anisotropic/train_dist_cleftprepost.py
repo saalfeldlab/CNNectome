@@ -1,13 +1,13 @@
 from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance, AddPrePostCleftDistance
+from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance, AddDistance, AddPrePostCleftDistance
 import tensorflow as tf
 import os
 import math
 import json
 import csv
-
+import logging
 
 def make_cleft_to_prepostsyn_neuron_id_dict(csv_files):
     cleft_to_pre = dict()
@@ -80,8 +80,6 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     voxel_size = Coordinate((40, 4, 4))
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
-    # input_size = Coordinate((132,)*3) * voxel_size
-    # output_size = Coordinate((44,)*3) * voxel_size
 
     # specifiy which Arrays should be requested for each batch
     request = BatchRequest()
@@ -104,8 +102,8 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(ArrayKeys.RAW, Coordinate((8, 8, 8)) * voxel_size) +
-        Pad(ArrayKeys.GT_MASK, Coordinate((8, 8, 8)) * voxel_size) +
+        Pad(ArrayKeys.RAW, None) +
+        Pad(ArrayKeys.GT_MASK, None) +
         RandomLocation() + # chose a random location inside the provided arrays
         Reject(ArrayKeys.GT_MASK) + # reject batches which do contain less than 50% labelled data
         Reject(ArrayKeys.GT_CLEFTS, min_masked=0.0, reject_probability=0.95)
@@ -163,11 +161,11 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         #GrowBoundary(steps=1) +
         #SplitAndRenumberSegmentationLabels() +
         #AddGtAffinities(malis.mknhood3d()) +
-        AddBoundaryDistance(label_array_key=ArrayKeys.GT_CLEFTS,
-                            distance_array_key=ArrayKeys.GT_CLEFT_DIST,
-                            normalize='tanh',
-                            normalize_args=dt_scaling_factor
-                            ) +
+        AddDistance(label_array_key=ArrayKeys.GT_CLEFTS,
+                    distance_array_key=ArrayKeys.GT_CLEFT_DIST,
+                    normalize='tanh',
+                    normalize_args=dt_scaling_factor
+                    ) +
         AddPrePostCleftDistance(ArrayKeys.GT_CLEFTS,
                                 ArrayKeys.GT_LABELS,
                                 ArrayKeys.GT_PRE_DIST,
@@ -176,9 +174,11 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                                 cleft_to_post,
                                 normalize='tanh',
                                 normalize_args=dt_scaling_factor,
-                                include_cleft=True
+                                include_cleft=False
                                 )+
-        #BalanceLabels(ArrayKeys.GT_CLEFTS, ArrayKeys.CLEFT_SCALE, ArrayKeys.GT_MASK) +
+        #BalanceLabels(ArrayKeys.GT_CLEFTS, ArrayKeys.CLEFT_SCALE, ArrayKeys.GT_MASK) + # does not work in this case
+        # because the node (unneccesarily) requires labels to be binary but we need the cleft ids for the pre/post
+        # assignment
         BalanceByThreshold(labels=ArrayKeys.GT_CLEFT_DIST,
                            scales=ArrayKeys.CLEFT_SCALE,
                            mask=ArrayKeys.GT_MASK,
@@ -250,7 +250,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
 
 if __name__ == "__main__":
-    set_verbose(False)
+    logging.basicConfig(level=logging.INFO)
     data_sources = ['A', 'B', 'C']#, 'B', 'C']
     input_shape = (43, 430, 430)
     output_shape = (23, 218, 218)

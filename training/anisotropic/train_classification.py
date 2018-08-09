@@ -6,9 +6,10 @@ import tensorflow as tf
 import os
 import math
 import json
+import logging
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
+def train_until(max_iteration, data_sources, input_shape, output_shape, loss_name):
     ArrayKey('RAW')
     ArrayKey('ALPHA_MASK')
     ArrayKey('GT_LABELS')
@@ -76,14 +77,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
-        Pad(
-            {
-                ArrayKeys.RAW: Coordinate((100, 100, 100)) * voxel_size,
-                ArrayKeys.GT_MASK: Coordinate((100, 100, 100)) * voxel_size,
-                ArrayKeys.TRAINING_MASK: Coordinate((100, 100, 100)) * voxel_size
-               #ArrayKeys.GT_LABELS: Coordinate((100, 100, 100)) * voxel_size # added later
-            }
-        ) +
+        Pad(ArrayKeys.RAW, None)+
+        Pad(ArrayKeys.GT_MASK, None) +
+        Pad(ArrayKeys.TRAINING_MASK, None)+
         RandomLocation() + # chose a random location inside the provided arrays
         Reject(ArrayKeys.GT_MASK) + # reject batches wich do contain less than 50% labelled data
         Reject(ArrayKeys.TRAINING_MASK, min_masked=.99) +
@@ -112,7 +108,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         Normalize(ArrayKeys.RAW) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         ElasticAugment((4, 40, 40), (0, 2, 2), (0, math.pi/2.0), subsample=8) +
-        SimpleAugment(transpose_only_xy=True)
+        SimpleAugment(transpose_only=[1, 2])
     )
 
     train_pipeline = (
@@ -121,7 +117,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         ElasticAugment((4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
                        prob_slip=0.05, prob_shift=0.05, max_misalign=10,
                        subsample=8) +
-        SimpleAugment(transpose_only_xy=True) +
+        SimpleAugment(transpose_only=[1,2]) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         DefectAugment(ArrayKeys.RAW,
                       prob_missing=0.03,
@@ -133,20 +129,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                       contrast_scale=0.5) +
         IntensityScaleShift(ArrayKeys.RAW, 2, -1) +
         ZeroOutConstSections(ArrayKeys.RAW) +
-
-        #GrowBoundary(steps=1) +
-        #SplitAndRenumberSegmentationLabels() +
-        #AddGtAffinities(malis.mknhood3d()) +
         BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK) +
-        #BalanceByThreshold(
-        #    labels=ArrayKeys.GT_DIST,
-        #    scales= ArrayKeys.GT_SCALE) +
-          #{
-            #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_SCALE
-            # },
-            # {
-            #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_MASK
-            # }) +
         PreCache(
             cache_size=40,
             num_workers=10) +
@@ -161,13 +144,13 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['loss_weights']: ArrayKeys.GT_SCALE
             },
             summary=net_io_names['summary'],
-            log_dir='log', ##gradients={},
+            log_dir='log',
             outputs={
                 net_io_names['probabilities']: ArrayKeys.PREDICTED_PROB,
                 net_io_names['predictions']: ArrayKeys.PREDICTED_LABELS}
             ,
             gradients={
-                #net_io_names['probabilities']: ArrayKeys.LOSS_GRADIENT
+
             }
              ) +
         Snapshot({
@@ -175,7 +158,6 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 ArrayKeys.GT_LABELS:             'volumes/labels/gt_clefts',
                 ArrayKeys.PREDICTED_LABELS:      'volumes/labels/pred_clefts',
                 ArrayKeys.PREDICTED_PROB:        'volumes/labels/pred_prob',
-                #ArrayKeys.LOSS_GRADIENT:         'volumes/loss_gradient',
             },
             every=500,
             output_filename='batch_{iteration}.hdf',
@@ -193,11 +175,10 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
 
 if __name__ == "__main__":
-    set_verbose(False)
+    logging.basicConfig(level=logging.INFO)
     data_sources = ['A', 'B', 'C']
-    input_shape = (84, 268, 268)
-    output_shape = (56, 56, 56)
-    dt_scaling_factor = 50
+    input_shape = (43, 430, 430)
+    output_shape = (23, 218, 218)
     max_iteration = 400000
     loss_name = 'loss_balanced_syn'
-    train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name)
+    train_until(max_iteration, data_sources, input_shape, output_shape, loss_name)

@@ -1,12 +1,13 @@
 from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance
+from gunpowder.contrib import ZeroOutConstSections, AddDistance
 import tensorflow as tf
 import os
 import math
 import json
 import numpy as np
+import logging
 
 def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
     raw = ArrayKey('RAW')
@@ -99,15 +100,16 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         #GrowBoundary(steps=1) +
         #SplitAndRenumberSegmentationLabels() +
         #AddGtAffinities(malis.mknhood3d()) +
-        AddBoundaryDistance(label_array_key=clefts,
+        AddDistance(label_array_key=clefts,
                             distance_array_key=gt_dist,
                             normalize='tanh',
                             normalize_args=dt_scaling_factor
                             ) +
-        BalanceLabels(clefts, scale, mask) +
-        #BalanceByThreshold(
-        #    labels=ArrayKeys.GT_DIST,
-        #    scales= ArrayKeys.GT_SCALE) +
+
+        #BalanceLabels(clefts, scale, mask) +
+        BalanceByThreshold(
+            labels=ArrayKeys.GT_DIST,
+            scales= ArrayKeys.GT_SCALE) +
           #{
             #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_SCALE
             # },
@@ -157,7 +159,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
 
 if __name__ == "__main__":
-    set_verbose(False)
+    logging.basicConfig(level=logging.INFO)
     data_sources = ['01', '02', '03']#, 'B', 'C']
     input_shape = (196, 196, 196)
     output_shape = (92, 92, 92)
