@@ -6,16 +6,16 @@ import json
 def train_net():
     input_shape = (43, 430, 430)
     raw = tf.placeholder(tf.float32, shape=input_shape)
-    raw_batched = tf.reshape(raw, (1, 1,) + input_shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
 
-    last_fmap, fov, anisotropy = unet.unet(raw_batched, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
+    last_fmap, fov, anisotropy = unet.unet(raw_bc, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    dist_batched, fov = ops3d.conv_pass(
+    dist_bc, fov = ops3d.conv_pass(
             last_fmap,
             kernel_size=[[1, 1, 1]],
             num_fmaps=1,
@@ -24,21 +24,21 @@ def train_net():
             voxel_size=anisotropy
             )
 
-    output_shape_batched = dist_batched.get_shape().as_list()
+    output_shape_bc = dist_bc.get_shape().as_list()
 
-    output_shape = output_shape_batched[1:] # strip the batch dimension
+    output_shape_c = output_shape_bc[1:] # strip the batch dimension
+    output_shape = output_shape_c[1:] # strip the channel dimension
 
-    dist = tf.reshape(dist_batched, output_shape)
+    dist = tf.reshape(dist_bc, output_shape)
 
     gt_dist = tf.placeholder(tf.float32, shape=output_shape)
 
-    loss_weights = tf.placeholder(tf.float32, shape=output_shape[1:])
-    loss_weights_batched = tf.reshape(loss_weights, shape=output_shape)
+    loss_weights = tf.placeholder(tf.float32, shape=output_shape)
 
     loss_balanced = tf.losses.mean_squared_error(
         gt_dist,
         dist,
-        loss_weights_batched
+        loss_weights
     )
     tf.summary.scalar('loss_balanced', loss_balanced)
 
@@ -73,16 +73,16 @@ def train_net():
 def inference_net():
     input_shape = (91, 862, 862)
     raw = tf.placeholder(tf.float32, shape=input_shape)
-    raw_batched = tf.reshape(raw, (1, 1,) + input_shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
 
-    last_fmap, fov, anisotropy = unet.unet(raw_batched, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
+    last_fmap, fov, anisotropy = unet.unet(raw_bc, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    dist_batched, fov = ops3d.conv_pass(
+    dist_bc, fov = ops3d.conv_pass(
         last_fmap,
         kernel_size=[[1, 1, 1]],
         num_fmaps=1,
@@ -91,11 +91,12 @@ def inference_net():
         voxel_size=anisotropy
     )
 
-    output_shape_batched = dist_batched.get_shape().as_list()
+    output_shape_bc = dist_bc.get_shape().as_list()
 
-    output_shape = output_shape_batched[1:]
+    output_shape_c = output_shape_bc[1:]
+    output_shape = output_shape_c[1:]
 
-    dist = tf.reshape(dist_batched, output_shape)
+    dist = tf.reshape(dist_bc, output_shape)
 
     tf.train.export_meta_graph(filename='unet_inference.meta')
 

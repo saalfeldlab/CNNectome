@@ -6,16 +6,16 @@ import json
 def train_net():
     input_shape = (84, 268, 268)
     raw = tf.placeholder(tf.float32, shape=input_shape)
-    raw_batched = tf.reshape(raw, (1, 1,) + input_shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
 
-    last_fmap, fov, anisotropy = unet.unet(raw_batched, 12, 6, [[1, 3, 3], [1, 3, 3], [1, 3, 3]],
+    last_fmap, fov, anisotropy = unet.unet(raw_bc, 12, 6, [[1, 3, 3], [1, 3, 3], [1, 3, 3]],
                                            [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    logits_batched, fov = ops3d.conv_pass(
+    logits_bc, fov = ops3d.conv_pass(
         last_fmap,
         kernel_size=[[1, 1, 1]],
         num_fmaps=2,
@@ -24,22 +24,22 @@ def train_net():
         voxel_size=anisotropy
     )
 
-    output_shape_batched = logits_batched.get_shape().as_list()
+    output_shape_bc = logits_bc.get_shape().as_list()
 
-    output_shape = output_shape_batched[1:]  # strip the batch dimension
-    flat_logits = tf.transpose(tf.reshape(tensor=logits_batched, shape=(2,-1)))
+    output_shape_c = output_shape_bc[1:]  # strip the batch dimension
+    output_shape = output_shape_c[1:]
+    flat_logits = tf.transpose(tf.reshape(tensor=logits_bc, shape=(2, -1)))
 
-
-    gt_labels = tf.placeholder(tf.float32, shape=output_shape[1:])
+    gt_labels = tf.placeholder(tf.float32, shape=output_shape)
     gt_labels_flat = tf.reshape(gt_labels, (-1,))
 
     gt_bg = tf.to_float(tf.not_equal(gt_labels_flat, 1))
     flat_ohe = tf.stack(values=[gt_labels_flat, gt_bg], axis=1)
     
-    loss_weights = tf.placeholder(tf.float32, shape=output_shape[1:])
+    loss_weights = tf.placeholder(tf.float32, shape=output_shape)
     loss_weights_flat = tf.reshape(loss_weights, (-1,))
-    print(logits_batched.get_shape().as_list())
-    probabilities = tf.reshape(tf.nn.softmax(logits_batched, dim=1)[0], output_shape)
+
+    probabilities = tf.reshape(tf.nn.softmax(logits_bc, dim=1)[0], output_shape_c)
     predictions = tf.argmax(probabilities, axis=0)
 
     ce_loss_balanced = tf.losses.softmax_cross_entropy(flat_ohe, flat_logits, weights=loss_weights_flat)
@@ -76,16 +76,16 @@ def train_net():
 def inference_net():
     input_shape = (88, 808, 808)
     raw = tf.placeholder(tf.float32, shape=input_shape)
-    raw_batched = tf.reshape(raw, (1, 1,) + input_shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
 
-    last_fmap, fov, anisotropy = unet.unet(raw_batched, 12, 6, [[1, 3, 3], [1, 3, 3], [1, 3, 3]],
+    last_fmap, fov, anisotropy = unet.unet(raw_bc, 12, 6, [[1, 3, 3], [1, 3, 3], [1, 3, 3]],
                                            [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    logits_batched, fov = ops3d.conv_pass(
+    logits_bc, fov = ops3d.conv_pass(
         last_fmap,
         kernel_size=[[1, 1, 1]],
         num_fmaps=2,
@@ -94,11 +94,12 @@ def inference_net():
         voxel_size=anisotropy
     )
 
-    output_shape_batched = logits_batched.get_shape().as_list()
+    output_shape_bc = logits_bc.get_shape().as_list()
 
-    output_shape = output_shape_batched[1:]  # strip the batch dimension
+    output_shape_c = output_shape_bc[1:]  # strip the batch dimension
+    output_shape = output_shape_c[1:]  # strip the channel dimension
 
-    probabilities = tf.reshape(tf.nn.softmax(logits_batched, dim=1)[0], output_shape)
+    probabilities = tf.reshape(tf.nn.softmax(logits_bc, dim=1)[0], output_shape_c)
     predictions = tf.argmax(probabilities, axis=0)
 
     tf.train.export_meta_graph(filename='unet_inference.meta')

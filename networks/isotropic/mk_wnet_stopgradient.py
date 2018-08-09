@@ -11,63 +11,63 @@ def train_net():
     shape_2 = (44,)*3
     ignore = False
 
-    affs_0_batched = tf.ones((1, 3,) + shape_0)*0.5
+    affs_0_bc = tf.ones((1, 3,) + shape_0)*0.5
 
     with tf.variable_scope('autocontext') as scope:
 
         # phase 1
-
         raw_0 = tf.placeholder(tf.float32, shape=shape_0)
-        raw_0_batched = tf.reshape(raw_0, (1, 1) + shape_0)
+        raw_0_bc = tf.reshape(raw_0, (1, 1) + shape_0)
 
-        input_0 = tf.concat([raw_0_batched, affs_0_batched], 1)
+        input_0_bc = tf.concat([raw_0_bc, affs_0_bc], 1)
         if ignore:
-            keep_raw = tf.ones_like(raw_0_batched)
-            ignore_aff = tf.zeros_like(affs_0_batched)
-            ignore_mask = tf.concat([keep_raw, ignore_aff], 1)
-            input_0 = custom_ops.ignore(input_0, ignore_mask)
+            keep_raw_bc = tf.ones_like(raw_0_bc)
+            ignore_aff_bc = tf.zeros_like(affs_0_bc)
+            ignore_mask_bc = tf.concat([keep_raw_bc, ignore_aff_bc], 1)
+            input_0_bc = custom_ops.ignore(input_0_bc, ignore_mask_bc)
 
-        out, fov, anisotropy = unet.unet(input_0, 24, 3, [[2, 2, 2],[2, 2, 2], [2, 2, 2]],
+        out_bc, fov, anisotropy = unet.unet(input_0_bc, 24, 3,
+                                         [[2, 2, 2], [2, 2, 2], [2, 2, 2]],
                          [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                           [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                          [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                           [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]])
 
-        affs_1_batched, fov = ops3d.conv_pass(
-            out,
-            kernel_size=[[1,1,1]],
+        affs_1_bc, fov = ops3d.conv_pass(
+            out_bc,
+            kernel_size=[[1, 1, 1]],
             num_fmaps=3,
             activation='sigmoid',
             fov=fov,
             voxel_size=anisotropy)
 
-        affs_1 = tf.reshape(affs_1_batched, (3,) + shape_1)
-        gt_affs_1 = tf.placeholder(tf.float32, shape=(3,) + shape_1)
-        loss_weights_1 = tf.placeholder(tf.float32, shape=(3,) + shape_1)
+        affs_1_c = tf.reshape(affs_1_bc, (3,) + shape_1)
+        gt_affs_1_c = tf.placeholder(tf.float32, shape=(3,) + shape_1)
+        loss_weights_1_c = tf.placeholder(tf.float32, shape=(3,) + shape_1)
 
         loss_1 = tf.losses.mean_squared_error(
-            gt_affs_1,
-            affs_1,
-            loss_weights_1)
+            gt_affs_1_c,
+            affs_1_c,
+            loss_weights_1_c)
 
         # phase 2
         tf.summary.scalar('loss_pred0', loss_1)
         scope.reuse_variables()
-        tf.stop_gradient(affs_1_batched)
+        tf.stop_gradient(affs_1_bc)
         raw_1 = ops3d.center_crop(raw_0, shape_1)
-        raw_1_batched = tf.reshape(raw_1, (1, 1) + shape_1)
+        raw_1_bc = tf.reshape(raw_1, (1, 1) + shape_1)
 
-        input_1 = tf.concat([raw_1_batched, affs_1_batched], 1)
+        input_1_bc = tf.concat([raw_1_bc, affs_1_bc], 1)
 
-        out, fov, anisotropy = unet.unet(input_1, 24, 3, [[2, 2, 2],[2, 2, 2], [2, 2, 2]],
+        out_bc, fov, anisotropy = unet.unet(input_1_bc, 24, 3, [[2, 2, 2],[2, 2, 2], [2, 2, 2]],
                          [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                           [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                          [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                           [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                          fov=fov, voxel_size=anisotropy)
 
-        affs_2_batched, fov = ops3d.conv_pass(
-            out,
+        affs_2_bc, fov = ops3d.conv_pass(
+            out_bc,
             kernel_size=[[1,1,1]],
             num_fmaps=3,
             activation='sigmoid',
@@ -75,14 +75,14 @@ def train_net():
             voxel_size=anisotropy)
 
 
-        affs_2 = tf.reshape(affs_2_batched, (3,) + shape_2)
-        gt_affs_2 = ops3d.center_crop(gt_affs_1, (3,) + shape_2)
-        loss_weights_2 = ops3d.center_crop(loss_weights_1, (3,) + shape_2)
+        affs_2_c = tf.reshape(affs_2_bc, (3,) + shape_2)
+        gt_affs_2_c = ops3d.center_crop(gt_affs_1_c, (3,) + shape_2)
+        loss_weights_2_c = ops3d.center_crop(loss_weights_1_c, (3,) + shape_2)
 
         loss_2 = tf.losses.mean_squared_error(
-            gt_affs_2,
-            affs_2,
-            loss_weights_2)
+            gt_affs_2_c,
+            affs_2_c,
+            loss_weights_2_c)
         tf.summary.scalar('loss_pred1', loss_2)
     loss = loss_1 + loss_2
     tf.summary.scalar('loss_total', loss)
@@ -102,10 +102,10 @@ def train_net():
 
     names = {
         'raw': raw_0.name,
-        'affs_1': affs_1.name,
-        'affs_2': affs_2.name,
-        'gt_affs_1': gt_affs_1.name,
-        'loss_weights_1': loss_weights_1.name,
+        'affs_1': affs_1_c.name,
+        'affs_2': affs_2_c.name,
+        'gt_affs': gt_affs_1_c.name,
+        'loss_weights': loss_weights_1_c.name,
         'loss': loss.name,
         'optimizer': optimizer.name,
         'summary': merged.name}

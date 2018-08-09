@@ -27,23 +27,22 @@ def train_net():
     output_shape_bc = dist_bc.get_shape().as_list()
 
     output_shape_c = output_shape_bc[1:]  # strip the batch dimension
+    output_shape = output_shape_c[1:]  # strip the channel dimension
 
-    dist_c = tf.reshape(dist_bc, output_shape_c)
+    dist = tf.reshape(dist_bc, output_shape)
 
-    gt_dist = tf.placeholder(tf.float32, shape=output_shape_c[1:])
-    gt_dist_c = tf.reshape(gt_dist, shape=output_shape_c)
+    gt_dist = tf.placeholder(tf.float32, shape=output_shape)
 
-    loss_weights = tf.placeholder(tf.float32, shape=output_shape_c[1:])
-    loss_weights_c = tf.reshape(loss_weights, shape=output_shape_c)
+    loss_weights = tf.placeholder(tf.float32, shape=output_shape)
 
     loss_balanced = tf.losses.mean_squared_error(
-        gt_dist_c,
-        dist_c,
-        loss_weights_c
+        gt_dist,
+        dist,
+        loss_weights
     )
     tf.summary.scalar('loss_balanced_syn', loss_balanced)
 
-    loss_unbalanced = tf.losses.mean_squared_error(gt_dist_c, dist_c)
+    loss_unbalanced = tf.losses.mean_squared_error(gt_dist, dist)
     tf.summary.scalar('loss_unbalanced_syn', loss_unbalanced)
 
     opt = tf.train.AdamOptimizer(
@@ -59,7 +58,7 @@ def train_net():
 
     names = {
         'raw': raw.name,
-        'dist': dist_c.name,
+        'dist': dist.name,
         'gt_dist': gt_dist.name,
         'loss_balanced_syn': loss_balanced.name,
         'loss_unbalanced_syn': loss_unbalanced.name,
@@ -95,8 +94,9 @@ def inference_net():
     output_shape_bc = dist_bc.get_shape().as_list()
 
     output_shape_c = output_shape_bc[1:]
+    output_shape = output_shape_c[1:]
 
-    dist_c = tf.reshape(dist_bc, output_shape_c)
+    dist = tf.reshape(dist_bc, output_shape)
 
     tf.train.export_meta_graph(filename='unet_inference.meta')
 

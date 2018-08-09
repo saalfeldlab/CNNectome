@@ -161,6 +161,7 @@ def crossmod_conv_pass(
     return tf.nn.convolution(input=fp_maps, filter=f, padding='VALID', strides=[1, 1, 1],
                       dilation_rate=[z, 1, 1], data_format='NCDHW', name=name)
 
+
 def center_crop(tensor, size):
 
     shape = tensor.get_shape().as_list()

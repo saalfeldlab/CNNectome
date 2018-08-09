@@ -6,16 +6,16 @@ import json
 def train_net():
     input_shape = (43, 430, 430)
     raw = tf.placeholder(tf.float32, shape=input_shape)
-    raw_batched = tf.reshape(raw, (1, 1,) + input_shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
 
-    last_fmap, fov, anisotropy = unet.unet(raw_batched, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
+    last_fmap, fov, anisotropy = unet.unet(raw_bc, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    dist_batched, fov = ops3d.conv_pass(
+    dist_bc, fov = ops3d.conv_pass(
             last_fmap,
             kernel_size=[[1, 1, 1]],
             num_fmaps=3,
@@ -23,44 +23,38 @@ def train_net():
             fov=fov,
             voxel_size=anisotropy
             )
+    output_shape_bc = dist_bc.get_shape().as_list()
+    output_shape_c = output_shape_bc[1:]
+    output_shape = output_shape_c[1:]
+    dist_c = tf.reshape(dist_bc, shape=output_shape_c)
+    cleft_dist, pre_dist, post_dist = tf.unstack(dist_c, 3, axis=0)
 
-    cleft_dist, pre_dist, post_dist = tf.unstack(dist_batched, 3, axis=1)
+    gt_cleft_dist = tf.placeholder(tf.float32, shape=output_shape)
+    gt_pre_dist = tf.placeholder(tf.float32, shape=output_shape)
+    gt_post_dist = tf.placeholder(tf.float32, shape=output_shape)
 
-    output_shape = cleft_dist.get_shape().as_list()
-
-    gt_cleft_dist = tf.placeholder(tf.float32, shape=output_shape[1:])
-    gt_pre_dist = tf.placeholder(tf.float32, shape=output_shape[1:])
-    gt_post_dist = tf.placeholder(tf.float32, shape=output_shape[1:])
-    gt_cleft_dist_batched = tf.reshape(gt_cleft_dist, shape=output_shape)
-    gt_pre_dist_batched   = tf.reshape(gt_pre_dist,   shape=output_shape)
-    gt_post_dist_batched  = tf.reshape(gt_post_dist,  shape=output_shape)
-
-
-    loss_weights_cleft = tf.placeholder(tf.float32, shape=output_shape[1:])
-    loss_weights_pre   = tf.placeholder(tf.float32, shape=output_shape[1:])
-    loss_weights_post  = tf.placeholder(tf.float32, shape=output_shape[1:])
-    loss_weights_cleft_batched = tf.reshape(loss_weights_cleft, shape=output_shape)
-    loss_weights_pre_batched   = tf.reshape(loss_weights_pre,   shape=output_shape)
-    loss_weights_post_batched  = tf.reshape(loss_weights_post,  shape=output_shape)
+    loss_weights_cleft = tf.placeholder(tf.float32, shape=output_shape)
+    loss_weights_pre   = tf.placeholder(tf.float32, shape=output_shape)
+    loss_weights_post  = tf.placeholder(tf.float32, shape=output_shape)
 
     loss_balanced_cleft = tf.losses.mean_squared_error(
-        gt_cleft_dist_batched,
+        gt_cleft_dist,
         cleft_dist,
-        loss_weights_cleft_batched
+        loss_weights_cleft
     )
     loss_balanced_pre = tf.losses.mean_squared_error(
-        gt_pre_dist_batched,
+        gt_pre_dist,
         pre_dist,
-        loss_weights_pre_batched
+        loss_weights_pre
     )
     loss_balanced_post = tf.losses.mean_squared_error(
-        gt_post_dist_batched,
+        gt_post_dist,
         post_dist,
-        loss_weights_post_batched
+        loss_weights_post
     )
-    loss_unbalanced_cleft = tf.losses.mean_squared_error(gt_cleft_dist_batched, cleft_dist)
-    loss_unbalanced_pre = tf.losses.mean_squared_error(gt_pre_dist_batched, pre_dist)
-    loss_unbalanced_post = tf.losses.mean_squared_error(gt_post_dist_batched, post_dist)
+    loss_unbalanced_cleft = tf.losses.mean_squared_error(gt_cleft_dist, cleft_dist)
+    loss_unbalanced_pre = tf.losses.mean_squared_error(gt_pre_dist, pre_dist)
+    loss_unbalanced_post = tf.losses.mean_squared_error(gt_post_dist, post_dist)
 
     loss_total = loss_balanced_cleft + loss_unbalanced_pre + loss_unbalanced_post
     tf.summary.scalar('loss_balanced_syn', loss_balanced_cleft)
@@ -111,16 +105,16 @@ def train_net():
 def inference_net():
     input_shape = (91, 862, 862)
     raw = tf.placeholder(tf.float32, shape=input_shape)
-    raw_batched = tf.reshape(raw, (1, 1,) + input_shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
 
-    last_fmap, fov, anisotropy = unet.unet(raw_batched, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
+    last_fmap, fov, anisotropy = unet.unet(raw_bc, 12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)],
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    dist_batched, fov = ops3d.conv_pass(
+    dist_bc, fov = ops3d.conv_pass(
             last_fmap,
             kernel_size=[[1, 1, 1]],
             num_fmaps=3,
@@ -128,8 +122,11 @@ def inference_net():
             fov=fov,
             voxel_size=anisotropy
             )
-
-    cleft_dist, pre_dist, post_dist = tf.unstack(dist_batched, 3, axis=1)
+    output_shape_bc = dist_bc.get_shape().as_list()
+    output_shape_c = output_shape_bc[1:]
+    #output_shape = output_shape_c[1:]
+    dist_c = tf.reshape(dist_bc, shape=output_shape_c)
+    cleft_dist, pre_dist, post_dist = tf.unstack(dist_c, 3, axis=0)
 
     tf.train.export_meta_graph(filename='unet_inference.meta')
 
