@@ -45,7 +45,7 @@ class UNet(object):
 
         step = np.prod(self.downsample_factors, axis=0)
 
-        return min_input_size, step
+        return min_input_size.astype(np.int), step
 
 
     def unet(self,
@@ -218,30 +218,34 @@ class UNet(object):
 
 
 if __name__ == "__main__":
-    raw = tf.placeholder(tf.float32, shape=(43, 430, 430))
-    raw_batched = tf.reshape(raw, (1, 1,) + (43, 430, 430))
-
-    model, ll_fov, vx = unet(raw_batched,
+    model = UNet(
                              12, 6, [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
                              [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                              [(3, 3, 3), (3, 3, 3)]],
                              [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)], [(3, 3, 3), (3, 3, 3)],
                              [(3, 3, 3), (3, 3, 3)]],
-                             voxel_size=(10, 1, 1), fov=(10, 1, 1))
-
-    output, full_fov = conv_pass(
-        model,
+                             input_voxel_size=(10, 1, 1), input_fov=(10, 1, 1))
+    min_shape, stepsize = model.compute_valid_input_shape()
+    print("min shape:", min_shape)
+    print("step input shape:", stepsize)
+    shape = tuple(min_shape + 12 * stepsize)
+    print("choose input shape:", shape)
+    raw = tf.placeholder(tf.float32, shape=shape)
+    raw_bc = tf.reshape(raw, (1, 1,) + shape)
+    unet_out, fov, vx = model.unet(raw_bc)
+    output, full_fov = ops3d.conv_pass(
+        unet_out,
         kernel_size=[(1, 1, 1)],
         num_fmaps=1,
         activation=None,
-        fov=ll_fov,
+        fov=fov,
         voxel_size=vx
         )
 
-    tf.train.export_meta_graph(filename='build.meta')
+    tf.train.export_meta_graph(filename='unet.meta')
 
     with tf.Session() as session:
-        session.run(tf.initialize_all_variables())
+        session.run(tf.global_variables_initializer())
         tf.summary.FileWriter('.', graph=tf.get_default_graph())
 
-    print(model.shape)
+    print(output.shape)
