@@ -5,7 +5,7 @@ import ops3d
 import warnings
 
 
-class CombNet(object):
+class ScaleNet(object):
     def __init__(self, list_of_serialunets, input_shape):
         #highest to lowest resolution
         self.list_of_serialunets = list_of_serialunets
@@ -348,7 +348,7 @@ if __name__ == "__main__":
                        [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]])
     print(unet0.min_input_shape, unet0.min_output_shape, unet0.min_bottom_shape, unet0.step_valid_shape)
     print(unet1.min_input_shape, unet1.min_output_shape, unet1.min_bottom_shape, unet1.step_valid_shape)
-    comb = CombNet([unet0, unet1], unet0.min_input_shape)
+    comb = ScaleNet([unet0, unet1], unet0.min_input_shape)
     print(comb.padding_orig_vx)
     raw = tf.placeholder(tf.float32, shape=unet0.min_input_shape)
     raw_batched = tf.reshape(raw, (1, 1,) + tuple(unet0.min_input_shape.astype(np.int)))
