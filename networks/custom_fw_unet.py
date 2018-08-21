@@ -1,127 +1,6 @@
 from __future__ import print_function
 import tensorflow as tf
-
-
-def conv_pass(
-        fmaps_in,
-        kernel_size,
-        num_fmaps,
-        activation='relu',
-        name='conv_pass',
-        fov=(1, 1, 1),
-        voxel_size=(1, 1, 1),
-        prefix=''):
-    '''Create a convolution pass::
-        f_in --> f_1 --> ... --> f_n
-    where each ``-->`` is a convolution followed by a (non-linear) activation
-    function and ``n`` ``num_repetitions``. Each convolution will decrease the
-    size of the feature maps by ``kernel_size-1``.
-    Args:
-        f_in:
-            The input tensor of shape ``(batch_size, channels, depth, height, width)``.
-        kernel_size:
-            List of sizes of kernels. Length determines number of convolutional layers.
-            Kernel size forwarded to tf.layers.conv3d.
-        num_fmaps:
-            The number of feature maps to produce with each convolution.
-        activation:
-            Which activation to use after a convolution. Accepts the name of any
-            tensorflow activation function (e.g., ``relu`` for ``tf.nn.relu``).
-        name:
-            Base name for the conv layer.
-        fov:
-            Field of view of fmaps_in, in physical units.
-        voxel_size:
-            Size of a voxel in the input data, in physical units.
-
-
-    '''
-
-    fmaps = fmaps_in
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-
-    for i, ks in enumerate(kernel_size):
-        fov = tuple(f + (k-1) * vs for f, k, vs in zip(fov, ks, voxel_size))
-        print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
-        fmaps = tf.layers.conv3d(
-            inputs=fmaps,
-            filters=num_fmaps,
-            kernel_size=ks,
-            padding='valid',
-            data_format='channels_first',
-            activation=activation,
-            name=name + '_%i'%i)
-
-    return fmaps, fov
-
-
-def downsample(fmaps_in, factors, name='down', fov=(1,1,1), voxel_size=(1, 1, 1), prefix=''):
-    #fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
-    voxel_size = tuple(vs * fac for vs, fac in zip(voxel_size, factors))
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
-    fmaps = tf.layers.max_pooling3d(
-        fmaps_in,
-        pool_size=factors,
-        strides=factors,
-        padding='valid',
-        data_format='channels_first',
-        name=name)
-
-    return fmaps, fov, voxel_size
-
-
-def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up', fov=(1, 1, 1), voxel_size=(1, 1, 1),
-             prefix=''):
-
-    voxel_size = tuple(vs / fac for vs, fac in zip(voxel_size, factors))
-
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
-    if activation is not None:
-        activation = getattr(tf.nn, activation)
-
-    fmaps = tf.layers.conv3d_transpose(
-        fmaps_in,
-        filters=num_fmaps,
-        kernel_size=factors,
-        strides=factors,
-        padding='valid',
-        data_format='channels_first',
-        activation=activation,
-        name=name)
-
-    return fmaps, voxel_size
-
-
-def crop_zyx(fmaps_in, shape):
-    '''Crop only the spacial dimensions to match shape.
-    Args:
-        fmaps_in:
-            The input tensor.
-        shape:
-            A list (not a tensor) with the requested shape [_, _, z, y, x].
-    '''
-
-    in_shape = fmaps_in.get_shape().as_list()
-
-    offset = [
-        0, # batch
-        0, # channel
-        (in_shape[2] - shape[2])//2, # z
-        (in_shape[3] - shape[3])//2, # y
-        (in_shape[4] - shape[4])//2, # x
-    ]
-    size = [
-        in_shape[0],
-        in_shape[1],
-        shape[2],
-        shape[3],
-        shape[4],
-    ]
-
-    fmaps = tf.slice(fmaps_in, offset, size)
-
-    return fmaps
+import ops3d
 
 
 def unet(
@@ -196,7 +75,7 @@ def unet(
     # convolve
     with tf.name_scope("lev%i"%layer):
 
-        f_left, fov = conv_pass(
+        f_left, fov = ops3d.conv_pass(
             fmaps_in,
             kernel_size=kernel_size_down[layer],
             num_fmaps=num_fmaps_down[layer],
@@ -217,7 +96,7 @@ def unet(
 
         # downsample
 
-        g_in, fov, voxel_size = downsample(
+        g_in, fov, voxel_size = ops3d.downsample(
             f_left,
             downsample_factors[layer],
             'unet_down_%i_to_%i'%(layer, layer + 1),
@@ -242,7 +121,7 @@ def unet(
         print(prefix + "g_out: " + str(g_out.shape))
 
         # upsample
-        g_out_upsampled, voxel_size = upsample(
+        g_out_upsampled, voxel_size = ops3d.upsample(
             g_out,
             downsample_factors[layer],
             num_fmaps_up[layer],
@@ -255,7 +134,7 @@ def unet(
         print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 
         # copy-crop
-        f_left_cropped = crop_zyx(f_left, g_out_upsampled.get_shape().as_list())
+        f_left_cropped = ops3d.crop_zyx(f_left, g_out_upsampled.get_shape().as_list())
 
         print(prefix + "f_left_cropped: " + str(f_left_cropped.shape))
 
@@ -265,7 +144,7 @@ def unet(
         print(prefix + "f_right: " + str(f_right.shape))
 
         # convolve
-        f_out,  fov = conv_pass(
+        f_out,  fov = ops3d.conv_pass(
             f_right,
             kernel_size=kernel_size_up[layer],
             num_fmaps=num_fmaps_up[layer],
@@ -293,7 +172,7 @@ if __name__ == "__main__":
                              [(3, 3, 3), (3, 3, 3)]],
                              voxel_size=(10, 1, 1), fov=(10, 1, 1))
 
-    output, full_fov = conv_pass(
+    output, full_fov = ops3d.conv_pass(
         model,
         kernel_size=[(1, 1, 1)],
         num_fmaps=1,

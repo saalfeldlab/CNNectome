@@ -15,7 +15,7 @@ def train_net(labels):
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(1, 1, 1), fov=(1, 1, 1))
 
-    dist_bc, fov = unet.conv_pass(
+    dist_bc, fov = ops3d.conv_pass(
             last_fmap,
             kernel_size=[[1, 1, 1]],
             num_fmaps=len(labels),
@@ -91,7 +91,7 @@ def inference_net(labels):
                                             [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
                                            voxel_size=(1, 1, 1), fov=(1, 1, 1))
 
-    dist_bc, fov = unet.conv_pass(
+    dist_bc, fov = ops3d.conv_pass(
             last_fmap,
             kernel_size=[[1, 1, 1]],
             num_fmaps=len(labels),
