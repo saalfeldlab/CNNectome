@@ -35,6 +35,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     ArrayKey('GT_LABELS')
     ArrayKey('GT_CLEFTS')
     ArrayKey('GT_MASK')
+    ArrayKey('TRAINING_MASK')
     ArrayKey('CLEFT_SCALE')
     ArrayKey('PRE_SCALE')
     ArrayKey('POST_SCALE')
@@ -62,11 +63,13 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 ArrayKeys.RAW: 'volumes/raw',
                 ArrayKeys.GT_CLEFTS: 'volumes/labels/clefts',
                 ArrayKeys.GT_MASK: 'volumes/masks/groundtruth',
+                ArrayKeys.TRAINING_MASK: 'volumes/masks/training',
                 ArrayKeys.GT_LABELS: 'volumes/labels/neuron_ids'
             },
             array_specs={
                 ArrayKeys.GT_MASK: ArraySpec(interpolatable=False),
-                ArrayKeys.GT_CLEFTS: ArraySpec(interpolatable=False)
+                ArrayKeys.GT_CLEFTS: ArraySpec(interpolatable=False),
+                ArrayKeys.TRAINING_MASK: ArraySpec(interpolatable=False)
             }
         )
         data_providers.append(h5_source)
@@ -80,13 +83,14 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     voxel_size = Coordinate((40, 4, 4))
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
-
+    context = input_size-output_size
     # specifiy which Arrays should be requested for each batch
     request = BatchRequest()
     request.add(ArrayKeys.RAW, input_size)
     request.add(ArrayKeys.GT_LABELS, output_size)
     request.add(ArrayKeys.GT_CLEFTS, output_size)
     request.add(ArrayKeys.GT_MASK, output_size)
+    request.add(ArrayKeys.TRAINING_MASK,output_size)
     request.add(ArrayKeys.CLEFT_SCALE, output_size)
     #request.add(ArrayKeys.PRE_SCALE, output_size)
     #request.add(ArrayKeys.POST_SCALE, output_size)
@@ -104,8 +108,9 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # size more or less irrelevant as followed by Reject Node
         Pad(ArrayKeys.RAW, None) +
         Pad(ArrayKeys.GT_MASK, None) +
-        RandomLocation() + # chose a random location inside the provided arrays
-        Reject(ArrayKeys.GT_MASK) + # reject batches which do contain less than 50% labelled data
+        Pad(ArrayKeys.TRAINING_MASK, context) +
+        RandomLocation(min_masked=0.99, mask=ArrayKeys.TRAINING_MASK) + # chose a random location inside the provided arrays
+        Reject(ArrayKeys.GT_MASK)+ # reject batches which do contain less than 50% labelled data
         Reject(ArrayKeys.GT_CLEFTS, min_masked=0.0, reject_probability=0.95)
         for provider in data_providers)
 
@@ -136,14 +141,14 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         Normalize(ArrayKeys.RAW) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         ElasticAugment((4, 40, 40), (0, 2, 2), (0, math.pi/2.0), subsample=8) +
-        SimpleAugment(transpose_only=[1,2], mirror_only=[1,2])
+        SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2])
     )
 
     train_pipeline = (
         data_sources +
         RandomProvider() +
-        ElasticAugment((4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
-                       prob_slip=0.05, prob_shift=0.05, max_misalign=10,
+        ElasticAugment((4, 40, 40), (0., 0., 0.), (0, math.pi/2.0),
+                       prob_slip=0.0, prob_shift=0.0, max_misalign=0,
                        subsample=8) +
         SimpleAugment(transpose_only=[1,2], mirror_only=[1,2]) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
@@ -161,7 +166,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         #GrowBoundary(steps=1) +
         #SplitAndRenumberSegmentationLabels() +
         #AddGtAffinities(malis.mknhood3d()) +
-        AddDistance(label_array_key=ArrayKeys.GT_CLEFTS,
+        AddBoundaryDistance(label_array_key=ArrayKeys.GT_CLEFTS,
                     distance_array_key=ArrayKeys.GT_CLEFT_DIST,
                     normalize='tanh',
                     normalize_args=dt_scaling_factor
@@ -181,8 +186,16 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # assignment
         BalanceByThreshold(labels=ArrayKeys.GT_CLEFT_DIST,
                            scales=ArrayKeys.CLEFT_SCALE,
-                           mask=ArrayKeys.GT_MASK,
-                           threshold=-0.5)+
+                           mask=ArrayKeys.TRAINING_MASK) +
+        BalanceByThreshold(labels=ArrayKeys.GT_PRE_DIST,
+                           scales=ArrayKeys.PRE_SCALE,
+                           mask=ArrayKeys.TRAINING_MASK,
+                           threshold=-0.5) +
+        BalanceByThreshold(labels=ArrayKeys.GT_POST_DIST,
+                           scales=ArrayKeys.POST_SCALE,
+                           mask=ArrayKeys.TRAINING_MASK,
+                           threshold=-0.5) +
+
         #BalanceByThreshold(labels=ArrayKeys.GT_PRE_DIST,
         #                   scales=ArrayKeys.PRE_SCALE,
         #                   mask=ArrayKeys.GT_MASK,
