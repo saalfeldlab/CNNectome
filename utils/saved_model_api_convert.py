@@ -83,6 +83,7 @@ def store(graph_name, target):
             signature_def_map={'predict_images': signature}
             )
         builder.save(as_text=True)
+
 def load():
     sess = tf.Session()
     signature_key = tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY

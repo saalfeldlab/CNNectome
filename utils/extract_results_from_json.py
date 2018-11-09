@@ -4,10 +4,14 @@ import matplotlib.pyplot as plt
 class ResultFile:
     def __init__(self,experiment_name, sample, iteration, mode='validation', json_name='validation'):
         self.mode = mode
-        jsonfile = '/nrs/saalfeld/heinrichl/synapses/miccai_experiments/{0:}/{1}.n5/it_{2:}/{3:}.json'.format(
+        jsonfile = 'synapses/{0:}/{1}.n5/it_{2:}/{3:}.json'.format(
             experiment_name, sample, iteration, json_name)
-        with open(jsonfile, 'r') as f:
-            self.results = json.load(f)
+        try:
+            with open('/nrs/saalfeld/heinrichl/'+jsonfile, 'r') as f:
+                self.results = json.load(f)
+        except IOError:
+            with open('/nearline/saalfeld/larissa/'+jsonfile, 'r') as f:
+                self.results = json.load(f)
 
     def get_adgt(self):
         if self.mode == 'training':
@@ -202,9 +206,14 @@ if __name__ == '__main__':
     # 'DTU2_Conly',
     #main()
     samples = ('A', 'B', 'C')
-    experiment_names = ['baseline_DTU2', 'DTU2_100tanh', 'DTU2_150tanh']
+    experiment_names = ['downsampling_techniques/0309_01', 'downsampling_techniques/0315_01',
+                        'downsampling_techniques/0315_02', 'downsampling_techniques/0316_01',
+                        'miccai_experiments/baseline_DTU2']
     for experiment_name in experiment_names:
-        iterations = tuple(range(2000, 84000, 2000))
+        if 'miccai' in experiment_name:
+            iterations = tuple(range(2000, 84000, 2000))
+        else:
+            iterations = tuple(range(10000, 410000, 10000))
     #    if experiment_name == 'DTU2_Bonly':
     #        iterations = tuple(range(2000, 42000, 2000))
         er = ExpResult(experiment_name, all_iterations=iterations)
@@ -225,7 +234,7 @@ if __name__ == '__main__':
         #plt.subplot(212)
         #plt.plot(new_it, new_y, label=er.experiment_name+'adf')
         #plt.plot(new_it2, new_y2, label=er.experiment_name+'adgt')
-        plt.plot(new_it3, new_y3, label=er.experiment_name)
+        plt.plot(iterations, y3, label=er.experiment_name)
         plt.legend()
     ##    #y = er.get_all_it_adf('validation', sample=samples)
     ##    #plt.plot(iterations, smooth(y), label='ADF: '+ er.experiment_name)

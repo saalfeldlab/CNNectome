@@ -111,7 +111,7 @@ if __name__ == '__main__':
     label_data = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_C_cleftsonly_bin.hdf',
                            'r')['volumes/labels/clefts']
     print(label_data.shape)
-    target_file = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/gunpowder/cremi/gt_xz.h5', 'w')
+    target_file = h5py.File('/nrs/saalfeld/heinrichl/synapses/tests/gt_xz.h5', 'w')
     if 'resolution' in label_data.attrs:
         voxel_size = tuple(label_data.attrs['resolution'])
         print('yes')
