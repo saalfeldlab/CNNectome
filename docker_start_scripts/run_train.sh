@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 WD=$(pwd)
-NAME=$(basename $(pwd)-training)
+NAME=$(basename $(pwd))
+NAME=$(basename $(dirname $(pwd)))-$NAME-training
 USER_ID=${UID}
 GUNPOWDER_PATH=$(readlink -f $HOME/Projects/git_repos/gunpowder/)
 TRAIN_PATH=$(readlink -f $HOME/Projects/CNNectome/)
