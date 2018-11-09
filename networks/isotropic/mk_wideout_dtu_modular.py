@@ -58,7 +58,7 @@ def train_net(labels):
     optimizer = opt.minimize(loss_total)
     merged = tf.summary.merge_all()
 
-    tf.train.export_meta_graph(filename='build.meta')
+    tf.train.export_meta_graph(filename='unet.meta')
 
     names = {
         'raw': raw.name,
