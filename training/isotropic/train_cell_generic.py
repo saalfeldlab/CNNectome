@@ -8,24 +8,55 @@ import math
 import json
 import sys
 import logging
+import collections
 print("syspath", sys.path)
 import z5py
 
-class Label(object):
-    def __init__(self, labelname, labelid, scale_loss=True, scale_key=None):
-        self.labelname= labelname
-        self.labelid = labelid
 
+class Label(object):
+    def __init__(self, labelname, labelid, scale_loss=True, scale_key=None,
+                 data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
+                 data_sources= ('hela_cell2_crop1_110618', ), ):
+
+        self.labelname= labelname
+        if not isinstance(labelid, collections.Iterable):
+            labelid = (labelid, )
+        self.labelid = labelid
         self.gt_dist_key = ArrayKey('GT_DIST_'+self.labelname.upper())
         self.pred_dist_key = ArrayKey('PRED_DIST_'+self.labelname.upper())
         self.scale_loss = scale_loss
+        self.data_dir = data_dir
+        self.data_sources = data_sources
+        self.total_voxels = compute_total_voxels(self.data_dir, self.data_sources)
+        num = 0
+        for ds in data_sources:
+            zf = z5py.File(data_dir.format(ds), use_zarr_format=False)
+            for l in labelid:
+                if l in zf['volumes/labels/all'].attrs['relabeled_ids']:
+                    num += zf['volumes/labels/all'].attrs['relabeld_counts'][zf['volumes/labels/all'].attrs[
+                        'relabeled_ids'].index(l)]
+        if num > 0:
+            self.class_weight = float(self.total_voxels) / num
+        else:
+            self.class_weight = 0.
+        print(labelname, self.class_weight)
         if self.scale_loss:
             self.scale_key = ArrayKey('SCALE_'+self.labelname.upper())
         if scale_key is not None:
             self.scale_key = scale_key
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, labels):
+def compute_total_voxels(data_dir, data_sources):
+    voxels = 0
+    for ds in data_sources:
+        zf = z5py.File(data_dir.format(ds), use_zarr_format=False)
+        for c in zf['volumes/labels/all'].attrs['orig_counts']:
+            voxels += c
+    return voxels
+
+
+def train_until(max_iteration, data_sources, labeled_voxels, input_shape, output_shape, dt_scaling_factor, loss_name,
+                labels):
     ArrayKey('RAW')
     ArrayKey('RAW_UP')
     ArrayKey('ALPHA_MASK')
@@ -34,7 +65,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     ArrayKey('MASK_UP')
 
     data_providers = []
-    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5"
+
     voxel_size_up = Coordinate((2, 2, 2))
     voxel_size_orig = Coordinate((4, 4, 4))
     input_size = Coordinate(input_shape) * voxel_size_orig
@@ -88,6 +119,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     request.add(ArrayKeys.MASK_UP, output_size, voxel_size=voxel_size_up)
     request.add(ArrayKeys.MASK, output_size, voxel_size=voxel_size_orig)
 
+
     for label in labels:
         request.add(label.gt_dist_key, output_size, voxel_size=voxel_size_orig)
         snapshot_request.add(label.pred_dist_key, output_size)
@@ -103,14 +135,14 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
         Pad(ArrayKeys.RAW_UP, None) +
-        RandomLocation(min_masked=0.5, mask=ArrayKeys.MASK_UP) # chose a random location inside the provided arrays
+        RandomLocation(min_masked=0.25, mask=ArrayKeys.MASK_UP) # chose a random location inside the provided arrays
         #Reject(ArrayKeys.MASK) # reject batches wich do contain less than 50% labelled data
 
         for provider in data_providers)
 
     train_pipeline = (
         data_sources +
-        RandomProvider() +
+        RandomProvider(labeled_voxels) +
         ElasticAugment((100, 100, 100), (10., 10., 10.), (0, math.pi/2.0),
                        prob_slip=0, prob_shift=0, max_misalign=0,
                        subsample=8) +
@@ -122,10 +154,10 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
     for label in labels:
         train_pipeline += AddDistance(label_array_key=ArrayKeys.GT_LABELS,
-                        distance_array_key=label.gt_dist_key,
-                        normalize='tanh',
-                        normalize_args=dt_scaling_factor,
-                        label_id=label.labelid, factor=2)
+                                      distance_array_key=label.gt_dist_key,
+                                      normalize='tanh',
+                                      normalize_args=dt_scaling_factor,
+                                      label_id=label.labelid, factor=2)
 
     train_pipeline = (train_pipeline+DownSample(ArrayKeys.MASK_UP, 2, ArrayKeys.MASK))
     for label in labels:
@@ -139,7 +171,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
             num_workers=15)+
 
         Train(
-            'build',
+            'unet',
             optimizer=net_io_names['optimizer'],
             loss=net_io_names[loss_name],
             inputs=inputs,
@@ -166,26 +198,35 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
 
 if __name__ == "__main__":
-    #set_verbose(False)
     logging.basicConfig(level=logging.INFO)
-    data_sources = ['gt_cell2_v1', ]
+    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5"
+    data_sources = ('hela_cell2_crop1_110618', 'hela_cell2_crop8_110618', 'hela_cell2_crop9_110618',
+                    'hela_cell2_crop14_110618', 'hela_cell2_crop15_110618')
+    labeled_voxels = (500*500*100, 200*200*100, 100*100*53, 150*150*65, 150*150*64)
     input_shape = (196, 196, 196)
     output_shape = (92, 92, 92)
     dt_scaling_factor = 50
     max_iteration = 500000
-    loss_name = 'loss_total_unbalanced'
+    loss_name = 'loss_total'
+
     labels = []
-    labels.append(Label('ECS', (6, 7)))
-    labels.append(Label('cell', (1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14)))
-    labels.append(Label('plasma_membrane', 5))
-    labels.append(Label('ERES', (12, 13)))
-    labels.append(Label('ERES_membrane', 12, scale_loss=False, scale_key=labels[-1].scale_key))
-    labels.append(Label('MVB', (3, 9)))
-    labels.append(Label('MVB_membrane', 3, scale_loss=False, scale_key=labels[-1].scale_key))
-    labels.append(Label('er', (4, 8, 12, 13)))
-    labels.append(Label('er_membrane', (4, 12), scale_loss=False, scale_key=labels[-1].scale_key))
-    labels.append(Label('mito', (1, 2)))
-    labels.append(Label('mito_membrane', 2, scale_loss=False, scale_key=labels[-1].scale_key))
-    labels.append(Label('vesicles', 10))
-    labels.append(Label('microtubules', 11))
-    train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, labels)
+    labels.append(Label('cell', (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14), data_sources=data_sources))
+    labels.append(Label('plasma_membrane', 2, data_sources=data_sources))
+    labels.append(Label('ERES', (6, 7), data_sources=data_sources))
+    labels.append(Label('ERES_membrane', 6, scale_loss=False, scale_key=labels[-1].scale_key,
+                        data_sources=data_sources))
+    labels.append(Label('MVB', (10, 11), data_sources=data_sources))
+    labels.append(Label('MVB_membrane', 10, scale_loss=False, scale_key=labels[-1].scale_key,
+                        data_sources=data_sources))
+    labels.append(Label('er', (4, 5, 6, 7), data_sources=data_sources))
+    labels.append(Label('er_membrane', (4, 6), scale_loss=False, scale_key=labels[-1].scale_key,
+                        data_sources=data_sources))
+    labels.append(Label('mito', (8, 9), data_sources=data_sources))
+    labels.append(Label('mito_membrane', 8, scale_loss=False, scale_key=labels[-1].scale_key,
+                        data_sources=data_sources))
+    labels.append(Label('vesicles', (12, 13), data_sources=data_sources))
+    labels.append(Label('vesicles_membrane', 12, scale_loss=False, scale_key=labels[-1].scale_key,
+                        data_sources=data_sources))
+    labels.append(Label('microtubules', 14, data_sources=data_sources))
+    train_until(max_iteration, data_sources, labeled_voxels, input_shape, output_shape, dt_scaling_factor, loss_name,
+                labels)
