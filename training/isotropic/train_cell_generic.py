@@ -97,10 +97,11 @@ def train_until(max_iteration, data_sources, labeled_voxels, input_shape, output
 
     inputs = dict()
     inputs[net_io_names['raw']] = ArrayKeys.RAW
+    inputs[net_io_names['mask']] = ArrayKeys.MASK
     outputs = dict()
     snapshot = dict()
-    snapshot[ArrayKeys.RAW]= 'volumes/raw'
-    snapshot[ArrayKeys.GT_LABELS]= 'volumes/labels/gt_labels'
+    snapshot[ArrayKeys.RAW] = 'volumes/raw'
+    snapshot[ArrayKeys.GT_LABELS] = 'volumes/labels/gt_labels'
     for label in labels:
         inputs[net_io_names['gt_'+label.labelname]] = label.gt_dist_key
         if label.scale_loss or label.scale_key is not None:
@@ -119,7 +120,6 @@ def train_until(max_iteration, data_sources, labeled_voxels, input_shape, output
     request.add(ArrayKeys.MASK_UP, output_size, voxel_size=voxel_size_up)
     request.add(ArrayKeys.MASK, output_size, voxel_size=voxel_size_orig)
 
-
     for label in labels:
         request.add(label.gt_dist_key, output_size, voxel_size=voxel_size_orig)
         snapshot_request.add(label.pred_dist_key, output_size)
@@ -137,7 +137,6 @@ def train_until(max_iteration, data_sources, labeled_voxels, input_shape, output
         Pad(ArrayKeys.RAW_UP, None) +
         RandomLocation(min_masked=0.25, mask=ArrayKeys.MASK_UP) # chose a random location inside the provided arrays
         #Reject(ArrayKeys.MASK) # reject batches wich do contain less than 50% labelled data
-
         for provider in data_providers)
 
     train_pipeline = (
@@ -159,17 +158,18 @@ def train_until(max_iteration, data_sources, labeled_voxels, input_shape, output
                                       normalize_args=dt_scaling_factor,
                                       label_id=label.labelid, factor=2)
 
-    train_pipeline = (train_pipeline+DownSample(ArrayKeys.MASK_UP, 2, ArrayKeys.MASK))
+    train_pipeline = (train_pipeline +
+                      DownSample(ArrayKeys.MASK_UP, 2, ArrayKeys.MASK))
     for label in labels:
         if label.scale_loss:
             train_pipeline += BalanceByThreshold(label.gt_dist_key, label.scale_key, mask=ArrayKeys.MASK)
+
     train_pipeline = (
         train_pipeline +
         DownSample(ArrayKeys.RAW_UP, 2, ArrayKeys.RAW) +
         PreCache(
             cache_size=60,
-            num_workers=15)+
-
+            num_workers=15) +
         Train(
             'unet',
             optimizer=net_io_names['optimizer'],
@@ -180,14 +180,14 @@ def train_until(max_iteration, data_sources, labeled_voxels, input_shape, output
             outputs=outputs,
             gradients={}
         ) +
-        Snapshot(snapshot,
+        Snapshot(
+            snapshot,
             every=500,
             output_filename='batch_{iteration}.hdf',
             output_dir='snapshots/',
             additional_request=snapshot_request) +
 
         PrintProfilingStats(every=500))
-
 
     print("Starting training...")
     with build(train_pipeline) as b:

@@ -129,7 +129,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
                       contrast_scale=0.5) +
         IntensityScaleShift(ArrayKeys.RAW, 2, -1) +
         ZeroOutConstSections(ArrayKeys.RAW) +
-        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK) +
+        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.TRAINING_MASK) +
         PreCache(
             cache_size=40,
             num_workers=10) +
@@ -141,7 +141,8 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
             inputs={
                 net_io_names['raw']: ArrayKeys.RAW,
                 net_io_names['gt_labels']: ArrayKeys.GT_LABELS,
-                net_io_names['loss_weights']: ArrayKeys.GT_SCALE
+                net_io_names['loss_weights']: ArrayKeys.GT_SCALE,
+                net_io_names['mask']: ArrayKeys.TRAINING_MASK
             },
             summary=net_io_names['summary'],
             log_dir='log',

@@ -40,11 +40,14 @@ def train_net():
     loss_weights = tf.placeholder(tf.float32, shape=output_shape)
     loss_weights_flat = tf.reshape(loss_weights, (-1,))
 
+    mask = tf.placeholder(tf.float32, shape=output_shape)
+    mask_flat = tf.reshape(mask, (-1,))
+
     probabilities = tf.reshape(tf.nn.softmax(logits_bc, dim=1)[0], output_shape_c)
     predictions = tf.argmax(probabilities, axis=0)
 
     ce_loss_balanced = tf.losses.softmax_cross_entropy(flat_ohe, flat_logits, weights=loss_weights_flat)
-    ce_loss_unbalanced = tf.losses.softmax_cross_entropy(flat_ohe, flat_logits)
+    ce_loss_unbalanced = tf.losses.softmax_cross_entropy(flat_ohe, flat_logits, weights=mask_flat)
     tf.summary.scalar('loss_balanced_syn', ce_loss_balanced)
     tf.summary.scalar('loss_unbalanced_syn', ce_loss_unbalanced)
 
@@ -67,6 +70,7 @@ def train_net():
         'loss_balanced_syn': ce_loss_balanced.name,
         'loss_unbalanced_syn': ce_loss_unbalanced.name,
         'loss_weights': loss_weights.name,
+        'mask': mask.name,
         'optimizer': optimizer.name,
         'summary': merged.name}
 

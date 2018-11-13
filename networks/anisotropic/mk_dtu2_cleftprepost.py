@@ -36,6 +36,7 @@ def train_net():
     loss_weights_cleft = tf.placeholder(tf.float32, shape=output_shape)
     loss_weights_pre   = tf.placeholder(tf.float32, shape=output_shape)
     loss_weights_post  = tf.placeholder(tf.float32, shape=output_shape)
+    mask = tf.placeholder(tf.float32, shape=output_shape)
 
     loss_balanced_cleft = tf.losses.mean_squared_error(
         gt_cleft_dist,
@@ -52,9 +53,9 @@ def train_net():
         post_dist,
         loss_weights_post
     )
-    loss_unbalanced_cleft = tf.losses.mean_squared_error(gt_cleft_dist, cleft_dist)
-    loss_unbalanced_pre = tf.losses.mean_squared_error(gt_pre_dist, pre_dist)
-    loss_unbalanced_post = tf.losses.mean_squared_error(gt_post_dist, post_dist)
+    loss_unbalanced_cleft = tf.losses.mean_squared_error(gt_cleft_dist, cleft_dist, mask)
+    loss_unbalanced_pre = tf.losses.mean_squared_error(gt_pre_dist, pre_dist, mask)
+    loss_unbalanced_post = tf.losses.mean_squared_error(gt_post_dist, post_dist, mask)
 
     loss_total = loss_balanced_cleft + loss_unbalanced_pre + loss_unbalanced_post
     tf.summary.scalar('loss_balanced_syn', loss_balanced_cleft)
@@ -95,6 +96,7 @@ def train_net():
         'loss_weights_cleft': loss_weights_cleft.name,
         'loss_weights_pre': loss_weights_pre.name,
         'loss_weights_post': loss_weights_post.name,
+        'mask': mask.name,
         'optimizer': optimizer.name,
         'summary': merged.name}
 

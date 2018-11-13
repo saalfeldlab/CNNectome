@@ -224,7 +224,8 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['gt_post_dist']: ArrayKeys.GT_POST_DIST,
                 net_io_names['loss_weights_cleft']: ArrayKeys.CLEFT_SCALE,
                 net_io_names['loss_weights_pre']: ArrayKeys.CLEFT_SCALE,
-                net_io_names['loss_weights_post']: ArrayKeys.CLEFT_SCALE
+                net_io_names['loss_weights_post']: ArrayKeys.CLEFT_SCALE,
+                net_io_names['mask']: ArrayKeys.TRAINING_MASK
             },
             summary=net_io_names['summary'],
             log_dir='log',

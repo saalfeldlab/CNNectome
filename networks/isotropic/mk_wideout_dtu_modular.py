@@ -31,6 +31,7 @@ def train_net(labels):
     dist_c = tf.reshape(dist_bc, output_shape_c)
     network_outputs = tf.unstack(
         dist_c,len(labels), axis=0)
+    mask = tf.placeholder(tf.float32, shape=output_shape)
 
     gt = []
     w = []
@@ -41,7 +42,7 @@ def train_net(labels):
     lub = []
     for output_it, gt_it, w_it in zip(network_outputs, gt, w):
         lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it))
-        lub.append(tf.losses.mean_squared_error(gt_it, output_it))
+        lub.append(tf.losses.mean_squared_error(gt_it, output_it, mask))
     for label, lb_it, lub_it in zip(labels, lb, lub):
         tf.summary.scalar('lb_'+label, lb_it)
         tf.summary.scalar('lub_'+label, lub_it)
@@ -65,6 +66,7 @@ def train_net(labels):
         'dist': dist_c.name,
         'loss_total': loss_total.name,
         'loss_total_unbalanced': loss_total_unbalanced.name,
+        'mask': mask.name,
         'optimizer': optimizer.name,
         'summary': merged.name
     }

@@ -138,7 +138,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                     normalize='tanh',
                     normalize_args=dt_scaling_factor
                     ) +
-        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK) +
+        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.TRAINING_MASK) +
         #BalanceByThreshold(
         #    labels=ArrayKeys.GT_DIST,
         #    scales= ArrayKeys.GT_SCALE) +
@@ -159,7 +159,8 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
             inputs={
                 net_io_names['raw']: ArrayKeys.RAW,
                 net_io_names['gt_dist']: ArrayKeys.GT_DIST,
-                net_io_names['loss_weights']: ArrayKeys.GT_SCALE
+                net_io_names['loss_weights']: ArrayKeys.GT_SCALE,
+                net_io_names['mask']: ArrayKeys.TRAINING_MASK
             },
             summary=net_io_names['summary'],
             log_dir='log',

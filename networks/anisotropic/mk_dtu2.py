@@ -33,6 +33,7 @@ def train_net():
     gt_dist = tf.placeholder(tf.float32, shape=output_shape)
 
     loss_weights = tf.placeholder(tf.float32, shape=output_shape)
+    mask = tf.placeholder(tf.float32, shape=output_shape)
 
     loss_balanced = tf.losses.mean_squared_error(
         gt_dist,
@@ -42,7 +43,7 @@ def train_net():
     tf.summary.scalar('loss_balanced_syn', loss_balanced)
 
     loss_unbalanced = tf.losses.mean_squared_error(gt_dist,
-                                                   dist)
+                                                   dist, mask)
     tf.summary.scalar('loss_unbalanced_syn', loss_unbalanced)
 
     opt = tf.train.AdamOptimizer(
@@ -63,6 +64,7 @@ def train_net():
         'loss_balanced_syn': loss_balanced.name,
         'loss_unbalanced_syn': loss_unbalanced.name,
         'loss_weights': loss_weights.name,
+        'mask': mask.name,
         'optimizer': optimizer.name,
         'summary': merged.name}
 

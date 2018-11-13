@@ -5,7 +5,7 @@ import json
 from training.isotropic.train_cell2 import Label, compute_total_voxels
 import logging
 
-def train_net(labels):
+def train_net(labels, loss_name):
     input_shape = (196, 196, 196)
     raw = tf.placeholder(tf.float32, shape=input_shape)
     raw_bc = tf.reshape(raw, (1, 1,) + input_shape)
@@ -33,6 +33,8 @@ def train_net(labels):
     dist_c = tf.reshape(dist_bc, output_shape_c)
     network_outputs = tf.unstack(dist_c, len(labels), axis=0)
 
+    mask = tf.placeholder(tf.float32, shape=output_shape)
+
     gt = []
     w = []
     cw = []
@@ -45,7 +47,7 @@ def train_net(labels):
     lub = []
     for output_it, gt_it, w_it in zip(network_outputs, gt, w):
         lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it))
-        lub.append(tf.losses.mean_squared_error(gt_it, output_it))
+        lub.append(tf.losses.mean_squared_error(gt_it, output_it, mask))
     for label, lb_it, lub_it in zip(labels, lb, lub):
         tf.summary.scalar('lb_'+label.labelname, lb_it)
         tf.summary.scalar('lub_'+label.labelname, lub_it)
@@ -82,6 +84,7 @@ def train_net(labels):
 
     names = {
         'raw': raw.name,
+        'mask': mask.name,
         'dist': dist_c.name,
         'loss_total': loss_total.name,
         'loss_total_unbalanced': loss_total_unbalanced.name,
