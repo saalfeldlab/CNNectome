@@ -67,7 +67,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     for sample in data_sources:
         print(sample)
         h5_source = Hdf5Source(
-            os.path.join(cremi_dir, 'sample_'+sample+'_padded_20170424.aligned.0bg.hdf'),
+            os.path.join(cremi_dir, filename.format(sample)),
             datasets={
                 ArrayKeys.RAW: 'volumes/raw',
                 ArrayKeys.GT_CLEFTS: 'volumes/labels/clefts',
