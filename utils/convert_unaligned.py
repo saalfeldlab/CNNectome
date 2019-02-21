@@ -59,6 +59,18 @@ def val_train_mask(labels_in, shape, raw_offset=(0, 0, 0)):
     return training, validation
 
 
+def val_train_mask_from_gtmask(mask):
+    training = np.copy(mask)
+    yids = np.where(mask)[1]
+    begin = min(yids)
+    end = max(yids)
+    width = int(0.75 * (end + 1 - begin))
+    print("mask from {0:} to {1:}, training mask width {2:}".format(begin, end, width))
+    training[:, begin + width:, :] = 0
+    validation = np.logical_xor(training, mask).astype(int)
+    return training, validation
+
+
 def prepare_out(in_fh, out_fh):
 
     logging.info('copy raw...')
@@ -137,12 +149,14 @@ def convert(in_file, out_file):
     out_clefts.attrs.create('offset', raw_offset)
     out_clefts.attrs.create('resolution', in_clefts.attrs['resolution'])
 
-    out_gt_mask = out_fh.create_dataset('volumes/masks/groundtruth', data=gt_mask(in_labels, in_raw.shape, raw_offset),
+    gmask = gt_mask(in_labels, in_raw.shape, raw_offset)
+    out_gt_mask = out_fh.create_dataset('volumes/masks/groundtruth', data=gmask,
                                         chunks=in_raw.chunks)
     out_gt_mask.attrs.create('offset', raw_offset)
     out_gt_mask.attrs.create('resolution', in_raw.attrs['resolution'])
 
-    train, val = val_train_mask(in_labels, in_raw.shape, raw_offset)
+    #train, val = val_train_mask(in_labels, in_raw.shape, raw_offset)
+    train, val = val_train_mask_from_gtmask(gmask)
     out_train_mask = out_fh.create_dataset('volumes/masks/training', data=train, chunks=in_raw.chunks)
     out_train_mask.attrs.create('offset', raw_offset)
     out_train_mask.attrs.create('resolution', in_raw.attrs['resolution'])
@@ -154,6 +168,12 @@ def convert(in_file, out_file):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
+    # for sample in ['A', 'B', 'C']:
+    #     file_in = '/groups/saalfeld/saalfeldlab/projects/cremi-synaptic-partners/sample_{' \
+    #               '0:}_padded_20160501.hdf'.format(sample)
+    #     file_out = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/sample_{0:}_padded_20160501.0bg.hdf'.format(
+    #         sample)
+    #     convert(file_in, file_out)
     file_in = sys.argv[1]
     file_out = sys.argv[2]
     convert(file_in, file_out)
