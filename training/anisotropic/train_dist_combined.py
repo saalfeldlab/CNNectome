@@ -41,7 +41,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 ArrayKeys.RAW: 'volumes/raw',
                 ArrayKeys.GT_SYN_LABELS: 'volumes/labels/clefts',
                 ArrayKeys.GT_MASK: 'volumes/masks/groundtruth',
-                ArrayKeys.TRAINING_MASK: 'volumes/masks/training',
+                ArrayKeys.TRAINING_MASK: 'volumes/masks/validation',
                 ArrayKeys.GT_LABELS: 'volumes/labels/neuron_ids'
             },
             array_specs={
@@ -137,29 +137,18 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         IntensityScaleShift(ArrayKeys.RAW, 2, -1) +
         ZeroOutConstSections(ArrayKeys.RAW) +
         GrowBoundary(ArrayKeys.GT_LABELS, ArrayKeys.GT_MASK, steps=1, only_xy=True) +
-        #SplitAndRenumberSegmentationLabels() +
+
         AddBoundaryDistance(label_array_key=ArrayKeys.GT_LABELS,
                             distance_array_key=ArrayKeys.GT_BDY_DIST,
                             normalize='tanh',
                             normalize_args=100) +
-        #GrowBoundary(steps=1) +
-        #SplitAndRenumberSegmentationLabels() +
-        #AddGtAffinities(malis.mknhood3d(), ArrayKeys.GT_LABELS, ArrayKeys.GT_BDY_DIST) +
+
         AddDistance(label_array_key=ArrayKeys.GT_SYN_LABELS,
                             distance_array_key=ArrayKeys.GT_SYN_DIST,
                             normalize='tanh',
                             normalize_args=dt_scaling_factor
                             ) +
-        BalanceLabels(ArrayKeys.GT_SYN_LABELS, ArrayKeys.GT_SYN_SCALE, ArrayKeys.TRAINING_MASK) +
-        #BalanceByThreshold(
-        #    labels=VolumeTypes.GT_SYN_DIST,
-        #    scales= VolumeTypes.GT_SYN_SCALE) +
-            # {
-            #     VolumeTypes.GT_AFFINITIES: VolumeTypes.GT_SYN_SCALE
-            # },
-            # {
-            #     VolumeTypes.GT_AFFINITIES: VolumeTypes.GT_MASK
-            # }) +
+        BalanceLabels(ArrayKeys.GT_SYN_LABELS, ArrayKeys.GT_SYN_SCALE, ArrayKeys.GT_MASK) +
         PreCache(
             cache_size=40,
             num_workers=10)+
@@ -173,7 +162,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['gt_syn_dist']:  ArrayKeys.GT_SYN_DIST,
                 net_io_names['gt_bdy_dist']:  ArrayKeys.GT_BDY_DIST,
                 net_io_names['loss_weights']: ArrayKeys.GT_SYN_SCALE,
-                net_io_names['mask']:         ArrayKeys.TRAINING_MASK,
+                net_io_names['mask']:         ArrayKeys.GT_MASK,
             },
             summary=net_io_names['summary'],
             log_dir='log',

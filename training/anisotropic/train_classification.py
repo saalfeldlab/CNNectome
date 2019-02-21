@@ -36,7 +36,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
                 ArrayKeys.RAW: 'volumes/raw',
                 ArrayKeys.GT_LABELS: 'volumes/labels/clefts',
                 ArrayKeys.GT_MASK: 'volumes/masks/groundtruth',
-                ArrayKeys.TRAINING_MASK: 'volumes/masks/training'
+                ArrayKeys.TRAINING_MASK: 'volumes/masks/validation'
             },
             array_specs={
                 ArrayKeys.GT_MASK: ArraySpec(interpolatable=False),
@@ -73,7 +73,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
     data_sources = tuple(
         provider +
         Normalize(ArrayKeys.RAW) + # ensures RAW is in float in [0, 1]
-
+        IntensityScaleShift(ArrayKeys.TRAINING_MASK, -1, 1) +
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
@@ -129,7 +129,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
                       contrast_scale=0.5) +
         IntensityScaleShift(ArrayKeys.RAW, 2, -1) +
         ZeroOutConstSections(ArrayKeys.RAW) +
-        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.TRAINING_MASK) +
+        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK) +
         PreCache(
             cache_size=40,
             num_workers=10) +
@@ -142,7 +142,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
                 net_io_names['raw']: ArrayKeys.RAW,
                 net_io_names['gt_labels']: ArrayKeys.GT_LABELS,
                 net_io_names['loss_weights']: ArrayKeys.GT_SCALE,
-                net_io_names['mask']: ArrayKeys.TRAINING_MASK
+                net_io_names['mask']: ArrayKeys.GT_MASK
             },
             summary=net_io_names['summary'],
             log_dir='log',
