@@ -2,59 +2,63 @@ from __future__ import print_function
 import h5py
 import numpy as np
 
+
 def rewrite_mask(sample):
     print('Processing sample', sample)
-    #f = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{'
+    # f = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{'
     #              '0:}_padded_20170424.aligned.hdf'.format(sample), 'r')
-    #g = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{'
+    # g = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{'
     #              '0:}_padded_20170424.aligned.0bg.hdf'.format(sample), 'w')
     f = h5py.File('/groups/saalfeld/saalfeldlab/projects/cremi-synaptic-partners/sample_{'
-                  '0:}_padded_20160501.aligned.hdf'.format(sample), 'r')
-    g = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/sample_{'
-                  '0:}_padded_20160501.aligned.0bg.hdf'.format(sample), 'w')
-    m = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{'
-                  '0:}_padded_20170424.aligned.0bg.hdf'.format(sample), 'r')
+                  '0:}_padded_20170424.hdf'.format(sample), 'r')
+    g = h5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{'
+                  '0:}_padded_20170424.0bg.hdf'.format(sample), 'w')
 
     clefts = np.array(f['volumes/labels/clefts'])
-    print("masks...", end='')
+    print("masks...")
     mask = np.ones(clefts.shape, dtype=np.uint64)
-    mask[clefts == 0xffffffffffffffff-1] = 0
-    mask[clefts == 0xffffffffffffffff-2] = 0
+    mask[clefts == 0xffffffffffffffff - 1] = 0
+    mask[clefts == 0xffffffffffffffff - 2] = 0
 
     # make mask OUTSIDE = 0xffffffffffffffff to 0, everything else to 1, dtype can be uint64 - put this into
     # volumes/masks/groundtruth, attributes?
 
     neuron_ids = np.array(f['volumes/labels/neuron_ids'])
 
-    mask[neuron_ids == 0xffffffffffffffff-2] = 0
-    mask[neuron_ids == 0xffffffffffffffff-1] = 0
+    mask[neuron_ids == 0xffffffffffffffff - 2] = 0
+    mask[neuron_ids == 0xffffffffffffffff - 1] = 0
     g.create_dataset('volumes/masks/groundtruth', data=mask, chunks=(26, 256, 256))
     g['volumes/masks/groundtruth'].attrs.create('resolution', f['volumes/labels/clefts'].attrs['resolution'])
     g['volumes/masks/groundtruth'].attrs.create('offset', f['volumes/labels/clefts'].attrs['offset'])
+
+    training = np.copy(mask)
+    yids = np.where(mask)[1]
+    begin = 911
+    end = 2160
+    width = int(0.75*(end+1-begin))
+    print("mask from {0:} to {1:}, training mask width {2:}".format(begin, end, width))
+    training[:,begin+width:,:]=0
+    g.create_dataset('volumes/masks/training', data=training, chunks=(26, 256, 256))
+    g['volumes/masks/training'].attrs.create('resolution', g['volumes/masks/groundtruth'].attrs['resolution'])
+    g['volumes/masks/training'].attrs.create('offset', g['volumes/masks/groundtruth'].attrs['offset'])
+    validation = np.logical_xor(training, mask).astype(int)
+    g.create_dataset('volumes/masks/validation', data=validation, chunks=(26, 256, 256))
+    g['volumes/masks/validation'].attrs.create('resolution', g['volumes/masks/groundtruth'].attrs['resolution'])
+    g['volumes/masks/validation'].attrs.create('offset', g['volumes/masks/groundtruth'].attrs['offset'])
     print("done")
 
-    training_mask = np.array(m['volumes/masks/training'])
-    g.create_dataset('volumes/masks/training', data=training_mask, chunks = (26,256,256))
-    g['volumes/masks/training'].attrs.create('resolution', m['volumes/masks/training'].attrs['resolution'])
-    g['volumes/masks/training'].attrs.create('offset', m['volumes/masks/training'].attrs['offset'])
-
-    validation_mask = np.array(m['volumes/masks/validation'])
-    g.create_dataset('volumes/masks/validation', data=validation_mask, chunks = (26,256,256))
-    g['volumes/masks/validation'].attrs.create('resolution', m['volumes/masks/validation'].attrs['resolution'])
-    g['volumes/masks/validation'].attrs.create('offset', m['volumes/masks/validation'].attrs['offset'])
-
     print("clefts...", end='')
-    clefts[clefts == 0xffffffffffffffff-2] = 0
-    clefts[clefts == 0xffffffffffffffff-1] = 0
+    clefts[clefts == 0xffffffffffffffff - 2] = 0
+    clefts[clefts == 0xffffffffffffffff - 1] = 0
     clefts[clefts == 0xffffffffffffffff] = 0
     g.create_dataset('volumes/labels/clefts', data=clefts, chunks=(26, 256, 256))
     for k, v in f['volumes/labels/clefts'].attrs.iteritems():
-        g['volumes/labels/clefts'].attrs.create(k,v)
+        g['volumes/labels/clefts'].attrs.create(k, v)
     print("done")
 
     print("neuron_ids...", end='')
-    neuron_ids[neuron_ids == 0xffffffffffffffff-2] = 0
-    neuron_ids[neuron_ids == 0xffffffffffffffff-1] = 0
+    neuron_ids[neuron_ids == 0xffffffffffffffff - 2] = 0
+    neuron_ids[neuron_ids == 0xffffffffffffffff - 1] = 0
     neuron_ids[neuron_ids == 0xffffffffffffffff] = 0
     g.create_dataset('volumes/labels/neuron_ids', data=neuron_ids, chunks=(26, 256, 256))
     for k, v in f['volumes/labels/neuron_ids'].attrs.iteritems():
@@ -113,5 +117,5 @@ def rewrite_mask(sample):
 
 
 if __name__ == '__main__':
-    for sample in ['A', 'B', 'C']:#, 'B', 'C']:
+    for sample in ['A', 'B', 'C']:  # , 'B', 'C']:
         rewrite_mask(sample)
