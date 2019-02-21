@@ -21,7 +21,15 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     ArrayKey('PREDICTED_DIST_LABELS')
 
     data_providers = []
-    cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/"
+    if cremi_version == '2016':
+        cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/"
+        filename = 'sample_{0:}_padded_20160501.'
+    elif cremi_version == '2017':
+        cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/"
+        filename = 'sample_{0:}_padded_20170424.'
+    if aligned:
+        filename += 'aligned.'
+    filename += '0bg.hdf'
     if tf.train.latest_checkpoint('.'):
         trained_until = int(tf.train.latest_checkpoint('.').split('_')[-1])
         print('Resuming training from', trained_until)
@@ -31,12 +39,12 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     for sample in data_sources:
         print(sample)
         h5_source = Hdf5Source(
-            os.path.join(cremi_dir, 'sample_'+sample+'_cleftsorig.hdf'),
+            os.path.join(cremi_dir, filename.format(sample)),
             datasets={
                 ArrayKeys.RAW: 'volumes/raw',
                 ArrayKeys.GT_LABELS: 'volumes/labels/clefts',
                 ArrayKeys.GT_MASK: 'volumes/masks/groundtruth',
-                ArrayKeys.TRAINING_MASK: 'volumes/masks/training'
+                ArrayKeys.TRAINING_MASK: 'volumes/masks/validation'
             },
             array_specs={
                 ArrayKeys.GT_MASK: ArraySpec(interpolatable=False)
@@ -50,9 +58,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     voxel_size = Coordinate((40, 4, 4))
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
-    # input_size = Coordinate((132,)*3) * voxel_size
-    # output_size = Coordinate((44,)*3) * voxel_size
-
+    context = input_size - output_size
     # specifiy which Arrays should be requested for each batch
     request = BatchRequest()
     request.add(ArrayKeys.RAW, input_size)
@@ -66,18 +72,16 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     data_sources = tuple(
         provider +
         Normalize(ArrayKeys.RAW) + # ensures RAW is in float in [0, 1]
-
+        IntensityScaleShift(ArrayKeys.TRAINING_MASK, -1, 1) +
         # zero-pad provided RAW and GT_MASK to be able to draw batches close to
         # the boundary of the available data
         # size more or less irrelevant as followed by Reject Node
         Pad(ArrayKeys.RAW, None) +
         Pad(ArrayKeys.GT_MASK, None) +
-        Pad(ArrayKeys.TRAINING_MASK, None)+
-        RandomLocation() + # chose a random location inside the provided arrays
+        Pad(ArrayKeys.TRAINING_MASK, context)+
+        RandomLocation(min_masked=0.99, mask=ArrayKeys.TRAINING_MASK) +
         Reject(ArrayKeys.GT_MASK) + # reject batches wich do contain less than 50% labelled data
-        Reject(ArrayKeys.TRAINING_MASK, min_masked=0.99) +
         Reject(ArrayKeys.GT_LABELS, min_masked=0.0, reject_probability=0.95)
-
         for provider in data_providers)
 
     snapshot_request = BatchRequest({
@@ -87,71 +91,26 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
 
     })
 
-    artifact_source = (
-        Hdf5Source(
-            os.path.join(cremi_dir, 'sample_ABC_padded_20160501.defects.hdf'),
-            datasets={
-                ArrayKeys.RAW:        'defect_sections/raw',
-                ArrayKeys.ALPHA_MASK: 'defect_sections/mask',
-            },
-            array_specs={
-                ArrayKeys.RAW:        ArraySpec(voxel_size=(40, 4, 4)),
-                ArrayKeys.ALPHA_MASK: ArraySpec(voxel_size=(40, 4, 4)),
-            }
-        ) +
-        RandomLocation(min_masked=0.05, mask=ArrayKeys.ALPHA_MASK) +
-        Normalize(ArrayKeys.RAW) +
-        IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
-        ElasticAugment((4, 40, 40), (0, 2, 2), (0, math.pi/2.0), subsample=8) +
-        SimpleAugment(transpose_only=[1,2])
-    )
-
     train_pipeline = (
         data_sources +
         RandomProvider() +
-        ElasticAugment((4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
-                       prob_slip=0.05, prob_shift=0.05, max_misalign=10,
+        ElasticAugment((4, 40, 40), (0., 0., 0.), (0, math.pi/2.0),
+                       prob_slip=0.0, prob_shift=0.0, max_misalign=0,
                        subsample=8) +
-        SimpleAugment(transpose_only=[1,2]) +
-        IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
-        DefectAugment(ArrayKeys.RAW,
-                      prob_missing=0.03,
-                      prob_low_contrast=0.01,
-                      prob_artifact=0.03,
-                      artifact_source=artifact_source,
-                      artifacts=ArrayKeys.RAW,
-                      artifacts_mask=ArrayKeys.ALPHA_MASK,
-                      contrast_scale=0.5) +
+        SimpleAugment(transpose_only=[1,2], mirror_only=[1,2]) +
+        IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=False) +
         IntensityScaleShift(ArrayKeys.RAW, 2, -1) +
         ZeroOutConstSections(ArrayKeys.RAW) +
 
-        #GrowBoundary(steps=1) +
-        #SplitAndRenumberSegmentationLabels() +
-        #AddGtAffinities(malis.mknhood3d()) +
-        #AddBoundaryDistance(label_array_key=ArrayKeys.GT_LABELS,
-        #                    distance_array_key=ArrayKeys.GT_DIST,
-        #                    normalize='tanh',
-        #                    normalize_args=dt_scaling_factor
-        #                    ) +
         AddDistance(label_array_key=ArrayKeys.GT_LABELS,
                     distance_array_key=ArrayKeys.GT_DIST,
                     normalize='tanh',
                     normalize_args=dt_scaling_factor
                     ) +
-        BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.TRAINING_MASK) +
-        #BalanceByThreshold(
-        #    labels=ArrayKeys.GT_DIST,
-        #    scales= ArrayKeys.GT_SCALE) +
-          #{
-            #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_SCALE
-            # },
-            # {
-            #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_MASK
-            # }) +
+        BalanceByThreshold(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, mask=ArrayKeys.GT_MASK) +
         PreCache(
             cache_size=40,
-            num_workers=10)+
-
+            num_workers=10) +
         Train(
             'unet',
             optimizer=net_io_names['optimizer'],
@@ -160,7 +119,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['raw']: ArrayKeys.RAW,
                 net_io_names['gt_dist']: ArrayKeys.GT_DIST,
                 net_io_names['loss_weights']: ArrayKeys.GT_SCALE,
-                net_io_names['mask']: ArrayKeys.TRAINING_MASK
+                net_io_names['mask']: ArrayKeys.GT_MASK
             },
             summary=net_io_names['summary'],
             log_dir='log',
@@ -171,11 +130,11 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['dist']: ArrayKeys.LOSS_GRADIENT
             }) +
         Snapshot({
-                ArrayKeys.RAW:                   'volumes/raw',
-                ArrayKeys.GT_LABELS:             'volumes/labels/gt_clefts',
-                ArrayKeys.GT_DIST:               'volumes/labels/gt_clefts_dist',
-                ArrayKeys.PREDICTED_DIST_LABELS: 'volumes/labels/pred_clefts_dist',
-                ArrayKeys.LOSS_GRADIENT:         'volumes/loss_gradient',
+            ArrayKeys.RAW:                   'volumes/raw',
+            ArrayKeys.GT_LABELS:             'volumes/labels/gt_clefts',
+            ArrayKeys.GT_DIST:               'volumes/labels/gt_clefts_dist',
+            ArrayKeys.PREDICTED_DIST_LABELS: 'volumes/labels/pred_clefts_dist',
+            ArrayKeys.LOSS_GRADIENT:         'volumes/loss_gradient',
             },
             every=500,
             output_filename='batch_{iteration}.hdf',
@@ -200,4 +159,6 @@ if __name__ == "__main__":
     dt_scaling_factor = 50
     max_iteration = 400000
     loss_name = 'loss_balanced_syn'
+    cremi_version = '2017'
+    aligned = True
     train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name)
