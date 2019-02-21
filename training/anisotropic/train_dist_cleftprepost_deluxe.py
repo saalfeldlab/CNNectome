@@ -17,7 +17,7 @@ def make_cleft_to_prepostsyn_neuron_id_dict(csv_files):
         reader = csv.reader(f)
         reader.next()
         for row in reader:
-            if int(row[10]) != -1:
+            if int(row[10]) >= 0:
                 try:
                     cleft_to_pre[int(row[10])].add(int(row[0]))
                 except KeyError:
@@ -29,7 +29,8 @@ def make_cleft_to_prepostsyn_neuron_id_dict(csv_files):
     return cleft_to_pre, cleft_to_post
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name):
+def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, cremi_version,
+                aligned):
     ArrayKey('RAW')
     ArrayKey('ALPHA_MASK')
     ArrayKey('GT_LABELS')
@@ -48,7 +49,15 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     ArrayKey('PRED_POST_DIST')
     ArrayKey('GT_POST_DIST')
     data_providers = []
-    cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/"
+    if cremi_version == '2016':
+        cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/"
+        filename = 'sample_{0:}_padded_20160501.'
+    elif cremi_version == '2017':
+        cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/"
+        filename = 'sample_{0:}_padded_20170424.'
+    if aligned:
+        filename += 'aligned.'
+    filename += '0bg.hdf'
     if tf.train.latest_checkpoint('.'):
         trained_until = int(tf.train.latest_checkpoint('.').split('_')[-1])
         print('Resuming training from', trained_until)
@@ -74,7 +83,11 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
         )
         data_providers.append(h5_source)
 
-    csv_files = [os.path.join(cremi_dir, 'cleft-partners_' + sample + '_2017.csv') for sample in data_sources]
+    if cremi_version == '2017':
+        csv_files = [os.path.join(cremi_dir, 'cleft-partners_' + sample + '_2017.csv') for sample in data_sources]
+    elif cremi_version == '2016':
+        csv_files = [os.path.join(cremi_dir, 'cleft-partners-' + sample + '-20160501.aligned.corrected.csv') for
+                     sample in data_sources]
     cleft_to_pre, cleft_to_post = make_cleft_to_prepostsyn_neuron_id_dict(csv_files)
     print(cleft_to_pre, cleft_to_post)
     with open('net_io_names.json', 'r') as f:
@@ -211,15 +224,15 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
                 net_io_names['cleft_dist']: ArrayKeys.LOSS_GRADIENT
             }) +
         Snapshot({
-                ArrayKeys.RAW:             'volumes/raw',
-                ArrayKeys.GT_CLEFTS:       'volumes/labels/gt_clefts',
-                ArrayKeys.GT_CLEFT_DIST:   'volumes/labels/gt_clefts_dist',
-                ArrayKeys.PRED_CLEFT_DIST: 'volumes/labels/pred_clefts_dist',
-                ArrayKeys.LOSS_GRADIENT:   'volumes/loss_gradient',
-                ArrayKeys.PRED_PRE_DIST:   'volumes/labels/pred_pre_dist',
-                ArrayKeys.PRED_POST_DIST:  'volumes/labels/pred_post_dist',
-                ArrayKeys.GT_PRE_DIST:     'volumes/labels/gt_pre_dist',
-                ArrayKeys.GT_POST_DIST:    'volumes/labels/gt_post_dist'
+            ArrayKeys.RAW:             'volumes/raw',
+            ArrayKeys.GT_CLEFTS:       'volumes/labels/gt_clefts',
+            ArrayKeys.GT_CLEFT_DIST:   'volumes/labels/gt_clefts_dist',
+            ArrayKeys.PRED_CLEFT_DIST: 'volumes/labels/pred_clefts_dist',
+            ArrayKeys.LOSS_GRADIENT:   'volumes/loss_gradient',
+            ArrayKeys.PRED_PRE_DIST:   'volumes/labels/pred_pre_dist',
+            ArrayKeys.PRED_POST_DIST:  'volumes/labels/pred_post_dist',
+            ArrayKeys.GT_PRE_DIST:     'volumes/labels/gt_pre_dist',
+            ArrayKeys.GT_POST_DIST:    'volumes/labels/gt_post_dist'
             },
             every=500,
             output_filename='batch_{iteration}.hdf',
@@ -244,4 +257,7 @@ if __name__ == "__main__":
     dt_scaling_factor = 50
     max_iteration = 400000
     loss_name = 'loss_total'
-    train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name)
+    cremi_version = '2017'
+    aligned = True
+    train_until(max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, cremi_version,
+                aligned)
