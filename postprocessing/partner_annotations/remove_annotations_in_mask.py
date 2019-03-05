@@ -3,16 +3,18 @@ import h5py
 import shutil
 import numpy as np
 import sys
-
+import z5py
 
 def remove_annotations_in_mask(filename, mask_filename, mask_ds):
     fh = CremiFile(filename, 'a')
-
-    maskfh = h5py.File(mask_filename, 'r')
+    if mask_filename.endswith('.h5') or mask_filename.endswith('.hdf'):
+        maskfh = h5py.File(mask_filename, 'r')
+    else:
+        maskfh = z5py.File(mask_filename, use_zarr_format=False)
     mask = maskfh[mask_ds]
     off = mask.attrs['offset']
     res = mask.attrs['resolution']
-    mask = np.array(mask)
+    mask = mask[:]
     ann = fh.read_annotations()
     shift = sub(ann.offset, off)
 
@@ -37,7 +39,7 @@ def add(a, b):
     return tuple([a[d] + b[d] for d in range(len(b))])
 
 
-def main(filename):
+def main(filename, mask_fn):
     data_name = filename.split('/')[-1]
     if 'A' in data_name and 'B' not in data_name and 'C' not in data_name:
         sample = 'A'
@@ -48,8 +50,9 @@ def main(filename):
     else:
         sample = data_name[0]
 
-    mask_fn = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_padded_20170424.aligned.0bg.hdf'.format(
-        sample)
+    #mask_fn = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{
+        # 0:}_padded_20170424.aligned.0bg.hdf'.format(
+    #    sample)
     mask_dss = ['volumes/masks/training', 'volumes/masks/validation']
     assert filename.endswith('hdf') or filename.endswith('.h5')
     shutil.copy(filename, filename.replace('.hdf', '.training.hdf'))
@@ -60,4 +63,5 @@ def main(filename):
 
 if __name__ == '__main__':
     f = sys.argv[1]
-    main(f)
+    mf = sys.argv[2]
+    main(f, mf)
