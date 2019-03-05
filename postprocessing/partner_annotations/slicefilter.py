@@ -40,7 +40,7 @@ def slicefilter(filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_f
 
     tgt[np.isin(relabeled, set_to_bg)] = 0
     tgtf[dataset_tgt][:] = tgt.astype(np.uint64)
-    tgtf[dataset_tgt].attrs['offset'] = [0, 0, 0]  # srcf[dataset_src].attrs['offset']
+    tgtf[dataset_tgt].attrs['offset'] = srcf[dataset_src].attrs['offset']
 
 
 def main():

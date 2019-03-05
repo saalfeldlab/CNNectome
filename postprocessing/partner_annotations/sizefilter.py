@@ -31,7 +31,7 @@ def sizefilter(filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_fi
 
     tgt[np.isin(tgt, remove_ids)] = BG_VAL
     tgtf[dataset_tgt][:] = tgt.astype(np.uint64)
-    tgtf[dataset_tgt].attrs['offset'] = [0, 0, 0]  # srcf[dataset_src].attrs['offset']
+    tgtf[dataset_tgt].attrs['offset'] = srcf[dataset_src].attrs['offset']
 
 
 def main():
@@ -73,8 +73,8 @@ def main():
     dataset_tgt = 'volumes/labels/neuron_ids_constis_slf1_sf{0:}_cropped'
     for sample in samples:
         print(sample)
-        sizefilter(filename_src.format(sample), dataset_src, filename_tgt.format(sample),
-                   dataset_tgt.format(sf), sf, dat_file.format(sample, sf))
+        sizefilter(filename_src.format(sample), dataset_src, filename_src.format(sample),
+                   dataset_tgt.format(sf), sf )#dat_file.format(sample, sf))
 
 if __name__ == '__main__':
     main()
