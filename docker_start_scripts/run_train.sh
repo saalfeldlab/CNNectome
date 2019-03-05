@@ -4,6 +4,7 @@ NAME=$(basename $(pwd))
 NAME=$(basename $(dirname $(pwd)))-$NAME-training
 USER_ID=${UID}
 GUNPOWDER_PATH=$(readlink -f $HOME/Projects/git_repos/gunpowder/)
+GUNPOWDER_NODES_PATH=$(readlink -f $HOME/Projects/git_repos/gunpowder-nodes/)
 TRAIN_PATH=$(readlink -f $HOME/Projects/CNNectome/)
 Z5_PATH=/groups/saalfeld/home/papec/Work/my_projects/z5/bld27/python/
 docker rm -f $NAME
@@ -22,5 +23,6 @@ nvidia-docker run --rm \
     -w ${PWD} \
     --name ${NAME} \
     neptunes5thmoon/gunpowder:v0.3-pre6-dask1 \
-    /bin/bash -c "export CUDA_VISIBLE_DEVICES=$2; PYTHONPATH=${GUNPOWDER_PATH}:${Z5_PATH}:\$PYTHONPATH;
+    /bin/bash -c "export CUDA_VISIBLE_DEVICES=$2;
+    PYTHONPATH=${TRAIN_PATH}:${GUNPOWDER_PATH}:${GUNPOWDER_NODES_PATH}:${Z5_PATH}:\$PYTHONPATH;
     python -u $1 2>&1 | tee -a logfile"
