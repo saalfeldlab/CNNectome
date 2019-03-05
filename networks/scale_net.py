@@ -6,7 +6,12 @@ import warnings
 
 
 class ScaleNet(object):
-    def __init__(self, list_of_serialunets, input_shape):
+    def __init__(self, list_of_serialunets, input_shape, name='scnet'):
+        """
+        :param list list_of_serialunets: list of instances of SerialUNet, sorted by increasing voxel size of the input
+        :param tuple input_shape: shape of input tensor in (z, y, x)
+        """
+        self.name = name
         #highest to lowest resolution
         self.list_of_serialunets = list_of_serialunets
         self.input_shapes = [input_shape]
@@ -17,22 +22,41 @@ class ScaleNet(object):
         self.padding_orig_vx = [(np.array((0., 0., 0.)), np.array((0., 0., 0.)))]
         for serialunet in self.list_of_serialunets[1::]:
             output_shape = np.copy(bottom_shape)
-            (output_shape - serialunet.min_output_shape)%serialunet.step_valid_shape !=0
+
+            # assert (output_shape - serialunet.min_output_shape)%serialunet.step_valid_shape ==0
             if (output_shape < serialunet.min_output_shape).any():
                 too_small_dim = output_shape < serialunet.min_output_shape
                 output_shape[too_small_dim] = serialunet.min_output_shape[too_small_dim]
+
             if ((output_shape-serialunet.min_output_shape)%serialunet.step_valid_shape != 0).any():
                 output_shape += serialunet.step_valid_shape - \
                                 (output_shape-serialunet.min_output_shape)%serialunet.step_valid_shape
+
             input_shape = serialunet.get_input_shape_from_output_shape(output_shape)
             bottom_shape = serialunet.get_bottom_shape_from_input_shape(input_shape)
             self.input_shapes.append(input_shape)
             self.output_shapes.append(output_shape)
             self.bottom_shapes.append(bottom_shape)
-        self.voxel_sizes = [np.array((1, 1, 1))]
+        print('input_shapes before: ', self.input_shapes)
+        print('bottom_shapes before: ', self.bottom_shapes)
+        print('output_shapes before: ', self.output_shapes)
+        for k in range(len(self.list_of_serialunets))[:0:-1]:
+            print('unet', k)
+
+            if ((self.output_shapes[k]-self.bottom_shapes[k-1])%2 !=0).any():
+                print('changing things')
+                odd_dim = (self.output_shapes[k]-self.bottom_shapes[k-1])%2 !=0
+                self.bottom_shapes[k-1][odd_dim] += 1
+                self.output_shapes[k-1][odd_dim] += self.list_of_serialunets[k-1].step_valid_shape[odd_dim]
+                self.input_shapes[k-1][odd_dim] += self.list_of_serialunets[k-1].step_valid_shape[odd_dim]
+        print('input_shapes after: ', self.input_shapes)
+        print('bottom_shapes after: ', self.bottom_shapes)
+        print('output_shapes after: ', self.output_shapes)
+
+        self.voxel_sizes = [np.array(list_of_serialunets[0].input_voxel_size)]
         for serialunet in list_of_serialunets[:-1]:
             self.voxel_sizes.append(self.voxel_sizes[-1]*serialunet.step_valid_shape)
-        print(self.voxel_sizes, self.bottom_shapes)
+
         for lv in range(len(self.list_of_serialunets))[1:]:
             #padding_left = np.copy(self.padding_orig_vx[-1][0])
             #padding_right = np.copy(self.padding_orig_vx[-1][1])
@@ -65,17 +89,38 @@ class ScaleNet(object):
 
 
 class SerialUNet(object):
-    def __init__(self, num_fmaps, fmap_inc_factors, downsample_factors, kernel_size_down, kernel_size_up,
+    def __init__(self, num_fmaps_down, num_fmaps_up, downsample_factors, kernel_size_down, kernel_size_up,
                  activation='relu', input_fov=(1, 1, 1), input_voxel_size=(1, 1, 1)):
-        if isinstance(fmap_inc_factors, int):
-            fmap_inc_factors = [fmap_inc_factors] * len(downsample_factors)
-        assert len(fmap_inc_factors) == len(downsample_factors) == len(kernel_size_down) - 1
+        """
+        :param list num_fmaps_down: number of feature maps on the downward path
+        :param list num_fmaps_up: number of feature maps on the upward path
+        :param tuple/list fmap_inc_factors: multiplication factors for number of feature maps, can be different per
+                                            level
+        :param tuple/list downsample_factors: list or tuple of factors (given as tuple (z, y, x)) by which feature maps
+                                              are downsampled going from level to level
+        :param tuple/list kernel_size_down: list or tuple for kernel sizes to be used on the downsampling path of the
+                                            U-Net, sorted by increasing voxel size. Each element is a list/tuple of
+                                            kernel sizes (given as tuple (z, y, x)) to be successively applied on one
+                                            level (i.e. length determines the number of convolutions per level)
+        :param tuple/list kernel_size_up: list or tuple for kernel sizes to be used on the upsampling path of the
+                                          U-Net, sorted by increasing voxel size. Each element is a list/tuple of
+                                          kernel sizes (given as tuple (z, y, x)) to be successively applied on one
+                                          level (i.e. length determines the number of convolutions per level). The
+                                          bottom level is considered path of the downsampling path (entries in
+                                          kernel_size_up will be ignored)
+        :param string activation: activation function used after each convolutional layer
+        :param tuple input_fov: field of view of the input given as tuple (z, y, x)
+        :param tuple input_voxel_size: voxel size of the input given as tuple (z, y, x)
+        """
+        #if isinstance(fmap_inc_factors, int):
+        #    fmap_inc_factors = [fmap_inc_factors] * len(downsample_factors)
+        assert len(num_fmaps_down) - 1  == len(downsample_factors) == len(kernel_size_down) - 1
         assert len(downsample_factors) == len(kernel_size_up) - 1 or len(downsample_factors) == len(kernel_size_up)
         if len(downsample_factors) == len(kernel_size_up) - 1:
             warnings.warn("kernel sizes for upscaling are not used for the bottom layer")
             kernel_size_up = kernel_size_up[:-1]
-        self.num_fmaps = num_fmaps
-        self.fmap_inc_factors = fmap_inc_factors
+        self.num_fmaps_down = num_fmaps_down
+        self.num_fmaps_up = num_fmaps_up
         self.downsample_factors = downsample_factors
         self.kernel_size_down = kernel_size_down
         self.kernel_size_up = kernel_size_up
@@ -87,7 +132,7 @@ class SerialUNet(object):
 
     def compute_minimal_shapes(self):
         # compute minimal shape in the bottom layer (after the convolutions s.t. the upward path can still be evaluated
-        min_bottom_right = (0., 0., 0.) #initialize to 0
+        min_bottom_right = (1., 1., 1.)
         for lv in range(len(self.downsample_factors)):
 
             kernels = np.copy(self.kernel_size_up[lv])
@@ -98,7 +143,7 @@ class SerialUNet(object):
             min_bottom_right += conv_pad / np.prod(self.downsample_factors[lv:], axis=0)
 
         min_bottom_right = np.ceil(min_bottom_right)
-        min_bottom_right = np.max([min_bottom_right, (1.,1.,1.)],axis=0)
+        min_bottom_right = np.max([min_bottom_right, (1., 1., 1.)],axis=0)
         min_input_shape = np.copy(min_bottom_right)
 
         for lv in range(len(self.kernel_size_down))[::-1]:
@@ -162,8 +207,8 @@ class SerialUNet(object):
     def build(self,
               fmaps_in,
               fmaps_bottom=None,
-              num_fmaps=None,
-              fmap_inc_factors=None,
+              num_fmaps_down=None,
+              num_fmaps_up=None,
               downsample_factors=None,
               kernel_size_down=None,
               kernel_size_up=None,
@@ -222,10 +267,10 @@ class SerialUNet(object):
                 Size of a voxel in the input data, in physical units
 
         '''
-        if num_fmaps is None:
-            num_fmaps = self.num_fmaps
-        if fmap_inc_factors is None:
-            fmap_inc_factors = self.fmap_inc_factors
+        if num_fmaps_down is None:
+            num_fmaps_down = self.num_fmaps_down
+        if num_fmaps_up is None:
+            num_fmaps_up = self.num_fmaps_up
         if downsample_factors is None:
             downsample_factors = self.downsample_factors
         if kernel_size_down is None:
@@ -249,6 +294,7 @@ class SerialUNet(object):
 
             # concatenate second input feature map at bottom layer
             if bottom_layer and fmaps_bottom is not None:
+                assert ((np.array(fmaps_in.get_shape().as_list())- np.array(fmaps_bottom.get_shape().as_list()))%2==0).all()
                 fmaps_bottom_cropped = ops3d.crop_zyx(fmaps_bottom, fmaps_in.get_shape().as_list())
                 fmaps_in = tf.concat([fmaps_bottom_cropped, fmaps_in], 1)
 
@@ -256,7 +302,7 @@ class SerialUNet(object):
             f_left, fov = ops3d.conv_pass(
                 fmaps_in,
                 kernel_size=kernel_size_down[layer],
-                num_fmaps=num_fmaps,
+                num_fmaps=num_fmaps_down[layer],
                 activation=activation,
                 name='unet_layer_%i_left' % layer,
                 fov=fov,
@@ -286,8 +332,8 @@ class SerialUNet(object):
             g_out, fov, voxel_size = self.build(
                 g_in,
                 fmaps_bottom=fmaps_bottom,
-                num_fmaps=num_fmaps * fmap_inc_factors[layer],
-                fmap_inc_factors=fmap_inc_factors,
+                num_fmaps_down=num_fmaps_down,
+                num_fmaps_up=num_fmaps_up,
                 downsample_factors=downsample_factors,
                 kernel_size_down=kernel_size_down,
                 kernel_size_up=kernel_size_up,
@@ -304,7 +350,7 @@ class SerialUNet(object):
             g_out_upsampled, voxel_size = ops3d.upsample(
                 g_out,
                 downsample_factors[layer],
-                num_fmaps,
+                num_fmaps_up[layer],
                 activation=activation,
                 name='unet_up_%i_to_%i' % (layer + 1, layer),
                 fov=fov,
@@ -327,7 +373,7 @@ class SerialUNet(object):
             f_out, fov = ops3d.conv_pass(
                 f_right,
                 kernel_size=kernel_size_up[layer],
-                num_fmaps=num_fmaps,
+                num_fmaps=num_fmaps_up[layer],
                 name='unet_layer_%i_right' % layer,
                 fov=fov,
                 voxel_size=voxel_size,
