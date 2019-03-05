@@ -177,7 +177,7 @@ def train_until(max_iteration, data_sources,  labeled_voxels,ribo_sources, input
                        subsample=8) +
         SimpleAugment() +
         #ElasticAugment((40, 1000, 1000), (10., 0., 0.), (0, 0), subsample=8) +
-        IntensityAugment(ArrayKeys.RAW_UP, 0.95, 1.05, -0.05, 0.05) +
+        IntensityAugment(ArrayKeys.RAW_UP, 0.25, 1.75, -0.5, 0.5) +
         IntensityScaleShift(ArrayKeys.RAW_UP, 2, -1) +
         ZeroOutConstSections(ArrayKeys.RAW_UP))
 
