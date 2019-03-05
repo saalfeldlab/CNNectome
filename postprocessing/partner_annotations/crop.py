@@ -53,9 +53,16 @@ def crop_to_seg(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, sh
         if not os.path.exists(os.path.join(filename_tgt,grps)):
             tgtf.create_group(grps)
         grps += '/'
-    chunk_size = tuple(min(c,s) for c,s in zip(srcf[dataset_src].chunks, shape))
+    chunk_size = tuple(min(c, s) for c,s in zip(srcf[dataset_src].chunks, shape))
+    if os.path.exists(os.path.join(filename_tgt, dataset_tgt)):
+        assert tgtf[dataset_tgt].shape == shape and tgtf[dataset_tgt].dtype == srcf[dataset_src].dtype and tgtf[
+        dataset_tgt].chunks == chunk_size
+        skip_ds_creation = True
 
-    tgtf.create_dataset(dataset_tgt,
+    else:
+        skip_ds_creation = False
+    if not skip_ds_creation:
+        tgtf.create_dataset(dataset_tgt,
                         shape=shape,
                         compression='gzip',
                         dtype=srcf[dataset_src].dtype,
