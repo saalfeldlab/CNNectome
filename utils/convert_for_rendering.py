@@ -61,21 +61,25 @@ def add_ds_asis(target, name, data, chunks, resolution, offset):
 
 
 def main():
-    orig = z5py.File('/nrs/saalfeld/heinrichl/cell/gt_v2.1/0821_01/test_cell2_v1_pred_200000.n5',
+    #orig = z5py.File('/nrs/saalfeld/heinrichl/cell/gt_v2.1/0821_01/test_cell2_v1_pred_200000.n5',use_zarr_format=False)
+    #orig = z5py.File('/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test_cell2_v1_60000.n5',
+    orig = z5py.File('/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test2_64000.n5',
                      use_zarr_format=False)
-    labels_combined = [('plasma_membrane', 5, 128), ('ERES_membrane', 12, 128), ('MVB_membrane', 3, 128),
-                       ('er_membrane',
-                                                                                                      4, 128),
-               ('mito_membrane',
-                                                                                                    2,128), ('vesicles',
-                                                                                                         10, 128),
-              ('microtubules', 11, 128)]
-    labels_combined_all = [('ECS', 6, 128), ('cell', 14, 128), ('er', 8, 128), ('ERES', 13, 128), ('mito', 1, 128),
-                           ('MVB', 9, 128),
-                           ('plasma_membrane', 5, 128), ('er_membrane',4,  128), ('ERES_membrane', 12, 128),
-                           ('mito_membrane',
-                                                                                                     2, 128),
-                           ('MVB_membrane', 3, 128), ('vesicles', 10, 128), ('microtubules', 11, 128)]
+    #labels_combined = [('plasma_membrane', 5, 128), ('ERES_membrane', 12, 128), ('MVB_membrane', 3, 128),
+    #                   ('er_membrane',
+    #                                                                                                  4, 128),
+    #           ('mito_membrane',
+    #                                                                                                2,128),
+    # ('vesicles',
+    #                                                                                                     10, 128),
+    #          ('microtubules', 11, 128)]
+    labels_combined_all = [('cell', 3, 128), ('plasma_membrane', 2, 128), ('er', 5, 133), ('ERES', 7, 133), ('mito',
+                                                                                                             9, 133),
+                           ('MVB', 11, 133),('vesicles', 13, 133),
+                            ('er_membrane',4,  123), ('ERES_membrane', 6, 123),
+                           ('mito_membrane',8, 123),
+                           ('MVB_membrane', 10, 123), ('vesicles_membrane', 13, 123),
+                            ('microtubules', 14, 128)]
     # labels_combined = [('plasma_membrane', 5, 123), ('ERES_membrane', 12, 123), ('MVB_membrane', 3, 123),
     #                    ('er_membrane',
     #                                                                                                   4, 123),
@@ -90,25 +94,26 @@ def main():
     #                                                                                                  2, 123),
     #                        ('MVB_membrane', 3, 123), ('vesicles', 10, 128), ('microtubules', 11, 128)]
 
-    shape = orig[labels_combined[0][0]].shape
+    shape = orig[labels_combined_all[0][0]].shape
     res = [4.0, 4.0, 4.0]
     offset = [0.0, 0.0, 0.0]
     # labels = orig['volumes/labels/gt']
-    target = z5py.File('/nrs/saalfeld/heinrichl/cell/gt_v2.1/0821_01/test_cell2_v1_pred_200000_render.n5',
+    #target = z5py.File('/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test_cell2_v1_pred_56000_render.n5',
+    target = z5py.File('/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test2_64000_render_mem.n5',
                        use_zarr_format=False)
     if 'volumes' not in target.keys():
         target.create_group('volumes')
     if 'labels' not in target['volumes']:
          target['volumes'].create_group('labels')
-    mem_data = np.ones(shape, dtype=np.uint64) * TRANSPARENT
-    for labelname, labelid, thr in labels_combined:
-        _, mem_data = add_ds_combined(target, 'volumes/labels/{0:}'.format(labelname), orig[labelname], mem_data,
-                                     labelid, (128, 128, 128), res, offset, thr=thr)
+    #mem_data = np.ones(shape, dtype=np.uint64) * TRANSPARENT
+    #for labelname, labelid, thr in labels_combined:
+    #    _, mem_data = add_ds_combined(target, 'volumes/labels/{0:}'.format(labelname), orig[labelname], mem_data,
+    #                                 labelid, (128, 128, 128), res, offset, thr=thr)
 
-    cont = np.unique(mem_data)
-    print("combined ds contains ids ", cont)
-    add_ds_asis(target, 'volumes/labels/mem_combined', mem_data, (128,128,128), res, offset)
-    del mem_data
+#    cont = np.unique(mem_data)
+ #   print("combined ds contains ids ", cont)
+  #  add_ds_asis(target, 'volumes/labels/mem_combined', mem_data, (128,128,128), res, offset)
+   # del mem_data
 
     all_data = np.ones(shape, dtype=np.uint64) * TRANSPARENT
     for labelname, labelid, thr in labels_combined_all:
@@ -123,8 +128,8 @@ def main():
     #for labelname in labels_rest:
     #    add_ds_rest(target, 'volumes/labels/{0:}'.format(labelname), orig[labelname], (128,128,128), res, offset)
 
-    #orig_raw = z5py.File('/groups/saalfeld/saalfeldlab/projects/cell/nrs-data/cell2/test2.n5', use_zarr_format=False)
-    orig_raw = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/test_cell2_v1.n5')
+    orig_raw = z5py.File('/groups/saalfeld/saalfeldlab/projects/cell/nrs-data/cell2/test2.n5', use_zarr_format=False)
+    #orig_raw = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/test_cell2_v1.n5')
     add_ds_asis(target, 'volumes/raw', orig_raw['volumes/orig_raw'][:], (128,128,128), res, offset)
 
 if __name__ == '__main__':
