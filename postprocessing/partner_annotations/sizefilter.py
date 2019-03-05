@@ -2,7 +2,7 @@ import z5py
 import os
 import numpy as np
 BG_VAL=0
-def sizefilter(filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_file):
+def sizefilter(filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_file=None):
 
     srcf = z5py.File(filename_src, use_zarr_format=False)
     if not os.path.exists(filename_tgt):
@@ -22,7 +22,8 @@ def sizefilter(filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_fi
                         )
     tgt = np.array(srcf[dataset_src][:])
     ids, counts = np.unique(tgt, return_counts=True)
-    np.savetxt(dat_file, counts, '%.4g')
+    if dat_file is not None:
+        np.savetxt(dat_file, counts, '%.4g')
     remove_ids = []
     for id, count in zip(ids, counts):
         if count <= thr:
@@ -35,7 +36,7 @@ def sizefilter(filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_fi
 
 def main():
     thrs = [127, 63, 63]
-    samples = ['B+', 'C']#['A', 'B', 'C', 'A+', 'B+', 'C+']
+    samples = ['A+', 'B+', 'C+']#['A', 'B', 'C', 'A+', 'B+', 'C+']
     #samples = ['B+', 'C+']
     sf = 750
     offsets = {
@@ -60,12 +61,16 @@ def main():
 
     #filename_src = '/groups/saalfeld/home/papec/Work/neurodata_hdd/cremi_warped/sample{0}.n5'
     #dataset_src = 'segmentations/multicut'
-    filename_src = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0}.n5'
-    dataset_src = 'volumes/labels/neuron_ids_constis_slf1'
-    filename_tgt = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0}.n5'
-    dataset_tgt = 'volumes/labels/neuron_ids_constis_slf1_sf{0:}'
-    dat_file = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}_sizefilter{' \
-               '1:}.dat'
+    #filename_src = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0}.n5'
+    #dataset_src = 'volumes/labels/neuron_ids_constis_slf1'
+    #filename_tgt = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0}.n5'
+    #dataset_tgt = 'volumes/labels/neuron_ids_constis_slf1_sf{0:}'
+    #dat_file = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}_sizefilter{' \
+    #           '1:}.dat'
+
+    filename_src = '/groups/saalfeld/saalfeldlab/larissa/data/cremieval/data2016-aligned/{0:}.n5'
+    dataset_src = 'volumes/labels/neuron_ids_constis_slf1_cropped'
+    dataset_tgt = 'volumes/labels/neuron_ids_constis_slf1_sf{0:}_cropped'
     for sample in samples:
         print(sample)
         sizefilter(filename_src.format(sample), dataset_src, filename_tgt.format(sample),
