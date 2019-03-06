@@ -58,7 +58,7 @@ def make_net(labels, added_steps, mode='train', loss_name='loss_total'):
         lb = []
         lub = []
         for output_it, gt_it, w_it, m_it, l in zip(network_outputs, gt, w, masks, labels):
-            lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it))
+            lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it))
             lub.append(tf.losses.mean_squared_error(gt_it, output_it, m_it))
             #if l.labelname != 'ribosomes':
             #    lub.append(tf.losses.mean_squared_error(gt_it, output_it, mask))
