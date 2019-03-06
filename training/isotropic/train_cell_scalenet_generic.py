@@ -24,7 +24,6 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
     ArrayKey('GT_LABELS')
     ArrayKey('MASK')
     ArrayKey('RIBO_GT')
-    ArrayKey('MASK_UP')
 
     datasets_ribo = {
         ArrayKeys.GT_LABELS: 'volumes/labels/all',
@@ -105,12 +104,12 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
 
         if src not in ribo_sources:
             n5_source = N5Source(
-                os.path.join(src.full_path),
+                src.full_path,
                 datasets=datasets_no_ribo,
                 array_specs=array_specs)
         else:
             n5_source = N5Source(
-                os.path.join(src.full_path),
+                src.full_path,
                 datasets=datasets_ribo,
                 array_specs=array_specs)
 
@@ -121,7 +120,8 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
         data_stream.append(provider)
         for ak, context in zip(raw_array_keys, contexts):
             data_stream[-1] += Normalize(ak)
-            data_stream[-1] += Pad(ak, context)
+            # data_stream[-1] += Pad(ak, context) # this shouldn't be necessary as I cropped the input data to have
+            # sufficient padding
         data_stream[-1] += RandomLocation()
         data_stream[-1] += Reject(ArrayKeys.MASK, min_masked=0.1)
     data_stream = tuple(data_stream)
