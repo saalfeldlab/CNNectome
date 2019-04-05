@@ -9,14 +9,17 @@ import os
 import math
 import json
 import sys
+import time
 import logging
 import collections
 print("syspath", sys.path)
 import z5py
+from networks import scale_net
 from networks.isotropic.mk_scale_net_cell_generic import *
 from utils.label import *
 
-def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, loss_name, labels, scnet):
+def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, loss_name, labels, scnet,
+                raw_name='raw', min_masked_voxels=17561.):
     with open('net_io_names.json', 'r') as f:
         net_io_names = json.load(f)
 
@@ -27,14 +30,14 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
 
     datasets_ribo = {
         ArrayKeys.GT_LABELS: 'volumes/labels/all',
-        ArrayKeys.MASK: 'volumes/masks/training',
+        ArrayKeys.MASK: 'volumes/masks/training_cropped',
         ArrayKeys.RIBO_GT: 'volumes/labels/ribosomes',
     }
     # for datasets without ribosome annotations volumes/labels/ribosomes doesn't exist, so use volumes/labels/all
     # instead (only one with the right resolution)
     datasets_no_ribo = {
         ArrayKeys.GT_LABELS: 'volumes/labels/all',
-        ArrayKeys.MASK: 'volumes/masks/training',
+        ArrayKeys.MASK: 'volumes/masks/training_cropped',
         ArrayKeys.RIBO_GT: 'volumes/labels/all',
     }
     array_specs = {ArrayKeys.MASK: ArraySpec(interpolatable=False)}
@@ -56,6 +59,8 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
     # input and output sizes in world coordinates
     input_sizes_wc = [Coordinate(inp_sh) * Coordinate(vs) for inp_sh, vs in zip(scnet.input_shapes, scnet.voxel_sizes)]
     output_size_wc = Coordinate(scnet.output_shapes[0]) * Coordinate(scnet.voxel_sizes[0])
+    keep_thr = float(min_masked_voxels)/np.prod(scnet.output_shapes[0])
+
     voxel_size_up = Coordinate((2, 2, 2))
     voxel_size_orig = Coordinate((4, 4, 4))
     assert voxel_size_orig == Coordinate(scnet.voxel_sizes[0]) # make sure that scnet has the same base voxel size
@@ -64,8 +69,8 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
     for k, (inp_sh_wc, vs) in enumerate(zip(input_sizes_wc, scnet.voxel_sizes)):
         ak = ArrayKey('RAW_S{0:}'.format(k))
         raw_array_keys.append(ak)
-        datasets_ribo[ak] = 'volumes/raw/data/s{0:}'.format(k)
-        datasets_no_ribo[ak] = 'volumes/raw/data/s{0:}'.format(k)
+        datasets_ribo[ak] = 'volumes/{0:}/data/s{1:}'.format(raw_name,k)
+        datasets_no_ribo[ak] = 'volumes/{0:}/data/s{1:}'.format(raw_name,k)
         inputs[net_io_names['raw_{0:}'.format(vs[0])]] = ak
         snapshot[ak] = 'volumes/raw_s{0:}'.format(k)
         array_specs[ak] = ArraySpec(voxel_size=Coordinate(vs))
@@ -123,20 +128,20 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
             # data_stream[-1] += Pad(ak, context) # this shouldn't be necessary as I cropped the input data to have
             # sufficient padding
         data_stream[-1] += RandomLocation()
-        data_stream[-1] += Reject(ArrayKeys.MASK, min_masked=0.1)
+        data_stream[-1] += Reject(ArrayKeys.MASK, min_masked=keep_thr)
     data_stream = tuple(data_stream)
 
     train_pipeline = (
         data_stream +
         RandomProvider(tuple([ds.labeled_voxels for ds in data_sources])) +
-        gpn.ElasticAugment(tuple(scnet.voxel_sizes[0]), (100, 100, 100), (10., 10., 10.), (0, math.pi/2.0),
-                           spatial_dims=3, subsample=8) +
         gpn.SimpleAugment() +
+        gpn.ElasticAugment(tuple(scnet.voxel_sizes[0]), (100, 100, 100), (10., 10., 10.), (0, math.pi / 2.0),
+                           spatial_dims=3, subsample=8) +
         gpn.IntensityAugment(raw_array_keys, 0.25, 1.75, -0.5, 0.35) +
         GammaAugment(raw_array_keys, 0.5, 2.0))
     for ak in raw_array_keys:
         train_pipeline += IntensityScaleShift(ak, 2, -1)
-        train_pipeline += ZeroOutConstSections(ak)
+        #train_pipeline += ZeroOutConstSections(ak)
 
     for label in labels:
         if label.labelname != 'ribosomes':
@@ -159,8 +164,8 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
     train_pipeline = (
         train_pipeline +
         PreCache(
-            cache_size=30,
-            num_workers=30) +
+            cache_size=10,
+            num_workers=40) +
         Train(
             scnet.name,
             optimizer=net_io_names['optimizer'],
@@ -181,23 +186,22 @@ def train_until(max_iteration, data_sources,  ribo_sources, dt_scaling_factor, l
             output_dir='snapshots/',
             additional_request=snapshot_request) +
 
-        PrintProfilingStats(every=500))
+        PrintProfilingStats(every=10))
 
     print("Starting training...")
     with build(train_pipeline) as b:
         for i in range(max_iteration):
+            start_it = time.time()
             b.request_batch(request)
-
+            time_it = time.time() - start_it
+            logging.info('it {0:}: {1:}'.format(i+1, time_it))
     print("Training finished")
-
-
-
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v020719_505/{0:}.n5"
+    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v020719_o505x505x505_m1170x1170x1170/{0:}.n5"
     data_sources = list()
     data_sources.append(N5Dataset('crop1', 500*500*100, data_dir=data_dir))
     data_sources.append(N5Dataset('crop3', 400*400*250, data_dir=data_dir))
@@ -256,20 +260,35 @@ if __name__ == "__main__":
     #labels.append(Label('NE_membrane', (20, 22, 23), scale_loss=False, scale_key=labels[-1].scale_key,
     # data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('nuclear_pore', (22, 23), data_sources=data_sources, data_dir=data_dir))
-    labels.append(Label('nuclear_pore_out', 22, scale_loss=False, scale_key=labels[-1].scale_key))
+    labels.append(Label('nuclear_pore_out', 22, scale_loss=False, scale_key=labels[-1].scale_key,
+                        data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('chromatin', (24, 25, 26, 27, 36), data_sources=data_sources, data_dir=data_dir))
-    labels.append(Label('NHChrom', 25, scale_loss=False, scale_key=labels[-1].scale_key))
-    labels.append(Label('EChrom', 26, scale_loss=False, scale_key=labels[-2].scale_key))
-    labels.append(Label('NEChrom', 27, scale_loss=False, scale_key=labels[-3].scale_key))
-
+    #labels.append(Label('NHChrom', 25, scale_loss=False, scale_key=labels[-1].scale_key, data_sources=data_sources,
+    # data_dir=data_dir))
+    #labels.append(Label('EChrom', 26, scale_loss=False, scale_key=labels[-2].scale_key, data_sources=data_sources,
+    # data_dir=data_dir))
+    #labels.append(Label('NEChrom', 27, scale_loss=False, scale_key=labels[-3].scale_key, data_sources=data_sources,
+    # data_dir=data_dir))
+    labels.append(Label('NHChrom', 25, data_sources=data_sources, data_dir=data_dir))
+    labels.append(Label('EChrom', 26, data_sources=data_sources, data_dir=data_dir))
+    labels.append(Label('NEChrom', 27, data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('microtubules', (30, 31), data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('centrosome', (31, 32, 33), data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('distal_app', 32, data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('subdistal_app', 33, data_sources=data_sources, data_dir=data_dir))
     labels.append(Label('ribosomes', 1, data_sources=ribo_sources, data_dir=data_dir))
-    make_net(labels, 4, mode='inference')
+
+    unet0 = scale_net.SerialUNet([12, 12*6, 12*6**2], [48, 12*6, 12*6**2],
+                                 [(3, 3, 3), (3, 3, 3)],
+                                 [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
+                                 [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]], input_voxel_size=(4, 4, 4))
+    unet1 = scale_net.SerialUNet([12, 12*6, 12*6**2], [12*6**2, 12*6**2, 12*6**2],
+                                 [(3, 3, 3), (3, 3, 3)],
+                                 [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
+                                 [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]], input_voxel_size=(36, 36, 36))
+    make_any_scale_net([unet0,unet1], labels, 4, mode='inference')
     tf.reset_default_graph()
-    train_sc_net = make_net(labels, 5, mode='train', loss_name=loss_name)
+    train_sc_net = make_any_scale_net([unet0,unet1], labels, 5, mode='train', loss_name=loss_name)
     train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, loss_name, labels, train_sc_net)
     #train_until(max_iteration, data_sources, labeled_voxels, ribo_sources, input_shape, output_shape,
     #            dt_scaling_factor, loss_name,
