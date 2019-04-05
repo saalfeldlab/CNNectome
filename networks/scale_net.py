@@ -298,7 +298,6 @@ class SerialUNet(object):
                 fmaps_bottom_cropped = ops3d.crop_zyx(fmaps_bottom, fmaps_in.get_shape().as_list())
                 fmaps_in = tf.concat([fmaps_bottom_cropped, fmaps_in], 1)
 
-
             f_left, fov = ops3d.conv_pass(
                 fmaps_in,
                 kernel_size=kernel_size_down[layer],
@@ -311,8 +310,6 @@ class SerialUNet(object):
             )
 
             # last layer does not recurse
-
-
             if bottom_layer:
                 print(prefix + "bottom layer")
                 print(prefix + "f_out: " + str(f_left.shape))
