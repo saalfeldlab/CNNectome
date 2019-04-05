@@ -70,7 +70,7 @@ def unet(
     print(prefix + "f_in: " + str(fmaps_in.shape))
     #if isinstance(fmap_inc_factors, int):
     #    fmap_inc_factors = [fmap_inc_factors]*len(downsample_factors)
-    assert len(num_fmaps_down) - 1 == len(num_fmaps_down) - 1 == len(downsample_factors) == len(kernel_size_down) - 1\
+    assert len(num_fmaps_down) - 1 == len(num_fmaps_up) - 1 == len(downsample_factors) == len(kernel_size_down) - 1\
            == len(kernel_size_up) - 1
     # convolve
     with tf.name_scope("lev%i"%layer):
