@@ -107,18 +107,18 @@ def test_memory_consumption(steps=steps_train, mode='train'):
     net, input_shape, output_shape = build_net(steps, mode=mode)
     with open('net_io_names.json', 'r') as f:
         net_io_names = json.load(f)
-
     input_arrays = dict()
     requested_outputs = dict()
     input_arrays[net_io_names['raw']] = np.random.random(input_shape.astype(np.int)).astype(np.float32)
     for l in labels:
-        input_arrays[net_io_names['gt_' + l.labelname]] = np.random.random(output_shape).astype(np.float32)
-        if l.scale_loss or l.scale_key is not None:
-            input_arrays[net_io_names['w_'+l.labelname]] = np.random.random(output_shape).astype(np.float32)
-            requested_outputs[l.labelname]=net_io_names[l.labelname]
-        input_arrays[net_io_names['mask_'+l.labelname]] = np.random.random(output_shape).astype(np.float32)
+        if mode.lower()=='train' or mode.lower() == 'training':
+            input_arrays[net_io_names['gt_' + l.labelname]] = np.random.random(output_shape).astype(np.float32)
+            if l.scale_loss or l.scale_key is not None:
+                input_arrays[net_io_names['w_'+l.labelname]] = np.random.random(output_shape).astype(np.float32)
+            input_arrays[net_io_names['mask_'+l.labelname]] = np.random.random(output_shape).astype(np.float32)
+        requested_outputs[l.labelname]=net_io_names[l.labelname]
 
-    t = Test(net, requested_outputs, net_io_names['optimizer'], net_io_names['loss_total'])
+    t = Test(net, requested_outputs, net_io_names['optimizer'], net_io_names['loss_total'], mode=mode)
     t.setup()
     for it in range(100):
         t.train_step(input_arrays, iteration=it+1)

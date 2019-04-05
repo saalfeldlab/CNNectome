@@ -102,9 +102,9 @@ def build_net(steps=steps_inference, mode='train'):
     return net
 
 
-def test_memory_consumption(steps=steps_train):
+def test_memory_consumption(steps=steps_train, mode='train'):
     from utils.test_memory_consumption import Test
-    scnet = build_net(steps)
+    scnet = build_net(steps, mode=mode)
 
     print("INPUT:",  scnet.input_shapes)
     print("OUTPUT:", scnet.output_shapes)
@@ -117,16 +117,18 @@ def test_memory_consumption(steps=steps_train):
     for k, (inp, vs) in enumerate(zip(scnet.input_shapes, scnet.voxel_sizes)):
         input_arrays[net_io_names['raw_{0}'.format(vs[0])]] = np.random.random(inp.astype(np.int)).astype(np.float32)
     for l in labels:
-        input_arrays[net_io_names['gt_' + l.labelname]] = np.random.random(scnet.output_shapes[0].astype(
-            np.int)).astype(np.float32)
-        if l.scale_loss or l.scale_key is not None:
-            input_arrays[net_io_names['w_'+l.labelname]] = np.random.random(scnet.output_shapes[0].astype(
+        if mode.lower() == 'train' or mode.lower() == 'training':
+            input_arrays[net_io_names['gt_' + l.labelname]] = np.random.random(scnet.output_shapes[0].astype(
                 np.int)).astype(np.float32)
-            requested_outputs[l.labelname]=net_io_names[l.labelname]
-        input_arrays[net_io_names['mask_'+l.labelname]] = np.random.random(scnet.output_shapes[0].astype(
-            np.int)).astype(np.float32)
+            if l.scale_loss or l.scale_key is not None:
+                input_arrays[net_io_names['w_'+l.labelname]] = np.random.random(scnet.output_shapes[0].astype(
+                    np.int)).astype(np.float32)
+            input_arrays[net_io_names['mask_' + l.labelname]] = np.random.random(scnet.output_shapes[0].astype(
+                np.int)).astype(np.float32)
 
-    t = Test(scnet.name, requested_outputs, net_io_names['optimizer'], net_io_names['loss_total'])
+        requested_outputs[l.labelname]=net_io_names[l.labelname]
+
+    t = Test(scnet.name, requested_outputs, net_io_names['optimizer'], net_io_names['loss_total'], mode=mode)
     t.setup()
     for it in range(100):
         t.train_step(input_arrays, iteration=it+1)
