@@ -21,7 +21,7 @@ class Label(object):
                  data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
                  data_sources=None):
 
-        self.labelname= labelname
+        self.labelname = labelname
         if not isinstance(labelid, collections.Iterable):
             labelid = (labelid, )
         self.labelid = labelid
