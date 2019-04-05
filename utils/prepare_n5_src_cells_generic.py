@@ -51,8 +51,8 @@ def main(orig, target, mapping, ribos=True, src_label_name='volumes/labels/gt', 
                                                                           labels.attrs['offset']))
     if ribos:
         logging.info("RIBOSOMES dataset {0:} has resolution {1:} and offset {2:}".format(ribosomes.shape,
-                                                                                         ribosomes.attrs[
-        'resolution'], ribosomes.attrs['offset']))
+                                                                                         ribosomes.attrs['resolution'],
+                                                                                         ribosomes.attrs['offset']))
     cont = np.unique(labels)
     hist = np.histogram(labels, bins=list(cont)+[cont[-1]+0.1])
     logging.info("LABELS contains ids {0:} in freq {1:}".format(cont, hist[0]))
@@ -73,14 +73,13 @@ def main(orig, target, mapping, ribos=True, src_label_name='volumes/labels/gt', 
     padding = tuple((b, a) for b, a in zip(padding_before, padding_after))
     bg_label = 18446744073709551613
 
-
     logging.info("padding LABELS with {0:} to match shape of upscaled RAW, padding value {1:} and relabeling "
                  "using mapping {2:} to {3:}".format(padding, bg_label, range(len(mapping)), mapping))
     # labels_padded = np.pad(labels, padding, 'constant', constant_values=bg_label)
     # numpy.pad has a bug when handling uint64, it is fixed in the current master so should be good with the next
     # numpy release (currently 1.14.3)
 
-    labels_padded = np.ones((rs*2 for rs in raw.shape), dtype=np.uint64)*bg_label
+    labels_padded = np.ones((rs*2 for rs in raw.shape), dtype=np.uint64) * bg_label
     labels_padded[padding[0][0]:-padding[0][1], padding[1][0]:-padding[1][1], padding[2][0]:-padding[2][1]] = \
         mapping[np.array(labels)]
     cont_relabeled = np.unique(labels_padded)
@@ -112,7 +111,7 @@ def main(orig, target, mapping, ribos=True, src_label_name='volumes/labels/gt', 
     if ribos:
          add_ds(target, 'volumes/labels/ribosomes', ribosomes_padded, ribosomes.chunks,
                 list(ribosomes.attrs['resolution']), [0., 0., 0.,], orig_ids=list(hist_ribo[1]), orig_counts=list(
-                hist_ribo[0]), relabeled_ids = list(hist_ribo_relabeled[1]), relabeled_counts=list(
+                hist_ribo[0]), relabeled_ids=list(hist_ribo_relabeled[1]), relabeled_counts=list(
                 hist_relabeled[0]))
     add_ds(target, 'volumes/ribosomes_mask', ribosomes_mask_padded, labels.chunks,
             list(labels.attrs['resolution']), [0., 0., 0.])
@@ -374,7 +373,7 @@ def main_cell2_crop22():
 
 def main_multiscale_crop1(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop1_Periphery'
-                     '/Cell2_Crop1_1510x1510x1110+5961-280+95.h5', 'r')
+                     '/Cell2_Crop1_1510x1510x1170+5961-280+65.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop1.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 4, 3, 10, 16, 2, 1, 1, 17, 11, 8, 30, 18, 19, 35, 9])
@@ -411,7 +410,7 @@ def main_multiscale_crop6(labels, offset, datestr='020719'):
                     separate_datasets={'ribosomes': orig})
 def main_multiscale_crop7(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop7_PM'
-                     '/Cell2_Crop7_1310x1310x1090+7775-265-505.h5', 'r')
+                     '/Cell2_Crop7_1310x1310x1170+7775-265-545.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop7.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 2, 2, 1, 35, 35, 30, 8, 9, 3, 4])
@@ -423,7 +422,7 @@ def main_multiscale_crop7(labels, offset, datestr='020719'):
         'ribosomes': orig}, src_label_name='volumes/labels/merged_ids')
 def main_multiscale_crop8(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop8_ERES001'
-                     '/Cell2_Crop8_1210x1210x1110+2880-225+744.h5', 'r')
+                     '/Cell2_Crop8_1210x1210x1170+2880-225+714.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop8.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 16, 18, 19, 30, 35, 17, 8, 9, 10])
@@ -434,7 +433,7 @@ def main_multiscale_crop8(labels, offset, datestr='020719'):
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
 def main_multiscale_crop9(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop9_ERES002'
-                     '/Cell2_Crop9_1110x1110x1063+2395-85+1104.h5', 'r')
+                     '/Cell2_Crop9_1170x1170x1171+2365-115+1050.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop9.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 18, 3, 4, 35, 16, 17, 19, 10, 11, 30, 8, 9])
@@ -445,7 +444,7 @@ def main_multiscale_crop9(labels, offset, datestr='020719'):
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
 def main_multiscale_crop13(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop13_ERES006'
-                     '/Cell2_Crop13_1170x1170x1120+4655+255+3427.h5', 'r')
+                     '/Cell2_Crop13_1170x1170x1170+4655+255+3402.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop13.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 16, 18, 19, 10, 11, 35, 30, 20, 21, 36, 28, 17, 8, 9])
@@ -457,9 +456,10 @@ def main_multiscale_crop13(labels, offset, datestr='020719'):
                                                                                      'NHChrom': 0, 'EChrom': 0,
                                                                                      'NEChrom': 0},
                     separate_datasets={'ribosomes': orig})
+
 def main_multiscale_crop14(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop14_ERES007'
-                     '/Cell2_Crop14_1160x1160x1075+5825-130+3911.h5', 'r')
+                     '/Cell2_Crop14_1170x1170x1171+5820-135+3863.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop14.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 16, 19, 18, 30, 35, 17, 8, 9])
@@ -467,9 +467,10 @@ def main_multiscale_crop14(labels, offset, datestr='020719'):
     min_ad = 70.
     max_ad = 204.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
+
 def main_multiscale_crop15(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop15_ERES008'
-                     '/Cell2_Crop15_1160x1160x1074+5625-60+3905.h5', 'r')
+                     '/Cell2_Crop15_1170x1170x1170+5620-65+3857.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop15.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 16, 17, 18, 19, 35, 30])
@@ -477,9 +478,10 @@ def main_multiscale_crop15(labels, offset, datestr='020719'):
     min_ad = 70.
     max_ad = 204.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
+
 def main_multiscale_crop18(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop18_MVB'
-                     '/Cell2_Crop18_1210x1210x1120+1405-305+3225.h5', 'r')
+                     '/Cell2_Crop18_1210x1210x1170+1405-305+3200.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop18.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 30, 35, 16, 17, 10, 11, 8, 9])
@@ -487,9 +489,10 @@ def main_multiscale_crop18(labels, offset, datestr='020719'):
     min_ad = 70.
     max_ad = 204.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
+
 def main_multiscale_crop19(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop19_BadLD'
-                     '/Cell2_Crop19_1160x1160x1065+6395-105+4430.h5', 'r')
+                     '/Cell2_Crop19_1170x1170x1171+6390-110+4377.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop19.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 16, 17, 14, 15, 30, 8, 9, 35])
@@ -497,9 +500,10 @@ def main_multiscale_crop19(labels, offset, datestr='020719'):
     min_ad = 70.
     max_ad = 204.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
+
 def main_multiscale_crop20(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/SUM159_Cell2_Crop20_LD001'
-                     '/Cell2_Crop20_1210x1210x1095+4200+240+4996.h5', 'r')
+                     '/Cell2_Crop20_1210x1210x1171+4200+240+4958.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop20.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 3, 4, 14, 15, 16, 17, 10, 11, 35])
@@ -507,9 +511,10 @@ def main_multiscale_crop20(labels, offset, datestr='020719'):
     min_ad = 172.
     max_ad = 233.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
+
 def main_multiscale_crop21(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/SUM159_Cell2_Crop21_LD002'
-                     '/Cell2_Crop21_1170x1170x1065+4055+125+5071.h5', 'r')
+                     '/Cell2_Crop21_1170x1170x1171+4055+125+5018.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop21.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 3, 4, 16, 17, 14, 15, 35])
@@ -518,10 +523,9 @@ def main_multiscale_crop21(labels, offset, datestr='020719'):
     max_ad = 233.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
 
-
 def main_multiscale_crop22(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/SUM159_Cell2_Crop22_LD003'
-                     '/Cell2_Crop22_1180x1180x1110+3505-45+4875.h5', 'r')
+                     '/Cell2_Crop22_1180x1180x1170+3505-45+4845.h5', 'r')
     target = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}/crop22.n5'.format(
         datestr, offset), use_zarr_format=False)
     mapping = np.array([0, 35, 16, 17, 14, 15, 10, 11, 30])
@@ -529,7 +533,6 @@ def main_multiscale_crop22(labels, offset, datestr='020719'):
     min_ad = 172.
     max_ad = 233.
     main_multiscale(orig, target, labels, mapping,  min_ad, max_ad, specified_masks={'ribosomes': 0})
-
 
 def main_multiscale_crop4(labels, offset, datestr='020719'):
     orig = h5py.File('/nrs/saalfeld/heinrichl/cell/Annotations020719/HeLa_Cell2_Crop4_Centrosome'
@@ -542,13 +545,9 @@ def main_multiscale_crop4(labels, offset, datestr='020719'):
     # subidstal appendages, distal appendages, vesicle membrane, vesicle lumen, lysosome membrane]
     min_ad = 70.
     max_ad = 204.
-    main_multiscale(orig, target, labels, mapping, min_ad, max_ad, specified_masks={'ribosomes': 0,
-                                                                                    'NHChrom': 1,
-                                                                                    'EChrom': 0,
-                                                                                    'NEChrom': 1,
-                                                                                    'chromatin': 0,
-                                                                                    'microtubules':
-                                                                                        'volumes/masks/microtubules'})
+    main_multiscale(orig, target, labels, mapping, min_ad, max_ad,
+                    specified_masks={'ribosomes': 0, 'NHChrom': 1, 'EChrom': 0, 'NEChrom': 1, 'chromatin': 0,
+                                     'microtubules': 'volumes/masks/microtubules'})
 
 
 def run_main_multiscale():
@@ -585,22 +584,25 @@ def run_main_multiscale():
               'distal_app',
               'subdistal_app',
               'ribosomes']
-    offset = 505
-    main_multiscale_crop1(labels, offset)
-    main_multiscale_crop3(labels, offset)
-    main_multiscale_crop6(labels, offset)
+    offset = 'o505x505x505_m1170x1170x1170'
+    # main_multiscale_crop1(labels, offset)
     main_multiscale_crop7(labels, offset)
-    main_multiscale_crop8(labels, offset)
-    main_multiscale_crop9(labels, offset)
-    main_multiscale_crop13(labels, offset)
-    main_multiscale_crop14(labels, offset)
-    main_multiscale_crop15(labels, offset)
-    main_multiscale_crop18(labels, offset)
-    main_multiscale_crop19(labels, offset)
-    main_multiscale_crop20(labels, offset)
-    main_multiscale_crop21(labels, offset)
-    main_multiscale_crop22(labels, offset)
-    main_multiscale_crop4(labels, offset)
+    # main_multiscale_crop14(labels, offset)
+    # main_multiscale_crop22(labels, offset)
+    # main_multiscale_crop8(labels, offset)
+    # main_multiscale_crop19(labels, offset)
+    # main_multiscale_crop9(labels, offset)
+    #main_multiscale_crop13(labels, offset)
+    # main_multiscale_crop15(labels, offset)
+    # main_multiscale_crop18(labels, offset)
+    # main_multiscale_crop20(labels, offset)
+    # main_multiscale_crop21(labels, offset)
+
+
+
+    #main_multiscale_crop3(labels, offset)
+    #main_multiscale_crop4(labels, offset)
+    #main_multiscale_crop6(labels, offset)
 
 
 def run_main():
