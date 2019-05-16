@@ -68,6 +68,10 @@ def compute_total_voxels(data_dir, data_sources):
     if data_sources is not None:
         for ds in data_sources:
             zf = z5py.File(ds.full_path, use_zarr_format=False)
-            for c in zf['volumes/labels/all'].attrs['orig_counts']:
-                voxels += c
+            try:
+                for c in zf['volumes/labels/all'].attrs['orig_counts']:
+                    voxels += c
+            except KeyError as e:
+                print(ds.filename)
+                raise e
     return voxels
