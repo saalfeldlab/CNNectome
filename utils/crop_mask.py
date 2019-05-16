@@ -41,7 +41,7 @@ def crop_mask(filename, mask_ds='volumes/masks/training', target_ds='volumes/mas
 
 
 if __name__ == '__main__':
-    dataset_dir='/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v020719_o505x505x505_m1170x1170x1170/{0:}'
+    dataset_dir='/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v020719_o505x505x505_m1170x1170x1170_8nm/{0:}'
     list_of_ds = ['crop1.n5', 'crop3.n5', 'crop4.n5', 'crop6.n5', 'crop7.n5', 'crop8.n5', 'crop9.n5', 'crop13.n5',
                   'crop14.n5', 'crop15.n5', 'crop18.n5', 'crop19.n5', 'crop20.n5', 'crop21.n5', 'crop22.n5']
     padding = 190
