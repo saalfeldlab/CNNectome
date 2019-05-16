@@ -13,6 +13,7 @@ def strided_autoencoder(
         layer=0,
         fov=(1,1,1),
         voxel_size=(1, 1, 1),
+        constant_upsample=False
         ):
 
     '''Create an autoencoder with strided convolutions::
@@ -114,7 +115,8 @@ def strided_autoencoder(
             activation=activation,
             layer=layer+1,
             fov=fov,
-            voxel_size=voxel_size)
+            voxel_size=voxel_size,
+            constant_upsample=constant_upsample)
 
         print(prefix + "g_out: " + str(g_out.shape))
 
@@ -127,7 +129,8 @@ def strided_autoencoder(
             name='autoencoder_up_%i_to_%i'%(layer + 1, layer),
             fov=fov,
             voxel_size=voxel_size,
-            prefix=prefix)
+            prefix=prefix,
+            constant_upsample=constant_upsample)
 
         print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 

@@ -14,6 +14,7 @@ def unet(
         layer=0,
         fov=(1,1,1),
         voxel_size=(1, 1, 1),
+        constant_upsample=False
         ):
 
     '''Create a U-Net::
@@ -116,7 +117,8 @@ def unet(
             activation=activation,
             layer=layer+1,
             fov=fov,
-            voxel_size=voxel_size)
+            voxel_size=voxel_size,
+            constant_upsample=constant_upsample)
 
         print(prefix + "g_out: " + str(g_out.shape))
 
@@ -129,7 +131,8 @@ def unet(
             name='unet_up_%i_to_%i'%(layer + 1, layer),
             fov=fov,
             voxel_size=voxel_size,
-            prefix=prefix)
+            prefix=prefix,
+            constant_upsample=constant_upsample)
 
         print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 

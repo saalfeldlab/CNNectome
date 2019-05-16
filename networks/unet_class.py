@@ -8,7 +8,7 @@ import warnings
 class UNet(object):
 
     def __init__(self, num_fmaps_down, num_fmaps_up, downsample_factors, kernel_size_down, kernel_size_up,
-                 activation='relu', input_fov=(1, 1, 1), input_voxel_size=(1, 1, 1)):
+                 activation='relu', constant_upsample=False, input_fov=(1, 1, 1), input_voxel_size=(1, 1, 1)):
         assert len(num_fmaps_down) - 1 == len(num_fmaps_up)-1 == len(downsample_factors) == len(kernel_size_down) - 1
         assert len(downsample_factors) == len(kernel_size_up) - 1 or len(downsample_factors) == len(kernel_size_up)
         if len(downsample_factors) == len(kernel_size_up) - 1:
@@ -21,6 +21,7 @@ class UNet(object):
         self.kernel_size_up = kernel_size_up
         self.activation = activation
         self.input_fov = input_fov
+        self.constant_upsample=constant_upsample
         self.input_voxel_size = input_voxel_size
         self.min_input_shape, self.step_valid_shape, self.min_output_shape, self.min_bottom_shape = \
             self.compute_minimal_shapes()
@@ -201,7 +202,8 @@ class UNet(object):
                 name='unet_up_%i_to_%i' % (layer + 1, layer),
                 fov=fov,
                 voxel_size=voxel_size,
-                prefix=prefix)
+                prefix=prefix,
+                constant_upsample=self.constant_upsample)
 
             print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 

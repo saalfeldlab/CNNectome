@@ -90,7 +90,7 @@ class ScaleNet(object):
 
 class SerialUNet(object):
     def __init__(self, num_fmaps_down, num_fmaps_up, downsample_factors, kernel_size_down, kernel_size_up,
-                 activation='relu', input_fov=(1, 1, 1), input_voxel_size=(1, 1, 1), constant_upsample=False):
+                 activation='relu', input_fov=(1, 1, 1), input_voxel_size=(1, 1, 1)):
         """
         :param list num_fmaps_down: number of feature maps on the downward path
         :param list num_fmaps_up: number of feature maps on the upward path
@@ -127,7 +127,6 @@ class SerialUNet(object):
         self.activation = activation
         self.input_fov = input_fov
         self.input_voxel_size = input_voxel_size
-        self.constant_upsample=constant_upsample
         self.min_input_shape, self.step_valid_shape, self.min_output_shape, self.min_bottom_shape = \
             self.compute_minimal_shapes()
 
@@ -353,8 +352,7 @@ class SerialUNet(object):
                 name='unet_up_%i_to_%i' % (layer + 1, layer),
                 fov=fov,
                 voxel_size=voxel_size,
-                prefix=prefix,
-                constant_upsample=self.constant_upsample)
+                prefix=prefix)
 
             print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 
