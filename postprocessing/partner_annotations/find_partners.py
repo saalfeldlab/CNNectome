@@ -263,6 +263,22 @@ class SynapticRegion(object):
             if not self.is_neighbor(partner):
                 print("{0:} and {1:} are not neighbors".format(self.segmentid, partner.segmentid))
                 return False
+        post_spot = scipy.ndimage.center_of_mass(partner.get_region_for_acc())
+        gradient = []
+        for gr in partner.parentcleft.get_cleft_gradient():
+            gradient.append(np.ma.mean(np.ma.array(gr, mask=np.logical_not(partner.region_for_acc))))
+
+        #np.mean(partner.parentcleft.get_cleft())
+
+    def partner_with_post(self, partner):
+        if self == partner:
+            return None
+        assert self.is_pre()
+        assert partner.is_post()
+        if self.ngbrs:
+            if not self.is_neighbor(partner):
+                print("{0:} and {1:} are not neighbors".format(self.segmentid, partner.segmentid))
+                return False
         post_masked_distance_map = ma.array(self.get_distance_map(), mask=np.logical_not(partner.get_region_for_point()))
         post_spot = np.unravel_index(np.argmin(post_masked_distance_map), post_masked_distance_map.shape)
         post_to_pre_dist = post_masked_distance_map[post_spot]
@@ -328,6 +344,7 @@ class Cleft(object):
         self.seg = None
         self.pre = None
         self.post = None
+        self.cleft = None
         if self.safe_mem:
             self.cleft_mask = None
         else:
@@ -335,6 +352,7 @@ class Cleft(object):
         del cleft_mask_full
         self.dilation_steps = dilation_steps
         self.dilated_cleft_mask = None
+        self.cleft_gradient = None
 
         #self.region_for_acc = np.copy(self.get_cleft_mask())
         #self.region_for_acc[np.logical_not(self.get_seg() == self.segmentid)] = False
@@ -342,9 +360,9 @@ class Cleft(object):
 
         if self.splitcc:
             self.synregions = []
-            structure = np.zeros((3, 3, 3))
-            structure[1, :] = np.ones((3, 3))
-            structure[:, 1, 1] = np.ones((3,))
+            structure = np.ones((3, 3, 3))
+            # structure[1, :] = np.ones((3, 3))
+            # structure[:, 1, 1] = np.ones((3,))
             for segid in self.segments_overlapping:
                 region = np.copy(self.get_cleft_mask())
                 region[np.logical_not(self.get_seg() == segid)] = False
@@ -364,7 +382,23 @@ class Cleft(object):
     def set_cleft_mask(self):
         bbox_cleft = self.mm.cleft_cc[self.bbox_slice]
         self.cleft_mask = bbox_cleft == self.cleft_id
-    
+
+    def get_cleft(self):
+        if self.cleft is None:
+            self.set_cleft()
+        return self.cleft
+
+    def set_cleft(self):
+        self.cleft = self.mm.cleft[self.bbox_slice]
+
+    def get_cleft_gradient(self):
+        if self.cleft_gradient is None:
+            self.set_cleft_gradient()
+        return self.cleft_gradient
+
+    def set_cleft_gradient(self):
+        self.cleft_gradient = np.gradient(self.get_cleft(), [40., 4., 4.])
+
     def get_seg(self):
         if self.seg is None:
             self.set_seg()
@@ -453,14 +487,15 @@ class Cleft(object):
         self.post = None
         if self.safe_mem:
             self.cleft_mask = None
-
+            self.cleft = None
 
 class Matchmaker(object):
-    def __init__(self, syn_file, cleft_cc_ds, pre_ds, post_ds, seg_file, seg_ds, tgt_file, raw_file=None, raw_ds=None,
-                 offset=(0., 0., 0.), num_cores=10, safe_mem=False, pre_thr=42, post_thr=42, dist_thr=600,
+    def __init__(self, syn_file, cleft_cc_ds, cleft_ds, pre_ds, post_ds, seg_file, seg_ds, tgt_file, raw_file=None,
+                 raw_ds=None, offset=(0., 0., 0.), num_cores=10, safe_mem=False, pre_thr=42, post_thr=42, dist_thr=600,
                  size_thr=5, ngbrs=True, mvpts=True, splitcc=True):
         self.synf = z5py.File(syn_file, use_zarr_format=False)
         self.segf = z5py.File(seg_file, use_zarr_format=False)
+        self.cleft = self.synf[cleft_ds]
         self.cleft_cc = self.synf[cleft_cc_ds]
         self.cleft_cc_np = self.synf[cleft_cc_ds][:]
         self.seg = self.segf[seg_ds]

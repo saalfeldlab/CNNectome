@@ -163,7 +163,6 @@ class SynapticRegion(object):
            print("After intersection, no region left for: ", self.segmentid, self.cleft.cleft_id)
            self.region_for_point = self.get_eroded_region()
 
-
     def get_distance_map(self):
         if self.distance_map is None:
             self.compute_distance_map()
@@ -197,38 +196,99 @@ class SynapticRegion(object):
         if not self.is_neighbor(partner):
             print("{0:} and {1:} are not neighbors".format(self.segmentid, partner.segmentid))
             return False
-        post_masked_distance_map = ma.array(self.get_distance_map(),
-                                            mask=np.logical_not(partner.get_region_for_point()))
-        post_spot = np.unravel_index(np.argmin(post_masked_distance_map), post_masked_distance_map.shape)
-        post_to_pre_dist = post_masked_distance_map[post_spot]
-        self.distances.append(post_to_pre_dist)
-        if post_to_pre_dist >= self.dist_thr:
-            print("distance {0:} between pre {1:} and post {2:} above threshold".format(post_to_pre_dist,
-                                                                                        self.segmentid,
-                                                                                        partner.segmentid))
+        post_spot = np.round(scipy.ndimage.center_of_mass(partner.get_region_for_acc())).astype(np.int)
+        print(partner.cleft.get_seg().shape, post_spot)
+        if partner.cleft.get_seg()[tuple(post_spot)] != partner.segmentid:
+            print("COM is not in segment - cleftid {0:}, segmentid {1:}".format(partner.cleft.cleft_id,
+                                                                                partner.segmentid))
             return False
-        pre_masked_distance_map = ma.array(partner.get_distance_map(), mask=np.logical_not(self.get_region_for_point()))
-        pre_spot = np.unravel_index(np.argmin(pre_masked_distance_map), pre_masked_distance_map.shape)
-        pre_spot = np.array(pre_spot)
-        post_spot = np.array(post_spot)
-        vec = (post_spot - pre_spot) * np.array([40, 4, 4]) / post_to_pre_dist
-        for f in [100, 50, 25, 0]:
-            pre_spot_mov = np.round((pre_spot * np.array([40, 4, 4]) - f * vec) / (np.array([40, 4, 4]))).astype(
-                np.int)
-            np.minimum(pre_spot_mov, self.cleft.get_seg().shape - np.array([1, 1, 1]), out=pre_spot_mov)
-            np.maximum(pre_spot_mov, [0, 0, 0], out=pre_spot_mov)
-            if self.segmentid == self.cleft.get_seg()[tuple(pre_spot_mov)]:
-                pre_spot = pre_spot_mov
-                break
-        for f in [100, 50, 25, 0]:
-            post_spot_mov = np.round((post_spot * np.array([40, 4, 4]) + f * vec) / (np.array([40, 4, 4]))).astype(
-                np.int)
-            np.minimum(post_spot_mov, partner.cleft.get_seg().shape - np.array([1, 1, 1]), out=post_spot_mov)
-            np.maximum(pre_spot_mov, [0, 0, 0], out=post_spot_mov)
-            if partner.segmentid == partner.cleft.get_seg()[tuple(post_spot_mov)]:
-                post_spot = post_spot_mov
-                break
+        gradient = []
+        max_lambdas = []
+        for ax, gr in enumerate(partner.cleft.get_cleft_gradient()):
+            grad = np.ma.mean(np.ma.array(gr, mask=np.logical_not(partner.region_for_acc)))
+            if grad > 0:
+                max_lambda = (partner.cleft.get_cleft().shape[ax]-1-post_spot[ax])/grad
+            else:
+                max_lambda = (post_spot[ax])/abs(grad)
+            max_lambdas.append(max_lambda)
+            gradient.append(grad)
+        gradient = np.array(gradient)
+        max_lam = min(max_lambdas)
+        end_of_line = np.round(post_spot + max_lam * gradient).astype(np.int)
+        z, y, x = np.linspace(post_spot[0], end_of_line[0], 100), np.linspace(post_spot[1], end_of_line[1], 100), \
+                  np.linspace(post_spot[2], end_of_line[2], 100)
+        cleft_line = scipy.ndimage.map_coordinates(partner.cleft.get_cleft(), np.vstack((z, y, x)))
+        seg_line = [self.cleft.get_seg()[int(round(z[k])), int(round(y[k])), int(round(x[k])) ] for k in range(100)]
+        try:
+            idx_last = len(seg_line) - seg_line[::-1].index(self.segmentid)-1
+        except ValueError:
+            return False
+        #idx_max = np.argmax(cleft_line)
+        #max_spot = np.array((z[idx_max], y[idx_max], x[idx_max]))
+        #pre_lam = 2 * np.mean((max_spot-post_spot)/gradient)
+        #if pre_lam > max_lam:
+        #    pre_lam=max_lam
+        #pre_spot = np.round(post_spot + pre_lam * gradient).astype(np.int)
+        pre_spot = np.array((z[idx_last], y[idx_last], x[idx_last]))
+        pre_spot = np.round(pre_spot).astype(np.int)
+        # if self.cleft.get_seg()[tuple(pre_spot)] != self.segmentid:
+        #     for f in [1.5, 1.25, 0.75, 0.5, 0.25]:
+        #         print("pre spot of cleft {0:} not in segment {1:}, moving only {2:} of the way into pre "
+        #               "segment".format(self.cleft.cleft_id, self.segmentid, f))
+        #         pre_lam = (1 + f) * np.mean((max_spot - post_spot) / gradient)
+        #         if pre_lam > max_lam:
+        #             continue
+        #         pre_spot = np.round(post_spot + pre_lam * gradient).astype(np.int)
+        #         if self.cleft.get_seg()[tuple(pre_spot)] == self.segmentid:
+        #             return tuple(pre_spot), tuple(post_spot)
+        #     print("can't find one in gradient direction")
+        #     return False
+        # print("succesful")
         return tuple(pre_spot), tuple(post_spot)
+
+        #np.mean(partner.parentcleft.get_cleft())
+    #
+    # def partner_with_post(self, partner):
+    #     if self == partner:
+    #         return None
+    #     assert self.is_pre()
+    #     assert partner.is_post()
+    #
+    #     if not self.is_neighbor(partner):
+    #         print("{0:} and {1:} are not neighbors".format(self.segmentid, partner.segmentid))
+    #         return False
+    #     post_masked_distance_map = ma.array(self.get_distance_map(),
+    #                                         mask=np.logical_not(partner.get_region_for_point()))
+    #     post_spot = np.unravel_index(np.argmin(post_masked_distance_map), post_masked_distance_map.shape)
+    #     post_to_pre_dist = post_masked_distance_map[post_spot]
+    #     self.distances.append(post_to_pre_dist)
+    #     if post_to_pre_dist >= self.dist_thr:
+    #         print("distance {0:} between pre {1:} and post {2:} above threshold".format(post_to_pre_dist,
+    #                                                                                     self.segmentid,
+    #                                                                                     partner.segmentid))
+    #         return False
+    #     pre_masked_distance_map = ma.array(partner.get_distance_map(), mask=np.logical_not(self.get_region_for_point()))
+    #     pre_spot = np.unravel_index(np.argmin(pre_masked_distance_map), pre_masked_distance_map.shape)
+    #     pre_spot = np.array(pre_spot)
+    #     post_spot = np.array(post_spot)
+    #     vec = (post_spot - pre_spot) * np.array([40, 4, 4]) / post_to_pre_dist
+    #     for f in [100, 50, 25, 0]:
+    #         pre_spot_mov = np.round((pre_spot * np.array([40, 4, 4]) - f * vec) / (np.array([40, 4, 4]))).astype(
+    #             np.int)
+    #         np.minimum(pre_spot_mov, self.cleft.get_seg().shape - np.array([1, 1, 1]), out=pre_spot_mov)
+    #         np.maximum(pre_spot_mov, [0, 0, 0], out=pre_spot_mov)
+    #         if self.segmentid == self.cleft.get_seg()[tuple(pre_spot_mov)]:
+    #             pre_spot = pre_spot_mov
+    #             break
+    #     for f in [100, 50, 25, 0]:
+    #         post_spot_mov = np.round((post_spot * np.array([40, 4, 4]) + f * vec) / (np.array([40, 4, 4]))).astype(
+    #             np.int)
+    #         np.minimum(post_spot_mov, partner.cleft.get_seg().shape - np.array([1, 1, 1]), out=post_spot_mov)
+    #         np.maximum(pre_spot_mov, [0, 0, 0], out=post_spot_mov)
+    #         if partner.segmentid == partner.cleft.get_seg()[tuple(post_spot_mov)]:
+    #             post_spot = post_spot_mov
+    #             break
+    #     return tuple(pre_spot), tuple(post_spot)
 
 
 class Cleft(object):
@@ -259,6 +319,7 @@ class Cleft(object):
         self.seg = None
         self.pre = None
         self.post = None
+        self.cleft = None
         if self.safe_mem:
             self.cleft_mask = None
         else:
@@ -266,6 +327,7 @@ class Cleft(object):
         del cleft_mask_full
         self.dilation_steps = dilation_steps
         self.dilated_cleft_mask = None
+        self.cleft_gradient = None
 
         # self.region_for_acc = np.copy(self.get_cleft_mask())
         # self.region_for_acc[np.logical_not(self.get_seg() == self.segmentid)] = False
@@ -273,9 +335,9 @@ class Cleft(object):
 
 
         self.synregions = []
-        structure = np.zeros((3, 3, 3))
-        structure[1, :] = np.ones((3, 3))
-        structure[:, 1, 1] = np.ones((3,))
+        structure = np.ones((3, 3, 3))
+        # structure[1, :] = np.ones((3, 3))
+        # structure[:, 1, 1] = np.ones((3,))
         for segid in self.segments_overlapping:
             region = np.copy(self.get_cleft_mask())
             region[np.logical_not(self.get_seg() == segid)] = False
@@ -293,6 +355,22 @@ class Cleft(object):
     def set_cleft_mask(self):
         bbox_cleft = self.mm.cleft_cc[self.bbox_slice]
         self.cleft_mask = bbox_cleft == self.cleft_id
+
+    def get_cleft(self):
+        if self.cleft is None:
+            self.set_cleft()
+        return self.cleft
+
+    def set_cleft(self):
+        self.cleft = self.mm.cleft[self.bbox_slice]
+
+    def get_cleft_gradient(self):
+        if self.cleft_gradient is None:
+            self.set_cleft_gradient()
+        return self.cleft_gradient
+
+    def set_cleft_gradient(self):
+        self.cleft_gradient = np.gradient(self.get_cleft(), 40, 4, 4)
 
     def get_seg(self):
         if self.seg is None:
@@ -356,15 +434,16 @@ class Cleft(object):
         self.post = None
         if self.safe_mem:
             self.cleft_mask = None
-
+            self.cleft = None
 
 class Matchmaker(object):
-    def __init__(self, syn_file, cleft_cc_ds, pre_ds, post_ds, seg_file, seg_ds, tgt_file, raw_file=None, raw_ds=None,
-                 offset=(0., 0., 0.), safe_mem=False, pre_thr=42, post_thr=42, dist_thr=600,
+    def __init__(self, syn_file, cleft_cc_ds, cleft_ds, pre_ds, post_ds, seg_file, seg_ds, tgt_file, raw_file=None,
+                 raw_ds=None, offset=(0., 0., 0.), safe_mem=False, pre_thr=42, post_thr=42, dist_thr=600,
                  size_thr=5):
         logging.debug('initializing matchmaker')
         self.synf = z5py.File(syn_file, use_zarr_format=False)
         self.segf = z5py.File(seg_file, use_zarr_format=False)
+        self.cleft = self.synf[cleft_ds]
         self.cleft_cc = self.synf[cleft_cc_ds]
         self.cleft_cc_np = self.synf[cleft_cc_ds][:]
         self.seg = self.segf[seg_ds]
@@ -374,7 +453,7 @@ class Matchmaker(object):
         logging.debug('finding list of cleftids')
         try:
             self.list_of_cleftids = range(1, self.cleft_cc.attrs['max_id'] + 1)
-        except AssertionError:
+        except Exception:
             self.list_of_cleftids = np.unique(self.cleft_cc[:])[1:]
         logging.debug('list of cleftids from {0:} to {1:}'.format(np.min(self.list_of_cleftids),np.max(self.list_of_cleftids)))
         logging.debug('initializing list of clefts')
@@ -505,6 +584,7 @@ class FindPartners(luigi.Task):
             cleft_cc_ds = 'clefts_cropped_thr{0:}_cc{1:}'.format(thr, cc_thr)
             pre_ds = 'pre_dist_cropped'
             post_ds = 'post_dist_cropped'
+            cleft_ds = 'clefts_cropped'
             seg_file = os.path.join('/groups/saalfeld/saalfeldlab/larissa/data/cremieval/', self.de, s+'.n5')
             seg_ds = 'volumes/labels/neuron_ids_constis_slf1_sf750_cropped'
             if 'unaligned' in self.de:
@@ -512,7 +592,7 @@ class FindPartners(luigi.Task):
             else:
                 aligned = True
             off = tuple(np.array(offsets[s][aligned])*np.array((40,4,4)))
-            mm = Matchmaker(syn_file, cleft_cc_ds, pre_ds, post_ds, seg_file, seg_ds, filename, offset=off,
+            mm = Matchmaker(syn_file, cleft_cc_ds, cleft_ds, pre_ds, post_ds, seg_file, seg_ds, filename, offset=off,
                             safe_mem=True, dist_thr=dist_thr, size_thr=size_thr, pre_thr=pre_thr, post_thr=post_thr)
             #mm.prepare_file()
             mm.write_partners()
@@ -526,3 +606,46 @@ class FindPartners(luigi.Task):
         for o in self.output():
             done = o.open('w')
             done.close()
+
+
+def main():
+    logging.debug('Starting to run partner finding')
+    samples = ('A', 'B', 'C', 'A+', 'B+', 'C+')
+    inp = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v9.0/run01/evaluation/186000/data2016-aligned' \
+          '/cc.msg'
+    output = os.path.join(os.path.dirname(inp), 'partners{0:}.msg')
+    de = 'data2016-aligned'
+    thr = 127
+    cc_thr = 42
+    pre_thr = 42
+    post_thr = 35
+    dist_thr = 600
+    size_thr = 5
+    for s in samples:
+        logging.debug('Starting with sample {0:}'.format(s))
+        filename = os.path.join(os.path.dirname(inp), s + '.h5')
+        syn_file = os.path.join(os.path.dirname(inp), s + '.n5')
+        cleft_cc_ds = 'clefts_cropped_thr{0:}_cc{1:}'.format(thr, cc_thr)
+        pre_ds = 'pre_dist_cropped'
+        post_ds = 'post_dist_cropped'
+        cleft_ds = 'clefts_cropped'
+        seg_file = os.path.join('/groups/saalfeld/saalfeldlab/larissa/data/cremieval/', de, s+'.n5')
+        seg_ds = 'volumes/labels/neuron_ids_constis_slf1_sf750_cropped'
+        if 'unaligned' in de:
+            aligned = False
+        else:
+            aligned = True
+        off = tuple(np.array(offsets[s][aligned])*np.array((40,4,4)))
+        mm = Matchmaker(syn_file, cleft_cc_ds, cleft_ds, pre_ds, post_ds, seg_file, seg_ds, filename, offset=off,
+                safe_mem=True, dist_thr=dist_thr, size_thr=size_thr, pre_thr=pre_thr, post_thr=post_thr)
+        #mm.prepare_file()
+        mm.write_partners()
+        mm.cremi_file.close()
+        del mm
+
+    for s in samples:
+        done = (output.format(s)).open('w')
+        done.close()
+
+if __name__=='__main__':
+    main()
