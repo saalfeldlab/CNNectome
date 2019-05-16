@@ -2,6 +2,7 @@ from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
 from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance, AddDistance, AddPrePostCleftDistance
+import gpn
 import tensorflow as tf
 import os
 import math
@@ -154,10 +155,12 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, dt_scali
     train_pipeline = (
         data_sources +
         RandomProvider() +
-        ElasticAugment((4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
-                       prob_slip=0.05, prob_shift=0.05, max_misalign=10,
-                       subsample=8) +
-        SimpleAugment(transpose_only=[1,2], mirror_only=[1,2]) +
+        SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2]) +
+        gpn.ElasticAugment((40, 4, 4), (4, 40, 40), (0., 2., 2.), (0, math.pi/2.0),
+                            spatial_dims=3, subsample=8) +
+        gpn.Misalign(40, prob_slip=0.05, prob_shift=0.05, max_misalign=10,
+                     ignore_keys_for_slip=(ArrayKeys.GT_CLEFTS, ArrayKeys.GT_MASK, ArrayKeys.TRAINING_MASK,
+                                           ArrayKeys.GT_LABELS)) +
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
         DefectAugment(ArrayKeys.RAW,
                       prob_missing=0.03,
