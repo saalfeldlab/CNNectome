@@ -21,7 +21,8 @@ def threshold(filename_src, dataset_src, filename_tgt, dataset_tgt, thr):
     print(np.min(ds))
     print(np.max(ds))
     tgtf[dataset_tgt][:] = (srcf[dataset_src][:]>thr).astype(np.uint8)
-    tgtf[dataset_tgt].attrs['offset'] = srcf[dataset_src].attrs['offset']
+    if 'offset' in srcf[dataset_src].attrs.keys():
+        tgtf[dataset_tgt].attrs['offset'] = srcf[dataset_src].attrs['offset']
 
 
 def main():
@@ -43,6 +44,13 @@ def main():
                 logging.info("    dataset {0:} at {1:}".format(ds_src, thr))
                 threshold(filename_src.format(sample), ds_src, filename_tgt.format(sample), ds_tgt.format(thr), thr)
 
+def run():
+    filepath = '/nrs/saalfeld/heinrichl/synapses/cremi_all/cremi_all_0116_01/prediction_cremi_warped_sampleC+_200000.n5'
+    dataset = 'syncleft_dist'
+    thr = 0.
+    dataset_tgt = 'syncleft_dist_thr{0:}'.format(thr)
+    threshold(filepath, dataset, filepath, dataset_tgt, thr)
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    main()
+    run()
