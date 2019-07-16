@@ -13,9 +13,22 @@ From: tensorflow/tensorflow:1.3.0-gpu
     libboost-all-dev \
     wget && \
     rm -rf /var/lib/apt/lists/*
-    pip -v
+    
+    export PREFIX=$HOME
+    export BLOSC_ROOT=${PREFIX}/src/c-blosc
+    export BLOSC_REVISION=1.15.1
+    export BLOSC_REPO=https://github.com/Blosc/c-blosc
+    mkdir -p $BLOSC_ROOT
+    cd $BLOSC_ROOT
+    
 
 %environment
-    export PIP = pip
-    export PYTHON = python2.7
-    export PREFIX=$HOME
+    echo 'Setting up environment'
+    export PIP=pip
+    export PYTHON=python2.7
+    
+    
+    
+    
+    
+    
