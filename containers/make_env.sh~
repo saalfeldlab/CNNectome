@@ -1,8 +1,5 @@
-bootstrap: docker
-From: tensorflow/tensorflow:1.3.0-gpu
-
-%post
-    apt-get update && apt-get install -y --no-install-recommends \
+# make the environment
+ apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     git \
@@ -50,38 +47,3 @@ From: tensorflow/tensorflow:1.3.0-gpu
     export PYBIND11_ROOT=${PREFIX}/src/pybind11
     export PYBIND11_REPOSITORY=https://github.com/pybind/pybind11
     export PYBIND11_REVISION=v2.2.4
-
-WORKDIR ${PYBIND11_ROOT}
-RUN git clone ${PYBIND11_REPOSITORY} . && \
-    git checkout ${PYBIND11_REVISION}
-RUN cmake -DPYTHON_EXECUTABLE=$(which ${PYTHON}) .
-RUN make -j $NUM_MAKE_CORES
-RUN make install
-
-ENV XTL_ROOT=${PREFIX}/src/xtl
-ENV XTL_REPOSITORY=https://github.com/QuantStack/xtl
-ENV XTL_REVISION=0.5.2
-
-
-WORKDIR ${XTL_ROOT}
-RUN git clone ${XTL_REPOSITORY} . && \
-    git checkout ${XTL_REVISION}
-RUN cmake .
-RUN make -j $NUM_MAKE_CORES
-RUN make install
-
-
-ENV XTENSOR_ROOT=${PREFIX}/src/xtensor
-ENV XTENSOR_REPOSITORY=https://github.com/QuantStack/xtensor
-ENV XTENSOR_REVISION=0.19.1
-
-%environment
-    echo 'Setting up environment'
-    export PIP=pip
-    export PYTHON=python2.7
-    
-    
-    
-    
-    
-    
