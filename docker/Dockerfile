@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python-pip \
 	libboost-all-dev \
         wget && \
-    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PIP=pip
 ENV PYTHON=python2.7
@@ -55,7 +55,7 @@ ENV PYBIND11_REVISION=v2.2.4
 
 WORKDIR ${PYBIND11_ROOT}
 RUN git clone ${PYBIND11_REPOSITORY} . && \
-    git checkout ${PYBIND11_REVISION}
+    git checkout ${PYBIND11_REVISION} && \ 
     cmake -DPYTHON_EXECUTABLE=$(which ${PYTHON}) . && \
     make -j $NUM_MAKE_CORES && \
     make install
@@ -66,7 +66,7 @@ ENV XTL_REVISION=0.5.2
 
 WORKDIR ${XTL_ROOT}
 RUN git clone ${XTL_REPOSITORY} . && \
-    git checkout ${XTL_REVISION} &&
+    git checkout ${XTL_REVISION} && \ 
     cmake . && \
     make -j $NUM_MAKE_CORES && \
     make install
@@ -104,7 +104,7 @@ RUN git clone ${CMAKE_REPOSITORY} . && \
     git checkout ${CMAKE_REVISION} && \
     cmake . && \
     make -j $NUM_MAKE_CORES && \
-    make install && \
+    make install
 
 ENV NLOHMANN_JSON_ROOT=${PREFIX}/src/json
 ENV NLOHMANN_JSON_REPOSITORY=https://github.com/nlohmann/json
@@ -115,7 +115,7 @@ RUN git clone ${NLOHMANN_JSON_REPOSITORY} . && \
     git checkout ${NLOHMANN_JSON_REVISION} && \
     cmake . && \
     make -j $NUM_MAKE_CORES && \
-    make install && \
+    make install
 
 
 ENV Z5_ROOT=${PREFIX}/src/z5
