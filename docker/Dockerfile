@@ -1,4 +1,6 @@
-FROM tensorflow/tensorflow:1.3.0-gpu
+#FROM tensorflow/tensorflow:latest-devel-gpu
+#FROM tensorflow/tensorflow:1.3.0-gpu
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
 LABEL maintainer bennettd@janelia.hhmi.org
 
 # basic ubuntu packages
@@ -7,18 +9,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake \
         git \
 	libmlpack-dev \
-	python-numpy \
-	python-setuptools \
-        python-pip \
+	python3-numpy \
+	python3-setuptools \
+        python3-pip \
 	libboost-all-dev \
         wget && \
-    rm -rf /var/lib/apt/lists/*
+	rm -rf /var/lib/apt/lists/*
+
+RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+    bash miniconda.sh -b -p /miniconda
+
+ENV PATH=/miniconda/bin:$PATH
+RUN conda config --set always_yes yes --set changeps1 no && \ 
+    conda update -q conda && \
+    conda info -a && \
+    conda install python=3.6
 
 ENV PIP=pip
-ENV PYTHON=python2.7
+ENV PYTHON=python
 
 RUN ${PIP} -V && \
-    ${PIP} install pytest
+    ${PIP} install pytest tensorflow-gpu dask toolz
 
 ENV PREFIX=$HOME
 
@@ -168,15 +179,16 @@ RUN git clone ${AUGMENT_REPOSITORY} . && \
 #
 ENV GUNPOWDER_ROOT=${PREFIX}/src/gunpowder
 ENV PYTHONPATH ${GUNPOWDER_ROOT}:$PYTHONPATH
-ENV GUNPOWDER_REPOSITORY=https://github.com/funkey/gunpowder.git
-ENV GUNPOWDER_REVISION=d49573f53e8f23d12461ed8de831d0103acb2715
+ENV GUNPOWDER_BRANCH=dist_transform
+ENV GUNPOWDER_REPOSITORY=https://github.com/neptunes5thmoon/gunpowder.git
 
 WORKDIR ${GUNPOWDER_ROOT}
 RUN git clone ${GUNPOWDER_REPOSITORY} . && \
-    git checkout ${GUNPOWDER_REVISION} && \
+    git checkout ${GUNPOWDER_BRANCH} &&\
     ${PIP} install -r requirements.txt && \
     ${PYTHON} setup.py build_ext --inplace
 
-RUN ${PIP} install dask toolz
+RUN pip uninstall -y tensorflow && \
+    pip install tensorflow-gpu --force-reinstall
 
 WORKDIR /run
