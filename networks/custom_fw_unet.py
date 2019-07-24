@@ -4,20 +4,20 @@ import ops3d
 
 
 def unet(
-        fmaps_in,
-        num_fmaps_down,
-        num_fmaps_up,
-        downsample_factors,
-        kernel_size_down,
-        kernel_size_up,
-        activation='relu',
-        layer=0,
-        fov=(1,1,1),
-        voxel_size=(1, 1, 1),
-        constant_upsample=False
-        ):
+    fmaps_in,
+    num_fmaps_down,
+    num_fmaps_up,
+    downsample_factors,
+    kernel_size_down,
+    kernel_size_up,
+    activation="relu",
+    layer=0,
+    fov=(1, 1, 1),
+    voxel_size=(1, 1, 1),
+    constant_upsample=False,
+):
 
-    '''Create a U-Net::
+    """Create a U-Net::
         f_in --> f_left --------------------------->> f_right--> f_out
                     |                                   ^
                     v                                   |
@@ -64,31 +64,36 @@ def unet(
         voxel_size:
             Size of a voxel in the input data, in physical units
 
-    '''
+    """
 
-    prefix = "    "*layer
-    print(prefix + "Creating U-Net layer %i"%layer)
+    prefix = "    " * layer
+    print(prefix + "Creating U-Net layer %i" % layer)
     print(prefix + "f_in: " + str(fmaps_in.shape))
-    #if isinstance(fmap_inc_factors, int):
+    # if isinstance(fmap_inc_factors, int):
     #    fmap_inc_factors = [fmap_inc_factors]*len(downsample_factors)
-    assert len(num_fmaps_down) - 1 == len(num_fmaps_up) - 1 == len(downsample_factors) == len(kernel_size_down) - 1\
-           == len(kernel_size_up) - 1
+    assert (
+        len(num_fmaps_down) - 1
+        == len(num_fmaps_up) - 1
+        == len(downsample_factors)
+        == len(kernel_size_down) - 1
+        == len(kernel_size_up) - 1
+    )
     # convolve
-    with tf.name_scope("lev%i"%layer):
+    with tf.name_scope("lev%i" % layer):
 
         f_left, fov = ops3d.conv_pass(
             fmaps_in,
             kernel_size=kernel_size_down[layer],
             num_fmaps=num_fmaps_down[layer],
             activation=activation,
-            name='unet_layer_%i_left'%layer,
+            name="unet_layer_%i_left" % layer,
             fov=fov,
             voxel_size=voxel_size,
-            prefix=prefix
-            )
+            prefix=prefix,
+        )
 
         # last layer does not recurse
-        bottom_layer = (layer == len(downsample_factors))
+        bottom_layer = layer == len(downsample_factors)
 
         if bottom_layer:
             print(prefix + "bottom layer")
@@ -100,11 +105,11 @@ def unet(
         g_in, fov, voxel_size = ops3d.downsample(
             f_left,
             downsample_factors[layer],
-            'unet_down_%i_to_%i'%(layer, layer + 1),
+            "unet_down_%i_to_%i" % (layer, layer + 1),
             fov=fov,
             voxel_size=voxel_size,
-            prefix=prefix)
-
+            prefix=prefix,
+        )
 
         # recursive U-net
         g_out, fov, voxel_size = unet(
@@ -115,10 +120,11 @@ def unet(
             kernel_size_down=kernel_size_down,
             kernel_size_up=kernel_size_up,
             activation=activation,
-            layer=layer+1,
+            layer=layer + 1,
             fov=fov,
             voxel_size=voxel_size,
-            constant_upsample=constant_upsample)
+            constant_upsample=constant_upsample,
+        )
 
         print(prefix + "g_out: " + str(g_out.shape))
 
@@ -128,11 +134,12 @@ def unet(
             downsample_factors[layer],
             num_fmaps_up[layer],
             activation=activation,
-            name='unet_up_%i_to_%i'%(layer + 1, layer),
+            name="unet_up_%i_to_%i" % (layer + 1, layer),
             fov=fov,
             voxel_size=voxel_size,
             prefix=prefix,
-            constant_upsample=constant_upsample)
+            constant_upsample=constant_upsample,
+        )
 
         print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 
@@ -147,15 +154,15 @@ def unet(
         print(prefix + "f_right: " + str(f_right.shape))
 
         # convolve
-        f_out,  fov = ops3d.conv_pass(
+        f_out, fov = ops3d.conv_pass(
             f_right,
             kernel_size=kernel_size_up[layer],
             num_fmaps=num_fmaps_up[layer],
-            name='unet_layer_%i_right'%layer,
+            name="unet_layer_%i_right" % layer,
             fov=fov,
             voxel_size=voxel_size,
-            prefix=prefix
-            )
+            prefix=prefix,
+        )
 
         print(prefix + "f_out: " + str(f_out.shape))
 
@@ -164,16 +171,28 @@ def unet(
 
 if __name__ == "__main__":
     raw = tf.placeholder(tf.float32, shape=(43, 430, 430))
-    raw_batched = tf.reshape(raw, (1, 1,) + (43, 430, 430))
+    raw_batched = tf.reshape(raw, (1, 1) + (43, 430, 430))
 
-    model, ll_fov, vx = unet(raw_batched,
-                             [12, 12*6, 12*6*6, 12*6*6*6], [48, 12*6, 12*6*6, 12*6*6*6], [[1, 3, 3], [1, 3, 3], [3, 3,
-                                                                                                                3]],
-                             [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)], [(3, 3, 3), (3, 3, 3)],
-                             [(3, 3, 3), (3, 3, 3)]],
-                             [[(1, 3, 3), (1, 3, 3)], [(1, 3, 3), (1, 3, 3)], [(3, 3, 3), (3, 3, 3)],
-                             [(3, 3, 3), (3, 3, 3)]],
-                             voxel_size=(10, 1, 1), fov=(10, 1, 1))
+    model, ll_fov, vx = unet(
+        raw_batched,
+        [12, 12 * 6, 12 * 6 * 6, 12 * 6 * 6 * 6],
+        [48, 12 * 6, 12 * 6 * 6, 12 * 6 * 6 * 6],
+        [[1, 3, 3], [1, 3, 3], [3, 3, 3]],
+        [
+            [(1, 3, 3), (1, 3, 3)],
+            [(1, 3, 3), (1, 3, 3)],
+            [(3, 3, 3), (3, 3, 3)],
+            [(3, 3, 3), (3, 3, 3)],
+        ],
+        [
+            [(1, 3, 3), (1, 3, 3)],
+            [(1, 3, 3), (1, 3, 3)],
+            [(3, 3, 3), (3, 3, 3)],
+            [(3, 3, 3), (3, 3, 3)],
+        ],
+        voxel_size=(10, 1, 1),
+        fov=(10, 1, 1),
+    )
 
     output, full_fov = ops3d.conv_pass(
         model,
@@ -181,13 +200,13 @@ if __name__ == "__main__":
         num_fmaps=1,
         activation=None,
         fov=ll_fov,
-        voxel_size=vx
-        )
+        voxel_size=vx,
+    )
 
-    tf.train.export_meta_graph(filename='build.meta')
+    tf.train.export_meta_graph(filename="build.meta")
 
     with tf.Session() as session:
         session.run(tf.initialize_all_variables())
-        tf.summary.FileWriter('.', graph=tf.get_default_graph())
+        tf.summary.FileWriter(".", graph=tf.get_default_graph())
 
     print(model.shape)

@@ -13,9 +13,10 @@ import logging
 SEG_BG_VAL = 0
 
 offsets = dict()
-offsets['A'] = {True: (38, 942, 951),   False: (38, 911, 911)}
-offsets['B'] = {True: (37, 1165, 1446), False: (37, 911, 911)}
-offsets['C'] = {True: (37, 1032, 1045), False: (37, 911, 911)}
+offsets["A"] = {True: (38, 942, 951), False: (38, 911, 911)}
+offsets["B"] = {True: (37, 1165, 1446), False: (37, 911, 911)}
+offsets["C"] = {True: (37, 1032, 1045), False: (37, 911, 911)}
+
 
 def bbox_ND(img):
     N = img.ndim
@@ -27,7 +28,16 @@ def bbox_ND(img):
 
 
 class SynapticRegion(object):
-    def __init__(self, segmentid, parentcleft, region, pre_thr=42, post_thr=42, size_thr=5, dist_thr=600):
+    def __init__(
+        self,
+        segmentid,
+        parentcleft,
+        region,
+        pre_thr=42,
+        post_thr=42,
+        size_thr=5,
+        dist_thr=600,
+    ):
         self.segmentid = segmentid
         self.cleft = parentcleft
         self.pre_thr = pre_thr
@@ -84,7 +94,10 @@ class SynapticRegion(object):
 
     def accumulate_pre_evidence(self):
         try:
-            ev = np.sum(self.cleft.get_pre()[self.get_region_for_acc()]) / self.get_size()
+            ev = (
+                np.sum(self.cleft.get_pre()[self.get_region_for_acc()])
+                / self.get_size()
+            )
         except RuntimeWarning:
             print(np.sum(self.get_region_for_acc()))
             print(self.get_region_for_acc())
@@ -102,7 +115,10 @@ class SynapticRegion(object):
 
     def accumulate_post_evidence(self):
         try:
-            ev = np.sum(self.cleft.get_post()[self.get_region_for_acc()]) / self.get_size()
+            ev = (
+                np.sum(self.cleft.get_post()[self.get_region_for_acc()])
+                / self.get_size()
+            )
         except RuntimeWarning:
             print(np.sum(self.get_region_for_acc()))
             print(self.get_region_for_acc())
@@ -118,12 +134,16 @@ class SynapticRegion(object):
 
     def is_pre(self):
         if self.pre_status is None:
-            self.pre_status = (self.get_pre_evidence() >= self.pre_thr) and (self.get_size() >= self.size_thr)
+            self.pre_status = (self.get_pre_evidence() >= self.pre_thr) and (
+                self.get_size() >= self.size_thr
+            )
         return self.pre_status
 
     def is_post(self):
         if self.post_status is None:
-            self.post_status = (self.get_post_evidence() >= self.post_thr) and (self.get_size() >= self.size_thr)
+            self.post_status = (self.get_post_evidence() >= self.post_thr) and (
+                self.get_size() >= self.size_thr
+            )
         return self.post_status
 
     def erode_region(self):
@@ -132,21 +152,26 @@ class SynapticRegion(object):
         xy_structure[1, :] = np.ones((3, 3))
         z_structure = np.zeros((3, 3, 3))
         z_structure[:, 1, 1] = np.ones((3,))
-        for k in range(int(self.erosion_steps / 10.)):
-            self.eroded_region = scipy.ndimage.morphology.binary_erosion(self.eroded_region,
-                                                                         structure=xy_structure,
-                                                                         iterations=10)
-            self.eroded_region = scipy.ndimage.morphology.binary_erosion(self.eroded_region,
-                                                                         structure=z_structure,
-                                                                         iterations=1)
+        for k in range(int(self.erosion_steps / 10.0)):
+            self.eroded_region = scipy.ndimage.morphology.binary_erosion(
+                self.eroded_region, structure=xy_structure, iterations=10
+            )
+            self.eroded_region = scipy.ndimage.morphology.binary_erosion(
+                self.eroded_region, structure=z_structure, iterations=1
+            )
         if self.erosion_steps % 10 != 0:
-            self.eroded_region = scipy.ndimage.morphology.binary_erosion(self.eroded_region,
-                                                                         structure=xy_structure,
-                                                                         iterations=self.erosion_steps % 10)
+            self.eroded_region = scipy.ndimage.morphology.binary_erosion(
+                self.eroded_region,
+                structure=xy_structure,
+                iterations=self.erosion_steps % 10,
+            )
         if not np.any(self.eroded_region):
             self.erosion_steps -= 1
-            print("segment {0:} has been eroded so much that it disappeared, try with one less step, i.e. {1:}".format(
-                self.segmentid, self.erosion_steps))
+            print(
+                "segment {0:} has been eroded so much that it disappeared, try with one less step, i.e. {1:}".format(
+                    self.segmentid, self.erosion_steps
+                )
+            )
             self.erode_region()
 
     def get_region_for_point(self):
@@ -155,11 +180,16 @@ class SynapticRegion(object):
         return self.region_for_point
 
     def make_region_for_point(self):
-       self.region_for_point = np.logical_and(self.get_eroded_region(), self.cleft.get_cleft_mask())
-       if not np.any(self.region_for_point):
-           print("After intersection, no region left for: ", self.segmentid, self.cleft.cleft_id)
-           self.region_for_point = self.get_eroded_region()
-
+        self.region_for_point = np.logical_and(
+            self.get_eroded_region(), self.cleft.get_cleft_mask()
+        )
+        if not np.any(self.region_for_point):
+            print(
+                "After intersection, no region left for: ",
+                self.segmentid,
+                self.cleft.cleft_id,
+            )
+            self.region_for_point = self.get_eroded_region()
 
     def get_distance_map(self):
         if self.distance_map is None:
@@ -167,8 +197,9 @@ class SynapticRegion(object):
         return self.distance_map
 
     def compute_distance_map(self):
-        self.distance_map = scipy.ndimage.morphology.distance_transform_edt(np.logical_not(self.get_region_for_point()),
-                                                                            sampling=(40, 4, 4))
+        self.distance_map = scipy.ndimage.morphology.distance_transform_edt(
+            np.logical_not(self.get_region_for_point()), sampling=(40, 4, 4)
+        )
 
     def is_neighbor(self, partner):
         structure = np.zeros((3, 3, 3))
@@ -177,8 +208,12 @@ class SynapticRegion(object):
         if self.segmentid == partner.segmentid:
             return False
         else:
-            neighborregion = (self.get_region_for_acc() + partner.get_region_for_acc()).astype(np.uint8)
-            num = scipy.ndimage.label(neighborregion, output=neighborregion, structure=structure)
+            neighborregion = (
+                self.get_region_for_acc() + partner.get_region_for_acc()
+            ).astype(np.uint8)
+            num = scipy.ndimage.label(
+                neighborregion, output=neighborregion, structure=structure
+            )
             del neighborregion
             if num == 1:
                 return True
@@ -192,35 +227,58 @@ class SynapticRegion(object):
         assert partner.is_post()
 
         if not self.is_neighbor(partner):
-            print("{0:} and {1:} are not neighbors".format(self.segmentid, partner.segmentid))
+            print(
+                "{0:} and {1:} are not neighbors".format(
+                    self.segmentid, partner.segmentid
+                )
+            )
             return False
-        post_masked_distance_map = ma.array(self.get_distance_map(),
-                                            mask=np.logical_not(partner.get_region_for_point()))
-        post_spot = np.unravel_index(np.argmin(post_masked_distance_map), post_masked_distance_map.shape)
+        post_masked_distance_map = ma.array(
+            self.get_distance_map(), mask=np.logical_not(partner.get_region_for_point())
+        )
+        post_spot = np.unravel_index(
+            np.argmin(post_masked_distance_map), post_masked_distance_map.shape
+        )
         post_to_pre_dist = post_masked_distance_map[post_spot]
         self.distances.append(post_to_pre_dist)
         if post_to_pre_dist >= self.dist_thr:
-            print("distance {0:} between pre {1:} and post {2:} above threshold".format(post_to_pre_dist,
-                                                                                        self.segmentid,
-                                                                                        partner.segmentid))
+            print(
+                "distance {0:} between pre {1:} and post {2:} above threshold".format(
+                    post_to_pre_dist, self.segmentid, partner.segmentid
+                )
+            )
             return False
-        pre_masked_distance_map = ma.array(partner.get_distance_map(), mask=np.logical_not(self.get_region_for_point()))
-        pre_spot = np.unravel_index(np.argmin(pre_masked_distance_map), pre_masked_distance_map.shape)
+        pre_masked_distance_map = ma.array(
+            partner.get_distance_map(), mask=np.logical_not(self.get_region_for_point())
+        )
+        pre_spot = np.unravel_index(
+            np.argmin(pre_masked_distance_map), pre_masked_distance_map.shape
+        )
         pre_spot = np.array(pre_spot)
         post_spot = np.array(post_spot)
         vec = (post_spot - pre_spot) * np.array([40, 4, 4]) / post_to_pre_dist
         for f in [100, 50, 25, 0]:
-            pre_spot_mov = np.round((pre_spot * np.array([40, 4, 4]) - f * vec) / (np.array([40, 4, 4]))).astype(
-                np.int)
-            np.minimum(pre_spot_mov, self.cleft.get_seg().shape - np.array([1, 1, 1]), out=pre_spot_mov)
+            pre_spot_mov = np.round(
+                (pre_spot * np.array([40, 4, 4]) - f * vec) / (np.array([40, 4, 4]))
+            ).astype(np.int)
+            np.minimum(
+                pre_spot_mov,
+                self.cleft.get_seg().shape - np.array([1, 1, 1]),
+                out=pre_spot_mov,
+            )
             np.maximum(pre_spot_mov, [0, 0, 0], out=pre_spot_mov)
             if self.segmentid == self.cleft.get_seg()[tuple(pre_spot_mov)]:
                 pre_spot = pre_spot_mov
                 break
         for f in [100, 50, 25, 0]:
-            post_spot_mov = np.round((post_spot * np.array([40, 4, 4]) + f * vec) / (np.array([40, 4, 4]))).astype(
-                np.int)
-            np.minimum(post_spot_mov, partner.cleft.get_seg().shape - np.array([1, 1, 1]), out=post_spot_mov)
+            post_spot_mov = np.round(
+                (post_spot * np.array([40, 4, 4]) + f * vec) / (np.array([40, 4, 4]))
+            ).astype(np.int)
+            np.minimum(
+                post_spot_mov,
+                partner.cleft.get_seg().shape - np.array([1, 1, 1]),
+                out=post_spot_mov,
+            )
             np.maximum(pre_spot_mov, [0, 0, 0], out=post_spot_mov)
             if partner.segmentid == partner.cleft.get_seg()[tuple(post_spot_mov)]:
                 post_spot = post_spot_mov
@@ -229,9 +287,17 @@ class SynapticRegion(object):
 
 
 class Cleft(object):
-    def __init__(self, matchmaker, cleft_id, dilation_steps=7, safe_mem=False, pre_thr=42, post_thr=42,
-                 size_thr=5,
-                 dist_thr=600):
+    def __init__(
+        self,
+        matchmaker,
+        cleft_id,
+        dilation_steps=7,
+        safe_mem=False,
+        pre_thr=42,
+        post_thr=42,
+        size_thr=5,
+        dist_thr=600,
+    ):
         self.mm = matchmaker
         self.cleft_id = cleft_id
         self.safe_mem = safe_mem
@@ -240,9 +306,20 @@ class Cleft(object):
 
         bbox = bbox_ND(cleft_mask_full)
 
-        bbox = [bb + shift for bb, shift in zip(bbox, [-(5 * dilation_steps) // 10, 1 + (5 * dilation_steps) // 10,
-                                                       -4 * dilation_steps, 4 * dilation_steps + 1,
-                                                       -4 * dilation_steps, 4 * dilation_steps + 1])]
+        bbox = [
+            bb + shift
+            for bb, shift in zip(
+                bbox,
+                [
+                    -(5 * dilation_steps) // 10,
+                    1 + (5 * dilation_steps) // 10,
+                    -4 * dilation_steps,
+                    4 * dilation_steps + 1,
+                    -4 * dilation_steps,
+                    4 * dilation_steps + 1,
+                ],
+            )
+        ]
 
         bbox[0] = max(0, bbox[0])
         bbox[1] = min(cleft_mask_full.shape[0], bbox[1])
@@ -251,7 +328,11 @@ class Cleft(object):
         bbox[4] = max(0, bbox[4])
         bbox[5] = min(cleft_mask_full.shape[2], bbox[5])
         self.bbox = bbox
-        self.bbox_slice = (slice(bbox[0], bbox[1], None), slice(bbox[2], bbox[3], None), slice(bbox[4], bbox[5], None))
+        self.bbox_slice = (
+            slice(bbox[0], bbox[1], None),
+            slice(bbox[2], bbox[3], None),
+            slice(bbox[4], bbox[5], None),
+        )
 
         self.seg = None
         self.pre = None
@@ -268,7 +349,6 @@ class Cleft(object):
         # self.region_for_acc[np.logical_not(self.get_seg() == self.segmentid)] = False
         self.segments_overlapping = self.find_segments()
 
-
         self.synregions = []
         structure = np.zeros((3, 3, 3))
         structure[1, :] = np.ones((3, 3))
@@ -279,8 +359,17 @@ class Cleft(object):
             region = region.astype(np.uint32)
             num = scipy.ndimage.label(region, output=region, structure=structure)
             for k in range(1, num + 1):
-                self.synregions.append(SynapticRegion(segid, self, region == k, pre_thr=pre_thr, post_thr=post_thr,
-                                                      size_thr=size_thr, dist_thr=dist_thr))
+                self.synregions.append(
+                    SynapticRegion(
+                        segid,
+                        self,
+                        region == k,
+                        pre_thr=pre_thr,
+                        post_thr=post_thr,
+                        size_thr=size_thr,
+                        dist_thr=dist_thr,
+                    )
+                )
 
     def get_cleft_mask(self):
         if self.cleft_mask is None:
@@ -340,8 +429,18 @@ class Cleft(object):
                 pre_loc, post_loc = answer
                 pre_loc = (cpl + bboff for cpl, bboff in zip(pre_loc, self.bbox[::2]))
                 post_loc = (cpl + bboff for cpl, bboff in zip(post_loc, self.bbox[::2]))
-                partners.append((pre_loc, post_loc, pre.get_pre_evidence(), pre.get_post_evidence(), pre.get_size(),
-                                 post.get_pre_evidence(), post.get_post_evidence(), post.get_size()))
+                partners.append(
+                    (
+                        pre_loc,
+                        post_loc,
+                        pre.get_pre_evidence(),
+                        pre.get_post_evidence(),
+                        pre.get_size(),
+                        post.get_pre_evidence(),
+                        post.get_post_evidence(),
+                        post.get_size(),
+                    )
+                )
         return partners
 
     def uninitialize_mem_save(self):
@@ -356,10 +455,25 @@ class Cleft(object):
 
 
 class Matchmaker(object):
-    def __init__(self, syn_file, cleft_cc_ds, pre_ds, post_ds, seg_file, seg_ds, tgt_file, raw_file=None, raw_ds=None,
-                 offset=(0., 0., 0.), safe_mem=False, pre_thr=42, post_thr=42, dist_thr=600,
-                 size_thr=5):
-        logging.debug('initializing matchmaker')
+    def __init__(
+        self,
+        syn_file,
+        cleft_cc_ds,
+        pre_ds,
+        post_ds,
+        seg_file,
+        seg_ds,
+        tgt_file,
+        raw_file=None,
+        raw_ds=None,
+        offset=(0.0, 0.0, 0.0),
+        safe_mem=False,
+        pre_thr=42,
+        post_thr=42,
+        dist_thr=600,
+        size_thr=5,
+    ):
+        logging.debug("initializing matchmaker")
         self.synf = z5py.File(syn_file, use_zarr_format=False)
         self.segf = z5py.File(seg_file, use_zarr_format=False)
         self.cleft_cc = self.synf[cleft_cc_ds]
@@ -368,18 +482,31 @@ class Matchmaker(object):
         self.pre = self.synf[pre_ds]
         self.post = self.synf[post_ds]
         self.partners = None
-        logging.debug('finding list of cleftids')
+        logging.debug("finding list of cleftids")
         try:
-            self.list_of_cleftids = range(1, self.cleft_cc.attrs['max_id'] + 1)
+            self.list_of_cleftids = range(1, self.cleft_cc.attrs["max_id"] + 1)
         except AssertionError:
             self.list_of_cleftids = np.unique(self.cleft_cc[:])[1:]
-        logging.debug('list of cleftids from {0:} to {1:}'.format(np.min(self.list_of_cleftids),np.max(self.list_of_cleftids)))
-        logging.debug('initializing list of clefts')
-        self.list_of_clefts = [Cleft(self, cid, safe_mem=safe_mem, pre_thr=pre_thr, post_thr=post_thr,
-                                     dist_thr=dist_thr, size_thr=size_thr) for cid in
-                               self.list_of_cleftids]
-        logging.debug('intitialized clefts')
-        self.cremi_file = cremi.CremiFile(tgt_file, 'w')
+        logging.debug(
+            "list of cleftids from {0:} to {1:}".format(
+                np.min(self.list_of_cleftids), np.max(self.list_of_cleftids)
+            )
+        )
+        logging.debug("initializing list of clefts")
+        self.list_of_clefts = [
+            Cleft(
+                self,
+                cid,
+                safe_mem=safe_mem,
+                pre_thr=pre_thr,
+                post_thr=post_thr,
+                dist_thr=dist_thr,
+                size_thr=size_thr,
+            )
+            for cid in self.list_of_cleftids
+        ]
+        logging.debug("intitialized clefts")
+        self.cremi_file = cremi.CremiFile(tgt_file, "w")
         self.offset = offset
         if raw_file is not None:
             self.rawf = z5py.File(raw_file, use_zarr_format=False)
@@ -390,15 +517,28 @@ class Matchmaker(object):
 
     def prepare_file(self):
         if self.raw is not None:
-            self.cremi_file.write_raw(cremi.Volume(self.raw[:], resolution=(40., 4., 4.)))
+            self.cremi_file.write_raw(
+                cremi.Volume(self.raw[:], resolution=(40.0, 4.0, 4.0))
+            )
 
-        self.cremi_file.write_neuron_ids(cremi.Volume(self.seg[:], resolution=(40., 4., 4.), offset=self.offset))
-        self.cremi_file.write_clefts(cremi.Volume(self.cleft_cc_np, resolution=(40., 4., 4.),
-                                                  offset=self.offset))
-        self.cremi_file.write_volume(cremi.Volume(self.pre[:], resolution=(40., 4., 4.), offset=self.offset),
-                                     'volumes/pre_dist', np.uint8)
-        self.cremi_file.write_volume(cremi.Volume(self.post[:], resolution=(40., 4., 4.), offset=self.offset),
-                                     'volumes/post_dist', np.uint8)
+        self.cremi_file.write_neuron_ids(
+            cremi.Volume(self.seg[:], resolution=(40.0, 4.0, 4.0), offset=self.offset)
+        )
+        self.cremi_file.write_clefts(
+            cremi.Volume(
+                self.cleft_cc_np, resolution=(40.0, 4.0, 4.0), offset=self.offset
+            )
+        )
+        self.cremi_file.write_volume(
+            cremi.Volume(self.pre[:], resolution=(40.0, 4.0, 4.0), offset=self.offset),
+            "volumes/pre_dist",
+            np.uint8,
+        )
+        self.cremi_file.write_volume(
+            cremi.Volume(self.post[:], resolution=(40.0, 4.0, 4.0), offset=self.offset),
+            "volumes/post_dist",
+            np.uint8,
+        )
 
     def get_partners(self):
         if self.partners is None:
@@ -415,8 +555,15 @@ class Matchmaker(object):
 
             cleft.uninitialize_mem_save()
 
-    def extract_dat(self, preness_filename, postness_filename, distances_filename, presizes_filename,
-                    postsizes_filename, sizes_filename):
+    def extract_dat(
+        self,
+        preness_filename,
+        postness_filename,
+        distances_filename,
+        presizes_filename,
+        postsizes_filename,
+        sizes_filename,
+    ):
         preness = []
         postness = []
         distances = []
@@ -434,7 +581,7 @@ class Matchmaker(object):
                     postsizes.append(synr.size)
                 distances.extend(synr.distances)
 
-        fmt = '%.5g'
+        fmt = "%.5g"
         np.savetxt(preness_filename, preness, fmt)
         np.savetxt(postness_filename, postness, fmt)
         np.savetxt(distances_filename, distances, fmt)
@@ -447,15 +594,35 @@ class Matchmaker(object):
         syncounter = itertools.count(1)
         for partner in self.get_partners():
             preid = syncounter.next()
-            annotations.add_annotation(preid, 'presynaptic_site',
-                                       tuple(p * r for p, r in zip(partner[0], (40., 4., 4.))))
-            annotations.add_comment(preid, 'preness: ' + str(partner[2]) + ', postness: ' + str(
-                partner[3]) + ', size: ' + str(partner[4]))
+            annotations.add_annotation(
+                preid,
+                "presynaptic_site",
+                tuple(p * r for p, r in zip(partner[0], (40.0, 4.0, 4.0))),
+            )
+            annotations.add_comment(
+                preid,
+                "preness: "
+                + str(partner[2])
+                + ", postness: "
+                + str(partner[3])
+                + ", size: "
+                + str(partner[4]),
+            )
             postid = syncounter.next()
-            annotations.add_annotation(postid, 'postsynaptic_site', tuple(p * r for p, r in zip(partner[1], (40., 4.,
-                                                                                                             4.))))
-            annotations.add_comment(postid, 'preness: ' + str(partner[5]) + ', postness: ' + str(
-                partner[6]) + ', size: ' + str(partner[7]))
+            annotations.add_annotation(
+                postid,
+                "postsynaptic_site",
+                tuple(p * r for p, r in zip(partner[1], (40.0, 4.0, 4.0))),
+            )
+            annotations.add_comment(
+                postid,
+                "preness: "
+                + str(partner[5])
+                + ", postness: "
+                + str(partner[6])
+                + ", size: "
+                + str(partner[7]),
+            )
             annotations.set_pre_post_partners(preid, postid)
         self.cremi_file.write_annotations(annotations)
 
@@ -467,24 +634,29 @@ class FindPartners(luigi.Task):
     de = luigi.Parameter()
     samples = luigi.TupleParameter()
     data_eval = luigi.TupleParameter()
-    resources = {'ram': 400}
+    resources = {"ram": 400}
     retry_count = 1
+
     @property
     def priority(self):
-        if int(self.it)%10000==0:
-            return 1./int(self.it)
+        if int(self.it) % 10000 == 0:
+            return 1.0 / int(self.it)
         else:
-            return 0.
+            return 0.0
 
     def requires(self):
-        return ConnectedComponents(self.it, self.dt, self.aug, self.de, self.samples, self.data_eval)
+        return ConnectedComponents(
+            self.it, self.dt, self.aug, self.de, self.samples, self.data_eval
+        )
 
     def output(self):
-        return luigi.LocalTarget(os.path.join(os.path.dirname(self.input().fn),  'partners.msg'))
+        return luigi.LocalTarget(
+            os.path.join(os.path.dirname(self.input().fn), "partners.msg")
+        )
 
     def run(self):
-        logging.debug('Starting to run partner finding')
-        progress = 0.
+        logging.debug("Starting to run partner finding")
+        progress = 0.0
         self.set_progress_percentage(progress)
         thr = 127
         cc_thr = 42
@@ -493,29 +665,46 @@ class FindPartners(luigi.Task):
         dist_thr = 600
         size_thr = 5
         for s in self.samples:
-            logging.debug('Starting with sample {0:}'.format(s))
-            filename = os.path.join(os.path.dirname(self.input().fn), s+'.h5')
-            syn_file = os.path.join(os.path.dirname(self.input().fn), s+'.n5')
-            cleft_cc_ds = 'clefts_cropped_thr{0:}_cc{1:}'.format(thr, cc_thr)
-            pre_ds = 'pre_dist_cropped'
-            post_ds = 'post_dist_cropped'
-            seg_file = os.path.join('/groups/saalfeld/saalfeldlab/larissa/data/cremieval/', self.de, s+'.n5')
-            seg_ds = 'volumes/labels/neuron_ids_constis_slf1_sf750_cropped'
-            if 'unaligned' in self.de:
+            logging.debug("Starting with sample {0:}".format(s))
+            filename = os.path.join(os.path.dirname(self.input().fn), s + ".h5")
+            syn_file = os.path.join(os.path.dirname(self.input().fn), s + ".n5")
+            cleft_cc_ds = "clefts_cropped_thr{0:}_cc{1:}".format(thr, cc_thr)
+            pre_ds = "pre_dist_cropped"
+            post_ds = "post_dist_cropped"
+            seg_file = os.path.join(
+                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/",
+                self.de,
+                s + ".n5",
+            )
+            seg_ds = "volumes/labels/neuron_ids_constis_slf1_sf750_cropped"
+            if "unaligned" in self.de:
                 aligned = False
             else:
                 aligned = True
-            off = tuple(np.array(offsets[s][aligned])*np.array((40,4,4)))
-            mm = Matchmaker(syn_file, cleft_cc_ds, pre_ds, post_ds, seg_file, seg_ds, filename, offset=off,
-                            safe_mem=True, dist_thr=dist_thr, size_thr=size_thr, pre_thr=pre_thr, post_thr=post_thr)
-            #mm.prepare_file()
+            off = tuple(np.array(offsets[s][aligned]) * np.array((40, 4, 4)))
+            mm = Matchmaker(
+                syn_file,
+                cleft_cc_ds,
+                pre_ds,
+                post_ds,
+                seg_file,
+                seg_ds,
+                filename,
+                offset=off,
+                safe_mem=True,
+                dist_thr=dist_thr,
+                size_thr=size_thr,
+                pre_thr=pre_thr,
+                post_thr=post_thr,
+            )
+            # mm.prepare_file()
             mm.write_partners()
             mm.cremi_file.close()
             del mm
-            progress += 100./len(self.samples)
+            progress += 100.0 / len(self.samples)
             try:
                 self.set_progress_percentage(progress)
             except:
                 pass
-        done = self.output().open('w')
+        done = self.output().open("w")
         done.close()

@@ -3,11 +3,7 @@ import sys
 import h5py
 import numpy as np
 
-shift = {
-    'A': 1498,
-    'B': 1940,
-    'C': 10954
-}
+shift = {"A": 1498, "B": 1940, "C": 10954}
 
 
 def compare(filepath1, filepath2, targetfile, cleft_id_shift, contained_ids):
@@ -19,21 +15,21 @@ def compare(filepath1, filepath2, targetfile, cleft_id_shift, contained_ids):
     :return:
     """
 
-    file1 = open(filepath1, 'r')
-    file2 = open(filepath2, 'r')
-    target = open(targetfile, 'w')
+    file1 = open(filepath1, "r")
+    file2 = open(filepath2, "r")
+    target = open(targetfile, "w")
     reader1 = csv.reader(file1)
     reader2 = csv.reader(file2)
     writer = csv.writer(target)
     lookup_by_coord = dict()
     for row in reader1:
-        if row[0] == 'pre_label':
+        if row[0] == "pre_label":
             writer.writerow(row)
             reader1.next()
             break
 
     for row in reader2:
-        if row[0] == 'pre_label':
+        if row[0] == "pre_label":
             reader2.next()
             break
     for row in reader1:
@@ -59,7 +55,7 @@ def compare(filepath1, filepath2, targetfile, cleft_id_shift, contained_ids):
             except KeyError:
                 cleft_shifted = -4
                 pass
-            writer.writerow(row[:-2]+[cleft_shifted, ''])
+            writer.writerow(row[:-2] + [cleft_shifted, ""])
         else:
             writer.writerow(row)
     file1.close()
@@ -68,17 +64,25 @@ def compare(filepath1, filepath2, targetfile, cleft_id_shift, contained_ids):
 
 
 def all_clefts(cleftfile):
-    hf = h5py.File(cleftfile, 'r')
-    return np.unique(hf['volumes/labels/clefts'][:])
+    hf = h5py.File(cleftfile, "r")
+    return np.unique(hf["volumes/labels/clefts"][:])
 
 
-if __name__ == '__main__':
-    file1 = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/cleft-partners_{0:}_2017.csv'
-    file2 = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/cleft-partners-{0:}-20160501.aligned.csv'
-    newfile = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/cleft-partners-{' \
-              '0:}-20160501.aligned.corrected.csv'
-    clefts = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/sample_{0:}_padded_20160501.aligned.0bg.hdf'
-    for sample in ['A', 'B', 'C']:
+if __name__ == "__main__":
+    file1 = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/cleft-partners_{0:}_2017.csv"
+    file2 = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/cleft-partners-{0:}-20160501.aligned.csv"
+    newfile = (
+        "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/cleft-partners-{"
+        "0:}-20160501.aligned.corrected.csv"
+    )
+    clefts = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/sample_{0:}_padded_20160501.aligned.0bg.hdf"
+    for sample in ["A", "B", "C"]:
         contained_clefts = all_clefts(clefts.format(sample))
-        #contained_clefts=[1,2,3]
-        compare(file1.format(sample), file2.format(sample), newfile.format(sample), shift[sample], contained_clefts)
+        # contained_clefts=[1,2,3]
+        compare(
+            file1.format(sample),
+            file2.format(sample),
+            newfile.format(sample),
+            shift[sample],
+            contained_clefts,
+        )

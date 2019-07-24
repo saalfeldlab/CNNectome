@@ -3,22 +3,23 @@ import numpy as np
 import ops3d
 import warnings
 
+
 def unet_auto(
-        fmaps_in,
-        pmaps_in,
-        num_fmaps,
-        fmap_inc_factors,
-        downsample_factors,
-        fkernel_size_down,
-        pkernel_size_down,
-        kernel_size_up,
-        activation='relu',
-        layer=0,
-        fov=(1, 1, 1),
-        voxel_size=(1, 1, 1),
-        constant_upsample=False
-        ):
-    '''Create a U-Net::
+    fmaps_in,
+    pmaps_in,
+    num_fmaps,
+    fmap_inc_factors,
+    downsample_factors,
+    fkernel_size_down,
+    pkernel_size_down,
+    kernel_size_up,
+    activation="relu",
+    layer=0,
+    fov=(1, 1, 1),
+    voxel_size=(1, 1, 1),
+    constant_upsample=False,
+):
+    """Create a U-Net::
         f_in --> f_left --------------------------->> f_right--> f_out
                     |                                   ^
                     v                                   |
@@ -66,27 +67,32 @@ def unet_auto(
             Initial field of view in physical units
         voxel_size:
             Size of a voxel in the input data, in physical units
-    '''
+    """
 
-    prefix = "    "*layer
-    print(prefix + "Creating U-Net layer %i"%layer)
+    prefix = "    " * layer
+    print(prefix + "Creating U-Net layer %i" % layer)
     print(prefix + "f_in: " + str(fmaps_in.shape))
     if isinstance(fmap_inc_factors, int):
         fmap_inc_factors = [fmap_inc_factors] * len(downsample_factors)
-    assert len(fmap_inc_factors) == len(downsample_factors) == len(fkernel_size_down) - 1 == len(pkernel_size_down) \
-                                                                                             -1==len(kernel_size_up) - 1
+    assert (
+        len(fmap_inc_factors)
+        == len(downsample_factors)
+        == len(fkernel_size_down) - 1
+        == len(pkernel_size_down) - 1
+        == len(kernel_size_up) - 1
+    )
     if layer == 0:
-        warnings.warn('FOV calculation does not respect autocontext yet')
+        warnings.warn("FOV calculation does not respect autocontext yet")
     # convolve
     f_left, fov = ops3d.conv_pass(
         fmaps_in,
         kernel_size=fkernel_size_down[layer],
         num_fmaps=num_fmaps,
         activation=activation,
-        name='unet_layer_%i_left'%layer,
+        name="unet_layer_%i_left" % layer,
         fov=fov,
         voxel_size=voxel_size,
-        prefix=prefix
+        prefix=prefix,
     )
 
     p_left, _ = ops3d.conv_pass(
@@ -94,54 +100,59 @@ def unet_auto(
         kernel_size=pkernel_size_down[layer],
         num_fmaps=num_fmaps,
         activation=activation,
-        name='unet_layer_pred_%i_left'%layer,
+        name="unet_layer_pred_%i_left" % layer,
         fov=fov,
         voxel_size=voxel_size,
-        prefix=prefix)
+        prefix=prefix,
+    )
 
     fp_left = ops3d.crossmod_conv_pass(
-        f_left, p_left,
+        f_left,
+        p_left,
         num_fmaps=num_fmaps,
         activation=activation,
-        name='unet_layer_%i_crossmod'%layer)
-
+        name="unet_layer_%i_crossmod" % layer,
+    )
 
     # last layer does not recurse
-    bottom_layer = (layer == len(downsample_factors))
+    bottom_layer = layer == len(downsample_factors)
     if bottom_layer:
         print(prefix + "bottom layer")
         print(prefix + "f_out: " + str(f_left.shape))
         return fp_left, fov, voxel_size
 
     # downsample
-    g_in,fov,voxel_size = ops3d.downsample(
+    g_in, fov, voxel_size = ops3d.downsample(
         fp_left,
         downsample_factors[layer],
-        'unet_down_%i_to_%i'%(layer, layer + 1),
+        "unet_down_%i_to_%i" % (layer, layer + 1),
         fov=fov,
         voxel_size=voxel_size,
-        prefix=prefix)
+        prefix=prefix,
+    )
 
     q_in, _, _ = ops3d.downsample(
         p_left,
         downsample_factors[layer],
-        'unet_down_pred_%i_to_%i'%(layer, layer + 1))
+        "unet_down_pred_%i_to_%i" % (layer, layer + 1),
+    )
 
     # recursive U-net
     g_out, fov, voxel_size = unet_auto(
         g_in,
         q_in,
-        num_fmaps=num_fmaps*fmap_inc_factors[layer],
+        num_fmaps=num_fmaps * fmap_inc_factors[layer],
         fmap_inc_factors=fmap_inc_factors,
         downsample_factors=downsample_factors,
         fkernel_size_down=fkernel_size_down,
         pkernel_size_down=pkernel_size_down,
         kernel_size_up=kernel_size_up,
         activation=activation,
-        layer=layer+1,
+        layer=layer + 1,
         fov=fov,
         voxel_size=voxel_size,
-        constant_upsample=constant_upsample)
+        constant_upsample=constant_upsample,
+    )
 
     print(prefix + "g_out: " + str(g_out.shape))
 
@@ -151,11 +162,11 @@ def unet_auto(
         downsample_factors[layer],
         num_fmaps,
         activation=activation,
-        name='unet_up_%i_to_%i'%(layer + 1, layer),
+        name="unet_up_%i_to_%i" % (layer + 1, layer),
         fov=fov,
         voxel_size=voxel_size,
         prefix=prefix,
-        constant_upsample=constant_upsample
+        constant_upsample=constant_upsample,
     )
 
     print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
@@ -175,10 +186,11 @@ def unet_auto(
         f_right,
         kernel_size=kernel_size_up[layer],
         num_fmaps=num_fmaps,
-        name='unet_layer_%i_right'%layer,
+        name="unet_layer_%i_right" % layer,
         fov=fov,
         voxel_size=voxel_size,
-        prefix=prefix)
+        prefix=prefix,
+    )
 
     print(prefix + "f_out: " + str(f_out.shape))
 
