@@ -1,0 +1,17 @@
+bootstrap: docker
+From: tensorflow/tensorflow:1.3.0-gpu
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    libmlpack-dev \
+    python-numpy \
+    python-setuptools \
+    python-pip \
+    libboost-all-dev \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
+
+    pip install pytest toolz dask cython

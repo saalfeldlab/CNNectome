@@ -15,6 +15,7 @@ def sub(a, b):
 def add(a, b):
     return tuple([a[d] + b[d] for d in range(len(b))])
 
+
 class SplitModi(luigi.Task):
     it = luigi.IntParameter()
     dt = luigi.Parameter()
@@ -23,36 +24,45 @@ class SplitModi(luigi.Task):
     m = luigi.Parameter()
     samples = luigi.TupleParameter()
     data_eval = luigi.TupleParameter()
-    resources = {'ram': 50}
+    resources = {"ram": 50}
+
     @property
     def priority(self):
-        if int(self.it)%10000==0:
-            return 1./int(self.it)
+        if int(self.it) % 10000 == 0:
+            return 1.0 / int(self.it)
         else:
-            return 0.
-    
+            return 0.0
+
     def requires(self):
-        return FindPartners(self.it, self.dt, self.aug, self.de, self.samples, self.data_eval)
+        return FindPartners(
+            self.it, self.dt, self.aug, self.de, self.samples, self.data_eval
+        )
 
     def output(self):
-        return luigi.LocalTarget(os.path.join(os.path.dirname(self.input().fn),  'split.'+self.m+'.msg'))
+        return luigi.LocalTarget(
+            os.path.join(os.path.dirname(self.input().fn), "split." + self.m + ".msg")
+        )
 
     def run(self):
-        progress = 0.
+        progress = 0.0
         self.set_progress_percentage(progress)
         for s in self.samples:
             print(s)
-            filename = os.path.join(os.path.dirname(self.input().fn), s+'.h5')
-            mask_filename = os.path.join('/groups/saalfeld/saalfeldlab/larissa/data/cremieval', self.de, s+'.n5')
-            mask_dataset = 'volumes/masks/'+self.m
-            filename_tgt = filename.replace('h5', self.m+'.h5')
-            #shutil.copy(filename, filename_tgt)
-            f = CremiFile(filename, 'a')
-            g = CremiFile(filename_tgt, 'a')
+            filename = os.path.join(os.path.dirname(self.input().fn), s + ".h5")
+            mask_filename = os.path.join(
+                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval",
+                self.de,
+                s + ".n5",
+            )
+            mask_dataset = "volumes/masks/" + self.m
+            filename_tgt = filename.replace("h5", self.m + ".h5")
+            # shutil.copy(filename, filename_tgt)
+            f = CremiFile(filename, "a")
+            g = CremiFile(filename_tgt, "a")
             maskf = z5py.File(mask_filename, use_zarr_format=False)
             mask = maskf[mask_dataset]
-            off = mask.attrs['offset']
-            res = mask.attrs['resolution']
+            off = mask.attrs["offset"]
+            res = mask.attrs["resolution"]
             mask = np.array(mask[:])
             ann = f.read_annotations()
             shift = sub(ann.offset, off)
@@ -65,15 +75,15 @@ class SplitModi(luigi.Task):
                     rmids.append(i)
             print(rmids)
             for i in rmids:
-                print('removing {0:}'.format(i))
+                print("removing {0:}".format(i))
                 ann.remove_annotation(i)
             print(ann.comments.keys())
             print(ann.pre_post_partners)
             g.write_annotations(ann)
-            progress += 100./len(self.samples)
+            progress += 100.0 / len(self.samples)
             try:
                 self.set_progress_percentage(progress)
             except:
                 pass
-        done = self.output().open('w')
+        done = self.output().open("w")
         done.close()

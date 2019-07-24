@@ -168,7 +168,7 @@ apt-get update && apt-get install -y --no-install-recommends \
 
     mkdir -p ${GUNPOWDER_ROOT} && cd ${GUNPOWDER_ROOT}
     git clone ${GUNPOWDER_REPO} . && git checkout ${GUNPOWDER_REV}
-    RUN ${PIP} install -r requirements.txt
+    ${PIP} install -r requirements.txt
     ${PYTHON} setup.py build_ext --inplace
     export PYTHONPATH=${GUNPOWDER_ROOT}:$PYTHONPATH
 

@@ -1,5 +1,6 @@
 import sys
-sys.path.append('/groups/saalfeld/home/heinrichl/Projects/simpleference')
+
+sys.path.append("/groups/saalfeld/home/heinrichl/Projects/simpleference")
 import luigi
 import os
 import re
@@ -12,10 +13,19 @@ from simpleference.inference.util import get_offset_lists
 
 
 def single_inference(path, data_eval, samples, gpu, iteration):
-    subprocess.call(['/groups/saalfeld/home/heinrichl/Projects/CNNectome/postprocessing'
-                     '/partner_annotations_single_luigi'
-              '/run_inference'
-          '.sh', path, data_eval, samples, gpu, iteration])
+    subprocess.call(
+        [
+            "/groups/saalfeld/home/heinrichl/Projects/CNNectome/postprocessing"
+            "/partner_annotations_single_luigi"
+            "/run_inference"
+            ".sh",
+            path,
+            data_eval,
+            samples,
+            gpu,
+            iteration,
+        ]
+    )
 
 
 class Predict(luigi.Task):
@@ -23,14 +33,14 @@ class Predict(luigi.Task):
     path = luigi.Parameter()
     samples = luigi.TupleParameter()
     data_eval = luigi.TupleParameter()
-    resources={'gpu': 1, 'ram': 10}
+    resources = {"gpu": 1, "ram": 10}
 
     @property
     def priority(self):
-        if int(self.it)%10000==0:
-            return 1.+1./int(self.it)
+        if int(self.it) % 10000 == 0:
+            return 1.0 + 1.0 / int(self.it)
         else:
-            return 0.
+            return 0.0
 
     def requires(self):
         return MakeItFolder(self.it, self.path, self.data_eval)
@@ -39,45 +49,58 @@ class Predict(luigi.Task):
         ret = []
         for de in self.data_eval:
             for s in self.samples:
-                ret.append(luigi.LocalTarget(os.path.join(os.path.dirname(self.input().fn), 'pred_{0:}_{'
-                                                                                            '1:}.msg'.format(de, s))))
+                ret.append(
+                    luigi.LocalTarget(
+                        os.path.join(
+                            os.path.dirname(self.input().fn),
+                            "pred_{0:}_{" "1:}.msg".format(de, s),
+                        )
+                    )
+                )
         return ret
 
     def run(self):
 
-        src = '/groups/saalfeld/saalfeldlab/larissa/data/cremieval/{0:}/{1:}.n5'
-        tgt = os.path.join(os.path.dirname(self.input().fn), '{0:}', '{1:}.n5')
+        src = "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/{0:}/{1:}.n5"
+        tgt = os.path.join(os.path.dirname(self.input().fn), "{0:}", "{1:}.n5")
         output_shape = (71, 650, 650)
         gpu_list = []
         for i in range(8):
-            nvsmi = subprocess.Popen("nvidia-smi -d PIDS -q -i {0:}".format(i), shell=True,
-                                     stdout=subprocess.PIPE).stdout.read()
-            if 'None' in nvsmi:
+            nvsmi = subprocess.Popen(
+                "nvidia-smi -d PIDS -q -i {0:}".format(i),
+                shell=True,
+                stdout=subprocess.PIPE,
+            ).stdout.read()
+            if "None" in nvsmi:
                 gpu_list.append(i)
         completed = []
         for de in self.data_eval:
             for s in self.samples:
                 srcf = z5py.File(src.format(de, s), use_zarr_format=False)
-                shape = srcf['volumes/raw'].shape
+                shape = srcf["volumes/raw"].shape
                 tgtf = z5py.File(tgt.format(de, s), use_zarr_format=False)
-                if not os.path.exists(os.path.join(tgt.format(de,s), 'clefts')):
-                    tgtf.create_dataset('clefts',
-                                    shape=shape,
-                                    compression='gzip',
-                                    dtype='uint8',
-                                    chunks=output_shape)
+                if not os.path.exists(os.path.join(tgt.format(de, s), "clefts")):
+                    tgtf.create_dataset(
+                        "clefts",
+                        shape=shape,
+                        compression="gzip",
+                        dtype="uint8",
+                        chunks=output_shape,
+                    )
                     completed.append(False)
                 else:
                     if self.check_completeness()[0]:
                         completed.append(True)
                     else:
                         completed.append(False)
-                if not os.path.exists(os.path.join(tgt.format(de,s), 'pre_dist')):
-                    tgtf.create_dataset('pre_dist',
-                                    shape=shape,
-                                    compression='gzip',
-                                    dtype='uint8',
-                                    chunks=output_shape)
+                if not os.path.exists(os.path.join(tgt.format(de, s), "pre_dist")):
+                    tgtf.create_dataset(
+                        "pre_dist",
+                        shape=shape,
+                        compression="gzip",
+                        dtype="uint8",
+                        chunks=output_shape,
+                    )
                     completed.append(False)
                 else:
                     if self.check_completeness()[0]:
@@ -85,20 +108,24 @@ class Predict(luigi.Task):
                     else:
                         completed.append(False)
 
-                if not os.path.exists(os.path.join(tgt.format(de,s), 'post_dist')):
+                if not os.path.exists(os.path.join(tgt.format(de, s), "post_dist")):
 
-                    tgtf.create_dataset('post_dist',
-                                    shape=shape,
-                                    compression='gzip',
-                                    dtype='uint8',
-                                    chunks=output_shape)
+                    tgtf.create_dataset(
+                        "post_dist",
+                        shape=shape,
+                        compression="gzip",
+                        dtype="uint8",
+                        chunks=output_shape,
+                    )
                     completed.append(False)
                 else:
                     if self.check_completeness()[0]:
                         completed.append(True)
                     else:
                         completed.append(False)
-                get_offset_lists(shape, gpu_list, tgt.format(de, s), output_shape=output_shape)
+                get_offset_lists(
+                    shape, gpu_list, tgt.format(de, s), output_shape=output_shape
+                )
         if all(completed):
             self.finish()
             return
@@ -111,30 +138,40 @@ class Predict(luigi.Task):
                 self.finish()
                 return
             else:
-                self.set_status_message("Reprocessing {0:}, try {1:}".format(list(reprocess_list), reprocess_attempts))
+                self.set_status_message(
+                    "Reprocessing {0:}, try {1:}".format(
+                        list(reprocess_list), reprocess_attempts
+                    )
+                )
                 self.submit_inference(tuple(reprocess_list), gpu_list)
                 reprocess_attempts += 1
         if reprocess_attempts >= 4:
             raise AssertionError
 
-
     def submit_inference(self, data_eval, gpu_list):
         with ProcessPoolExecutor(max_workers=len(gpu_list)) as pp:
-            tasks = [pp.submit(single_inference,
-                                self.path,
-                                json.dumps(list(data_eval)).replace(' ', '').replace('"', '\\"'),
-                                json.dumps(list(self.samples)).replace(' ', '').replace('"', '\\"'),
-                                str(gpu),
-                                str(self.it)) for gpu in gpu_list]
+            tasks = [
+                pp.submit(
+                    single_inference,
+                    self.path,
+                    json.dumps(list(data_eval)).replace(" ", "").replace('"', '\\"'),
+                    json.dumps(list(self.samples)).replace(" ", "").replace('"', '\\"'),
+                    str(gpu),
+                    str(self.it),
+                )
+                for gpu in gpu_list
+            ]
             result = [t.result() for t in tasks]
+
     def finish(self):
         for o in self.output():
-            done = o.open('w')
+            done = o.open("w")
             done.close()
+
     def check_completeness(self, gpu_list=None):
-        complete=True
-        reprocess=set()
-        tgt = os.path.join(os.path.dirname(self.input().fn), '{0:}', '{1:}.n5')
+        complete = True
+        reprocess = set()
+        tgt = os.path.join(os.path.dirname(self.input().fn), "{0:}", "{1:}.n5")
         pattern = re.compile("list_gpu_[0-7].json")
         for de in self.data_eval:
             for s in self.samples:
@@ -143,26 +180,39 @@ class Predict(luigi.Task):
                     for fn in os.listdir(tgt.format(de, s)):
                         if pattern.match(fn) is not None:
                             gpu_list.append(int(filter(str.isdigit, fn)))
-                if len(gpu_list)==0:
-                    complete=False
+                if len(gpu_list) == 0:
+                    complete = False
                     reprocess.add(de)
                 for gpu in gpu_list:
-                    if os.path.exists(os.path.join(tgt.format(de, s), 'list_gpu_{0:}.json').format(gpu)) and \
-                            os.path.exists(os.path.join(tgt.format(de, s), 'list_gpu_{0:}processed.txt'.format(gpu))):
-                        block_list = os.path.join(tgt.format(de, s), 'list_gpu_{0:}.json').format(gpu)
-                        block_list_processed = os.path.join(tgt.format(de, s), 'list_gpu_{0:}processed.txt'.format(gpu))
-                        with open(block_list, 'r') as f:
+                    if os.path.exists(
+                        os.path.join(tgt.format(de, s), "list_gpu_{0:}.json").format(
+                            gpu
+                        )
+                    ) and os.path.exists(
+                        os.path.join(
+                            tgt.format(de, s), "list_gpu_{0:}processed.txt".format(gpu)
+                        )
+                    ):
+                        block_list = os.path.join(
+                            tgt.format(de, s), "list_gpu_{0:}.json"
+                        ).format(gpu)
+                        block_list_processed = os.path.join(
+                            tgt.format(de, s), "list_gpu_{0:}processed.txt".format(gpu)
+                        )
+                        with open(block_list, "r") as f:
                             block_list = json.load(f)
                             block_list = {tuple(coo) for coo in block_list}
-                        with open(block_list_processed, 'r') as f:
+                        with open(block_list_processed, "r") as f:
                             list_as_str = f.read()
-                        list_as_str_curated = '['+list_as_str[:list_as_str.rfind(']')+1]+']'
+                        list_as_str_curated = (
+                            "[" + list_as_str[: list_as_str.rfind("]") + 1] + "]"
+                        )
                         processed_list = json.loads(list_as_str_curated)
                         processed_list = {tuple(coo) for coo in processed_list}
                         if processed_list < block_list:
-                            complete=False
+                            complete = False
                             reprocess.add(de)
                     else:
-                        complete=False
+                        complete = False
                         reprocess.add(de)
         return complete, reprocess

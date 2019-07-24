@@ -4,8 +4,13 @@ from gunpowder import ArrayKey
 
 
 class N5Dataset(object):
-    def __init__(self, filename, labeled_voxels, special_categories=None,
-        data_dir='/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5'):
+    def __init__(
+        self,
+        filename,
+        labeled_voxels,
+        special_categories=None,
+        data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
+    ):
         self.filename = filename
         self.data_dir = data_dir
         self.full_path = data_dir.format(filename)
@@ -17,19 +22,27 @@ class N5Dataset(object):
 
 
 class Label(object):
-    def __init__(self, labelname, labelid, targetid=None, thr=128, scale_loss=True, scale_key=None,
-                 data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
-                 data_sources=None):
+    def __init__(
+        self,
+        labelname,
+        labelid,
+        targetid=None,
+        thr=128,
+        scale_loss=True,
+        scale_key=None,
+        data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
+        data_sources=None,
+    ):
 
         self.labelname = labelname
         if not isinstance(labelid, collections.Iterable):
-            labelid = (labelid, )
+            labelid = (labelid,)
         self.labelid = labelid
-        self.targetid= targetid
-        self.thr=thr
-        self.gt_dist_key = ArrayKey('GT_DIST_'+self.labelname.upper())
-        self.pred_dist_key = ArrayKey('PRED_DIST_'+self.labelname.upper())
-        self.mask_key = ArrayKey('MASK_'+self.labelname.upper())
+        self.targetid = targetid
+        self.thr = thr
+        self.gt_dist_key = ArrayKey("GT_DIST_" + self.labelname.upper())
+        self.pred_dist_key = ArrayKey("PRED_DIST_" + self.labelname.upper())
+        self.mask_key = ArrayKey("MASK_" + self.labelname.upper())
         self.scale_loss = scale_loss
         self.data_dir = data_dir
         self.data_sources = data_sources
@@ -39,16 +52,17 @@ class Label(object):
             for ds in data_sources:
                 zf = z5py.File(ds.full_path, use_zarr_format=False)
                 for l in labelid:
-                    if l in zf['volumes/labels/all'].attrs['relabeled_ids']:
-                        num += zf['volumes/labels/all'].attrs['relabeled_counts'][zf['volumes/labels/all'].attrs[
-                            'relabeled_ids'].index(l)]
+                    if l in zf["volumes/labels/all"].attrs["relabeled_ids"]:
+                        num += zf["volumes/labels/all"].attrs["relabeled_counts"][
+                            zf["volumes/labels/all"].attrs["relabeled_ids"].index(l)
+                        ]
         if num > 0:
             self.class_weight = float(self.total_voxels) / num
         else:
-            self.class_weight = 0.
+            self.class_weight = 0.0
         print(labelname, self.class_weight)
         if self.scale_loss:
-            self.scale_key = ArrayKey('SCALE_' + self.labelname.upper())
+            self.scale_key = ArrayKey("SCALE_" + self.labelname.upper())
         if scale_key is not None:
             self.scale_key = scale_key
         if not self.scale_loss and scale_key is None:
@@ -69,7 +83,7 @@ def compute_total_voxels(data_dir, data_sources):
         for ds in data_sources:
             zf = z5py.File(ds.full_path, use_zarr_format=False)
             try:
-                for c in zf['volumes/labels/all'].attrs['orig_counts']:
+                for c in zf["volumes/labels/all"].attrs["orig_counts"]:
                     voxels += c
             except KeyError as e:
                 print(ds.filename)
