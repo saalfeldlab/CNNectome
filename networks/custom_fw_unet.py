@@ -1,6 +1,6 @@
 from __future__ import print_function
 import tensorflow as tf
-import ops3d
+from networks import ops3d
 
 
 def unet(
