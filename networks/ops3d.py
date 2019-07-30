@@ -1,7 +1,7 @@
 from __future__ import print_function
 import tensorflow as tf
 import numpy as np
-
+                     
 
 def conv_pass(
     fmaps_in,
@@ -89,7 +89,7 @@ def downsample(
         data_format="channels_first",
         name=name,
     )
-    assert np.sum(np.array(fmaps_in.get_shape()[2:]) % np.array(factors)) == 0
+    assert int(np.sum(np.array(fmaps_in.get_shape()[2:]) % np.array(factors))) == 0
     return fmaps, fov, voxel_size
 
 
