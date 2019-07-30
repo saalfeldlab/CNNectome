@@ -98,7 +98,7 @@ def downsample(
         data_format="channels_first",
         name=name,
     )
-    assert np.sum(np.array(fmaps_in.get_shape()[2:]) % np.array(factors)) == 0
+    assert int(np.sum(np.array(fmaps_in.get_shape()[2:]) % np.array(factors))) == 0
     return fmaps, fov, voxel_size
 
 
@@ -111,8 +111,7 @@ def downsample_stridedconv(
     name="down",
     fov=(1, 1, 1),
     voxel_size=(1, 1, 1),
-    prefix="",
-    activation="relu",
+    prefix=""
 ):
     # fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
     if activation is not None:

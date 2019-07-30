@@ -400,7 +400,7 @@ class SerialUNet(object):
             g_out, fov, voxel_size = self.build(
                 g_in,
                 fmaps_bottom=fmaps_bottom,
-                num_fmaps_down
+                num_fmaps_down=num_fmaps_down,
                 num_fmaps_up=num_fmaps_up,
                 downsample_factors=downsample_factors,
                 kernel_size_down=kernel_size_down,
