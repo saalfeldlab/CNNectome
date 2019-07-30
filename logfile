@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/groups/ahrens/home/bennettd/forked/cnnectome/training/isotropic/train_cell_generic.py", line 5, in <module>
-    from networks.isotropic.mk_dtu_cell_generic import *
-  File "/groups/ahrens/home/bennettd/forked/cnnectome/networks/isotropic/mk_dtu_cell_generic.py", line 1, in <module>
-    from networks import custom_fw_unet as unet
-  File "/groups/ahrens/home/bennettd/forked/cnnectome/networks/custom_fw_unet.py", line 3, in <module>
-    import ops3d
-ModuleNotFoundError: No module named 'ops3d'
