@@ -38,11 +38,13 @@ def main():
             for ds_src, ds_tgt, thr in zip(dataset_srcs, dataset_tgts, thrs):
                 logging.info('    dataset {0:}'.format(ds_src.format(thr)))
                 cc(filename_src.format(sample), ds_src.format(thr), filename_tgt.format(sample), ds_tgt.format(thr))
+
 def run():
     filepath = '/nrs/saalfeld/heinrichl/synapses/cremi_all/cremi_all_0116_01/prediction_cremi_warped_sampleC+_200000.n5'
     dataset = 'syncleft_dist_thr0.0'
     dataset_tgt = dataset + '_cc'
     cc(filepath, dataset, filepath, dataset_tgt)
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

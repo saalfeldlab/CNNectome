@@ -93,7 +93,7 @@ def make_net(unet, labels, added_steps, loss_name='loss_total', mode='train'):
 
         with open('net_io_names.json', 'w') as f:
             json.dump(names, f)
-    elif mode.lower() == 'inference' or mode.lower() == 'prediction' or mode.lower == 'pred':
+    elif mode.lower() == 'inference' or mode.lower() == 'prediction' or mode.lower() == 'pred':
         pass
     else:
         raise ValueError("unknown mode for network construction {0:}".format(mode))
