@@ -1,7 +1,7 @@
 from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import ZeroOutConstSections, AddDistance
+from gunpowder.contrib import ZeroOutConstSections, AddDistance, TanhSaturate, CombineDistances
 import gpn
 import tensorflow as tf
 import numpy as np
@@ -9,8 +9,8 @@ import os
 import math
 import json
 import sys
-import time
 import logging
+import time
 import collections
 print("syspath", sys.path)
 import z5py
@@ -18,87 +18,96 @@ from networks import scale_net
 from networks.isotropic.mk_scale_net_cell_generic import *
 from utils.label import *
 
-def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, loss_name, labels, scnet,
-                raw_name='raw', min_masked_voxels=17561.):
+def train_until(max_iteration, data_sources, ribo_sources, nucleolus_sources, centrosomes_sources, dt_scaling_factor,
+                loss_name, labels, scnet,
+                raw_names, min_masked_voxels=17561., mask_ds_name='volumes/masks/training',
+                integral_mask_ds_name='volumes/masks/training_integral'):
     with open('net_io_names.json', 'r') as f:
         net_io_names = json.load(f)
 
     ArrayKey('ALPHA_MASK')
     ArrayKey('GT_LABELS')
     ArrayKey('MASK')
+    ArrayKey('INTEGRAL_MASK')
     ArrayKey('RIBO_GT')
-
-    datasets_ribo = {
-        ArrayKeys.GT_LABELS: 'volumes/labels/all',
-        ArrayKeys.MASK: 'volumes/masks/training_cropped',
-        ArrayKeys.RIBO_GT: 'volumes/labels/ribosomes',
-    }
-    # for datasets without ribosome annotations volumes/labels/ribosomes doesn't exist, so use volumes/labels/all
-    # instead (only one with the right resolution)
-    datasets_no_ribo = {
-        ArrayKeys.GT_LABELS: 'volumes/labels/all',
-        ArrayKeys.MASK: 'volumes/masks/training_cropped',
-        ArrayKeys.RIBO_GT: 'volumes/labels/all',
-    }
-    array_specs = {ArrayKeys.MASK: ArraySpec(interpolatable=False)}
-    array_specs_pred = {}
-
-    # individual mask per label
-    for label in labels:
-        datasets_no_ribo[label.mask_key] = 'volumes/masks/' + label.labelname
-        datasets_ribo[label.mask_key] = 'volumes/masks/' + label.labelname
-        array_specs[label.mask_key] = ArraySpec(interpolatable=False)
-    #inputs = {net_io_names['mask']: ArrayKeys.MASK}
-    snapshot = {ArrayKeys.GT_LABELS: 'volumes/labels/all'}
-
-    request = BatchRequest()
-    snapshot_request = BatchRequest()
+    ArrayKey('NUCLEOLUS_GT')
+    ArrayKey('CENTROSOMES_GT')
 
     raw_array_keys = []
     contexts = []
     # input and output sizes in world coordinates
     input_sizes_wc = [Coordinate(inp_sh) * Coordinate(vs) for inp_sh, vs in zip(scnet.input_shapes, scnet.voxel_sizes)]
     output_size_wc = Coordinate(scnet.output_shapes[0]) * Coordinate(scnet.voxel_sizes[0])
-    keep_thr = float(min_masked_voxels)/np.prod(scnet.output_shapes[0])
+    keep_thr = float(min_masked_voxels) / np.prod(scnet.output_shapes[0])
 
     voxel_size_up = Coordinate((2, 2, 2))
     voxel_size_orig = Coordinate((4, 4, 4))
-    assert voxel_size_orig == Coordinate(scnet.voxel_sizes[0]) # make sure that scnet has the same base voxel size
-    inputs = {}
-    # add multiscale raw data as inputs
-    for k, (inp_sh_wc, vs) in enumerate(zip(input_sizes_wc, scnet.voxel_sizes)):
+    assert voxel_size_orig == Coordinate(scnet.voxel_sizes[0])  # make sure that scnet has the same base voxel siz
+
+
+    data_providers = []
+    inputs = dict()
+    outputs = dict()
+    snapshot = dict()
+    request= BatchRequest()
+    snapshot_request = BatchRequest()
+    datasets = {
+        ArrayKeys.GT_LABELS:'volumes/labels/all',
+        ArrayKeys.MASK: mask_ds_name,
+        ArrayKeys.INTEGRAL_MASK: integral_mask_ds_name,
+        ArrayKeys.RIBO_GT: 'volumes/labels/all',
+        ArrayKeys.NUCLEOLUS_GT: 'volumes/labels/all',
+        ArrayKeys.CENTROSOMES_GT: 'volumes/labels/all'
+    }
+
+    array_specs = {ArrayKeys.MASK: ArraySpec(interpolatable=False)}
+    array_specs_pred = {}
+
+
+    #inputs = {net_io_names['mask']: ArrayKeys.MASK}
+    snapshot[ArrayKeys.GT_LABELS] = 'volumes/labels/gt_labels'
+
+    for k, (inp_sh_wc, vs, raw_name) in enumerate(zip(input_sizes_wc, scnet.voxel_sizes, raw_names)):
         ak = ArrayKey('RAW_S{0:}'.format(k))
         raw_array_keys.append(ak)
-        datasets_ribo[ak] = 'volumes/{0:}/data/s{1:}'.format(raw_name,k)
-        datasets_no_ribo[ak] = 'volumes/{0:}/data/s{1:}'.format(raw_name,k)
+        datasets[ak] = raw_name
         inputs[net_io_names['raw_{0:}'.format(vs[0])]] = ak
         snapshot[ak] = 'volumes/raw_s{0:}'.format(k)
         array_specs[ak] = ArraySpec(voxel_size=Coordinate(vs))
         request.add(ak, inp_sh_wc, voxel_size=Coordinate(vs))
         contexts.append(inp_sh_wc - output_size_wc)
-    outputs = dict()
+
+
+    request.add(ArrayKeys.GT_LABELS, output_size_wc, voxel_size=voxel_size_up)
+    request.add(ArrayKeys.MASK, output_size_wc, voxel_size=voxel_size_orig)
+    request.add(ArrayKeys.RIBO_GT, output_size_wc, voxel_size=voxel_size_up)
+    request.add(ArrayKeys.NUCLEOLUS_GT, output_size_wc, voxel_size=voxel_size_up)
+    request.add(ArrayKeys.CENTROSOMES_GT, output_size_wc, voxel_size=voxel_size_up)
+    request.add(ArrayKeys.INTEGRAL_MASK, output_size_wc, voxel_size=voxel_size_orig)
+
+    # individual mask per label
     for label in labels:
+        datasets[label.mask_key] = 'volumes/masks/' + label.labelname
+        array_specs[label.mask_key] = ArraySpec(interpolatable=False)
+        array_specs_pred[label.pred_dist_key] = ArraySpec(voxel_size=voxel_size_orig, interpolatable=True)
+        inputs[net_io_names['mask_'+label.labelname]] = label.mask_key
         inputs[net_io_names['gt_' + label.labelname]] = label.gt_dist_key
         if label.scale_loss or label.scale_key is not None:
             inputs[net_io_names['w_' + label.labelname]] = label.scale_key
-        inputs[net_io_names['mask_'+label.labelname]] = label.mask_key
         outputs[net_io_names[label.labelname]] = label.pred_dist_key
+
         snapshot[label.gt_dist_key] = 'volumes/labels/gt_dist_' + label.labelname
         snapshot[label.pred_dist_key] = 'volumes/labels/pred_dist_' + label.labelname
-        array_specs_pred[label.pred_dist_key] = ArraySpec(voxel_size=voxel_size_orig, interpolatable=True)
 
-    request.add(ArrayKeys.GT_LABELS, output_size_wc,  voxel_size=voxel_size_up)
-    request.add(ArrayKeys.MASK, output_size_wc, voxel_size=voxel_size_orig)
-    request.add(ArrayKeys.RIBO_GT, output_size_wc, voxel_size=voxel_size_up)
-    for label in labels:
         request.add(label.gt_dist_key, output_size_wc, voxel_size=voxel_size_orig)
-        snapshot_request.add(label.pred_dist_key, output_size_wc, voxel_size=voxel_size_orig)
         request.add(label.pred_dist_key, output_size_wc, voxel_size=voxel_size_orig)
-        request.add(label.mask_key, output_size_wc, voxel_size=voxel_size_orig)
+        request.add(label.mask_key,output_size_wc, voxel_size=voxel_size_orig)
         if label.scale_loss:
             request.add(label.scale_key, output_size_wc, voxel_size=voxel_size_orig)
 
-    data_providers = []
+        snapshot_request.add(label.pred_dist_key, output_size_wc, voxel_size=voxel_size_orig)
+
+
     if tf.train.latest_checkpoint('.'):
         trained_until = int(tf.train.latest_checkpoint('.').split('_')[-1])
         print('Resuming training from', trained_until)
@@ -106,18 +115,15 @@ def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, lo
         trained_until = 0
         print('Starting fresh training')
     for src in data_sources:
-
-        if src not in ribo_sources:
-            n5_source = N5Source(
-                src.full_path,
-                datasets=datasets_no_ribo,
-                array_specs=array_specs)
-        else:
-            n5_source = N5Source(
-                src.full_path,
-                datasets=datasets_ribo,
-                array_specs=array_specs)
-
+        datasets_i = datasets.copy()
+        if src in ribo_sources:
+            datasets_i[ArrayKeys.RIBO_GT] = 'volumes/labels/ribosomes'
+        if src in nucleolus_sources:
+            datasets_i[ArrayKeys.NUCLEOLUS_GT] = 'volumes/labels/nucleolus'
+        if src in centrosomes_sources:
+            datasets_i[ArrayKeys.CENTROSOMES_GT] = 'volumes/labels/centrosomes'
+        
+        n5_source = N5Source(src.full_path, datasets=datasets_i, array_specs = array_specs)
         data_providers.append(n5_source)
 
     data_stream = []
@@ -127,8 +133,7 @@ def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, lo
             data_stream[-1] += Normalize(ak)
             # data_stream[-1] += Pad(ak, context) # this shouldn't be necessary as I cropped the input data to have
             # sufficient padding
-        data_stream[-1] += RandomLocation()
-        data_stream[-1] += Reject(ArrayKeys.MASK, min_masked=keep_thr)
+        data_stream[-1] += RandomLocationWithIntegralMask(keep_thr, integral_mask=ArrayKeys.INTEGRAL_MASK)
     data_stream = tuple(data_stream)
 
     train_pipeline = (
@@ -141,31 +146,65 @@ def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, lo
         GammaAugment(raw_array_keys, 0.5, 2.0))
     for ak in raw_array_keys:
         train_pipeline += IntensityScaleShift(ak, 2, -1)
-        #train_pipeline += ZeroOutConstSections(ak)
-
+        
     for label in labels:
-        if label.labelname != 'ribosomes':
-            train_pipeline += AddDistance(label_array_key=ArrayKeys.GT_LABELS,
-                                          distance_array_key=label.gt_dist_key,
-                                          normalize='tanh',
-                                          normalize_args=dt_scaling_factor,
-                                          label_id=label.labelid, factor=2)
-        else:
+        if label.labelname == 'ribosomes':
             train_pipeline += AddDistance(label_array_key=ArrayKeys.RIBO_GT,
                                           distance_array_key=label.gt_dist_key,
-                                          normalize='tanh+',
-                                          normalize_args=(dt_scaling_factor, 8),
-                                          label_id=label.labelid, factor=2)
-
+                                          mask_array_key=label.mask_key,
+                                          add_constant=8,
+                                          label_id=label.labelid,
+                                          factor=2,
+                                          max_distance=2.76 * dt_scaling_factor)
+        elif label.labelname == 'nucleolus':
+            train_pipeline += AddDistance(label_array_key=ArrayKeys.NUCLEOLUS_GT,
+                                          distance_array_key=label.gt_dist_key,
+                                          mask_array_key=label.mask_key,
+                                          label_id=label.labelid,
+                                          factor=2,
+                                          max_distance=2.76 * dt_scaling_factor)
+        elif label.labelname == 'centrosomes':
+            train_pipeline += AddDistance(label_array_key=ArrayKeys.CENTROSOMES_GT,
+                                          distance_array_key=label.gt_dist_key,
+                                          mask_array_key=label.mask_key,
+                                          add_constant=2,
+                                          label_id=label.labelid,
+                                          factor=2,
+                                          max_distance=2.76 * dt_scaling_factor)
+        else:
+            train_pipeline += AddDistance(label_array_key=ArrayKeys.GT_LABELS,
+                                          distance_array_key=label.gt_dist_key,
+                                          mask_array_key=label.mask_key,
+                                          label_id=label.labelid,
+                                          factor=2,
+                                          max_distance=2.76 * dt_scaling_factor)
     for label in labels:
+        if label.labelname == 'microtubules_out':
+            microtubules = label
+        elif label.labelname == 'centrosomes':
+            centrosomes = label
+        elif label.labelname == 'subdistal_app':
+            subdistal_app = label
+        elif label.labelname == 'distal_app':
+            distal_app = label
+    train_pipeline += CombineDistances((microtubules.gt_dist_key, centrosomes.gt_dist_key),
+                                       microtubules.gt_dist_key,
+                                       (microtubules.mask_key, centrosomes.mask_key),
+                                       microtubules.mask_key)
+    train_pipeline += CombineDistances((distal_app.gt_dist_key, subdistal_app.gt_dist_key, centrosomes.gt_dist_key),
+                                       centrosomes.gt_dist_key,
+                                       (distal_app.mask_key, subdistal_app.mask_key, centrosomes.mask_key),
+                                       centrosomes.mask_key)
+    for label in labels:
+        train_pipeline += TanhSaturate(label.gt_dist_key, dt_scaling_factor)
         if label.scale_loss:
             train_pipeline += BalanceByThreshold(label.gt_dist_key, label.scale_key, mask=label.mask_key)
 
     train_pipeline = (
         train_pipeline +
         PreCache(
-            cache_size=10,
-            num_workers=40) +
+            cache_size=30,
+            num_workers=30) +
         Train(
             scnet.name,
             optimizer=net_io_names['optimizer'],
@@ -186,7 +225,7 @@ def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, lo
             output_dir='snapshots/',
             additional_request=snapshot_request) +
 
-        PrintProfilingStats(every=10))
+        PrintProfilingStats(every=50))
 
     print("Starting training...")
     with build(train_pipeline) as b:
@@ -201,7 +240,8 @@ def train_until(max_iteration, data_sources, ribo_sources, dt_scaling_factor, lo
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v020719_o505x505x505_m1170x1170x1170/{0:}.n5"
+    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v061719_o750x750x750_m1800x1800x1800_8nm/{" \
+               "0:}.n5"
     data_sources = list()
     data_sources.append(N5Dataset('crop1', 500*500*100, data_dir=data_dir))
     data_sources.append(N5Dataset('crop3', 400*400*250, data_dir=data_dir))
