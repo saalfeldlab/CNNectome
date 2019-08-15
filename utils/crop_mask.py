@@ -13,7 +13,7 @@ def bbox_ND(img):
     return tuple(out)
 
 
-def crop_mask(filename, mask_ds='volumes/masks/training', target_ds='volumes/masks/training_cropped', padding=235):
+def crop_mask(filename, mask_ds='volumes/masks/training', target_ds='volumes/masks/training_cropped', padding=256):
     print("cropping {0:} of {1:} to {2:} with padding {3:}".format(mask_ds, filename, target_ds, padding))
     # open file
     zf = z5py.File(filename, use_zarr_format=False)
@@ -41,10 +41,11 @@ def crop_mask(filename, mask_ds='volumes/masks/training', target_ds='volumes/mas
 
 
 if __name__ == '__main__':
-    dataset_dir='/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v020719_o505x505x505_m1170x1170x1170_8nm/{0:}'
+    dataset_dir='/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v061719_o750x750x750_m1800x1800x1800_8nm/{0:}'
     list_of_ds = ['crop1.n5', 'crop3.n5', 'crop4.n5', 'crop6.n5', 'crop7.n5', 'crop8.n5', 'crop9.n5', 'crop13.n5',
-                  'crop14.n5', 'crop15.n5', 'crop18.n5', 'crop19.n5', 'crop20.n5', 'crop21.n5', 'crop22.n5']
-    padding = 190
+                  'crop14.n5', 'crop15.n5', 'crop16.n5', 'crop18.n5', 'crop19.n5', 'crop20.n5',
+                  'crop21.n5', 'crop22.n5', 'crop31.n5', 'crop33.n5', 'crop34.n5']
+    padding = 256
     for ds in list_of_ds:
-        crop_mask(dataset_dir.format(ds), target_ds ='volumes/masks/training_cropped{0:}'.format(padding), padding=padding)
+        crop_mask(dataset_dir.format(ds), target_ds ='volumes/masks/training_off{0:}'.format(padding), padding=padding)
     #crop_mask(dataset_dir.format('crop1.n5'))
