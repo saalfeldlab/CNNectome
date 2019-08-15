@@ -180,6 +180,79 @@ def crop_zyx(fmaps_in, shape):
     return fmaps
 
 
+def crop_to_factor(fmaps_in, factor, kernel_sizes):
+    '''Crop feature maps to ensure translation equivariance with stride of
+    upsampling factor. This should be done right after upsampling, before
+    application of the convolutions with the given kernel sizes.
+    The crop could be done after the convolutions, but it is more efficient to
+    do that before (feature maps will be smaller).
+    '''
+
+    shape = fmaps_in.get_shape().as_list()
+    spatial_dims = 3 if len(shape) == 5 else 4
+    spatial_shape = shape[-spatial_dims:]
+
+    # the crop that will already be done due to the convolutions
+    convolution_crop = list(
+        sum(
+            (ks if isinstance(ks, int) else ks[d]) - 1
+            for ks in kernel_sizes
+        )
+        for d in range(spatial_dims)
+    )
+    logging.debug("crop_to_factor: factor =", factor)
+    logging.debug("crop_to_factor: kernel_sizes =", kernel_sizes)
+    logging.debug("crop_to_factor: convolution_crop =", convolution_crop)
+
+    # we need (spatial_shape - convolution_crop) to be a multiple of factor,
+    # i.e.:
+    #
+    # (s - c) = n*k
+    #
+    # we want to find the largest n for which s' = n*k + c <= s
+    #
+    # n = floor((s - c)/k)
+    #
+    # this gives us the target shape s'
+    #
+    # s' = n*k + c
+
+    ns = (
+        int(math.floor(float(s - c)/f))
+        for s, c, f in zip(spatial_shape, convolution_crop, factor)
+    )
+    target_spatial_shape = tuple(
+        n*f + c
+        for n, c, f in zip(ns, convolution_crop, factor)
+    )
+    if target_spatial_shape != spatial_shape:
+
+        assert all((
+                (t > c) for t, c in zip(
+                    target_spatial_shape,
+                    convolution_crop))
+            ), \
+            "Feature map with shape %s is too small to ensure translation " \
+            "equivariance with factor %s and following convolutions %s" % (
+                shape,
+                factor,
+                kernel_sizes)
+
+        target_shape = list(shape)
+        target_shape[-spatial_dims:] = target_spatial_shape
+
+        logging.debug("crop_to_factor: shape = {0:}".format(shape))
+        logging.debug("crop_to_factor: spatial_shape = {0:}".format(spatial_shape))
+        logging.debug("crop_to_factor: target_spatial_shape = {0:}".format(target_spatial_shape))
+        logging.debug("crop_to_factor: target_shape ={0:}".format(target_shape))
+        fmaps = crop_zyx(
+            fmaps_in,
+            target_shape)
+    else:
+        fmaps = fmaps_in
+
+    return fmaps
+
 def crossmod_conv_pass(
         fmaps_in,
         pmaps_in,
