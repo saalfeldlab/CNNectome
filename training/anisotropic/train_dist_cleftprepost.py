@@ -15,6 +15,7 @@ def make_cleft_to_prepostsyn_neuron_id_dict(csv_files, filter_comments):
     cleft_to_pre = dict()
     cleft_to_post = dict()
     for csv_f in csv_files:
+        logging.info("Reading csv file {0:}".format(csv_f))
         f = open(csv_f, 'r')
         reader = csv.DictReader(f, fieldnames=['pre_label', 'pre_id', 'pre_x', 'pre_y', 'pre_z', 'pre_comment',
                                                'post_label', 'post_id', 'post_x', 'post_y', 'post_z', 'post_comment',
@@ -62,12 +63,12 @@ def train_until(max_iteration, samples, aug_mode, input_shape, output_shape, cre
     data_providers = []
     if tf.train.latest_checkpoint('.'):
         trained_until = int(tf.train.latest_checkpoint('.').split('_')[-1])
-        print('Resuming training from', trained_until)
+        logging.info('Resuming training from', trained_until)
     else:
         trained_until = 0
-        print('Starting fresh training')
+        logging.info('Starting fresh training')
     for sample in samples:
-        print(sample)
+        logging.info("Adding sample {0:}".format(sample))
         n5_source = N5Source(
             os.path.join(cremi_dir, n5_filename_format.format(sample)),
             datasets={
@@ -292,10 +293,10 @@ def train_until(max_iteration, samples, aug_mode, input_shape, output_shape, cre
 
         PrintProfilingStats(every=50))
 
-    print("Starting training...")
+    logging.info("Starting training...")
     with build(train_pipeline) as b:
         for i in range(max_iteration):
             b.request_batch(request)
 
-    print("Training finished")
+    logging.info("Training finished")
 
