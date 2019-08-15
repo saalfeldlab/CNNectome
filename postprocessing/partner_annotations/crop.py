@@ -1,28 +1,8 @@
 import z5py
 import os
 import logging
-
-#offsets_minicrop = {
-#    'A+': (37, 1676, 1598),
-#    'B+': (37, 2201, 3294),
-#    'C+': (37, 1702, 2135)
-#}
-#shapes = {
-#    'A+': (125, 1529, 1448),
-#    'B+': (125, 1701, 2794),
-#    'C+': (125, 1424, 1470),
-#    'A': (125, 1438, 1322),
-#    'B': (125, 1451, 2112),
-#    'C': (125, 1578, 1461)
-#}
-#offsets = {
-#     'A+': (37, 1176, 955),
-#     'B+': (37, 1076, 1284),
-#     'C+': (37, 1002, 1165),
-#     'A': (38, 942, 951),
-#     'B': (37, 1165, 1446),
-#     'C': (37, 1032, 1045)
-# }
+import h5py
+import numpy as np
 
 
 offsets = dict()
@@ -40,6 +20,28 @@ shapes['A+'] = {True: (125, 1556, 1447), False: (125, 1250, 1250)}
 shapes['B+'] = {True: (125, 1701, 2792), False: (125, 1250, 1250)}
 shapes['C+'] = {True: (125, 1424, 1470), False: (125, 1250, 1250)}
 
+
+def crop_to_seg_h5(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, shape):
+    srcf = h5py.File(filename_src, 'r')
+    if not os.path.exists(filename_tgt):
+        os.makedirs(filename_tgt)
+
+    bb = tuple(slice(off, off +sh, None) for off, sh in zip(offset, shape))
+    arr = srcf[dataset_src][bb]
+    chunks = srcf[dataset_src].chunks
+    resolution = srcf[dataset_src].attrs['resolution']
+    srcf.close()
+
+    tgtf = h5py.File(filename_tgt, 'r+')
+    if dataset_tgt in tgtf:
+        del tgtf[dataset_tgt]
+    tgtf.create_dataset(dataset_tgt, shape=shape, compression='gzip', dtype=arr.dtype, chunks=chunks)
+
+    tgtf[dataset_tgt][:] = arr
+    tgtf[dataset_tgt].attrs['offset'] = list(np.array(offset) * np.array(resolution))
+    tgtf[dataset_tgt].attrs['resolution'] = resolution
+
+    tgtf.close()
 
 
 def crop_to_seg(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, shape):
@@ -131,6 +133,21 @@ def main_test_blocks():
                 logging.info("    dataset {0:}".format(ds_src))
                 crop_to_seg(filename_src.format(de, sample), ds_src, filename_src.format(de, sample), ds_tgt, off, sh)
 
+def main_birdsnests(sample):
+    filename_src = '/groups/funke/cremi/01_data/20181003Final/segmentationGroundtruth/{0:}'
+    if sample == 'A+':
+        filename_src = filename_src.format("sample_A+_20181003_Segmentation.merged.h5")
+    elif sample == 'B+':
+        filename_src = filename_src.format("sample_B+_20181003_Segmentation.merged.h5")
+    elif sample == 'C+':
+        filename_src = filename_src.format("sample_C+_20181003_Segmentation.merged.hdf")
+    dataset_src = 'volumes/labels/birdsnests.canvas'
+    dataset_tgt = 'volumes/labels/birdsnests.canvas'
+    aligned = True
+    off = offsets[sample][aligned]
+    sh = shapes[sample][aligned]
+    crop_to_seg_h5(filename_src, dataset_src, filename_src, dataset_tgt, off, sh)
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    main()
+    main_birdsnests('A+')
