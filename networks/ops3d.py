@@ -1,6 +1,8 @@
 from __future__ import print_function
 import tensorflow as tf
 import numpy as np
+import math
+import logging
 
 def conv_pass(
         fmaps_in,
@@ -43,7 +45,9 @@ def conv_pass(
 
     for i, ks in enumerate(kernel_size):
         fov = tuple(f + (k-1) * vs for f, k, vs in zip(fov, ks, voxel_size))
-        print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
+        logging.info(
+            prefix + 'fov: {0:} voxsize: {1:} anisotropy: {2:}'.format(fov, voxel_size, (fov[0]) / float(fov[1])))
+
         fmaps = tf.layers.conv3d(
             inputs=fmaps,
             filters=num_fmaps,
@@ -59,7 +63,8 @@ def conv_pass(
 def downsample(fmaps_in, factors, name='down', fov=(1,1,1), voxel_size=(1, 1, 1), prefix=''):
     #fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
     voxel_size = tuple(vs * fac for vs, fac in zip(voxel_size, factors))
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
+    logging.info(prefix + 'fov: {0:} voxsize: {1:} anisotropy: {2:}'.format(fov, voxel_size, (fov[0]) / float(fov[1])))
+
     fmaps = tf.layers.max_pooling3d(
         fmaps_in,
         pool_size=factors,
@@ -77,7 +82,8 @@ def downsample_stridedconv(fmaps_in, factors, num_fmaps, name='down', fov=(1,1,1
     if activation is not None:
         activation = getattr(tf.nn, activation)
     voxel_size = tuple(vs * fac for vs, fac in zip(voxel_size, factors))
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
+    logging.info(prefix + 'fov: {0:} voxsize: {1:} anisotropy: {2:}'.format(fov, voxel_size, (fov[0]) / float(fov[1])))
+
     fmaps = tf.layers.conv3d(
         inputs=fmaps_in,
         filters=num_fmaps,
@@ -101,7 +107,7 @@ def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up', fov=(1,
 
     voxel_size = tuple(vs / fac for vs, fac in zip(voxel_size, factors))
 
-    print(prefix, 'fov:', fov, 'voxsize:', voxel_size, 'anisotropy:', (fov[0]) / float(fov[1]))
+    logging.info(prefix + 'fov: {0:} voxsize: {1:} anisotropy: {2:}'.format(fov, voxel_size, (fov[0]) / float(fov[1])))
     if activation is not None:
         activation = getattr(tf.nn, activation)
 
@@ -203,12 +209,12 @@ def center_crop(tensor, size):
 
     slices = tuple(slice(d/2, -d/2) if d > 0 else slice(None) for d in diff)
 
-    print("Cropping from %s to %s"%(shape, size))
-    print("Diff: %s"%(diff,))
-    print("Slices: %s"%(slices,))
+    logging.debug("Cropping from %s to %s"%(shape, size))
+    logging.debug("Diff: %s"%(diff,))
+    logging.debug("Slices: %s"%(slices,))
 
     cropped = tensor[slices]
 
-    print("Result size: %s"%cropped.get_shape().as_list())
+    logging.debug("Result size: %s"%cropped.get_shape().as_list())
 
     return cropped

@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 import ops3d
 import warnings
+import logging
 
 
 class UNet(object):
@@ -143,8 +144,8 @@ class UNet(object):
             voxel_size = self.input_voxel_size
 
         prefix = "    " * layer
-        print(prefix + "Creating U-Net layer %i" % layer)
-        print(prefix + "f_in: " + str(fmaps_in.shape))
+        logging.info(prefix + "Creating U-Net layer %i" % layer)
+        logging.info(prefix + "f_in: " + str(fmaps_in.shape))
 
         # convolve
         with tf.name_scope("lev%i" % layer):
@@ -164,8 +165,8 @@ class UNet(object):
             bottom_layer = (layer == len(downsample_factors))
 
             if bottom_layer:
-                print(prefix + "bottom layer")
-                print(prefix + "f_out: " + str(f_left.shape))
+                logging.info(prefix + "bottom layer")
+                logging.info(prefix + "f_out: " + str(f_left.shape))
                 return f_left, fov, voxel_size
 
             # downsample
@@ -191,7 +192,7 @@ class UNet(object):
                 fov=fov,
                 voxel_size=voxel_size)
 
-            print(prefix + "g_out: " + str(g_out.shape))
+            logging.info(prefix + "g_out: " + str(g_out.shape))
 
             # upsample
             g_out_upsampled, voxel_size = ops3d.upsample(
@@ -205,17 +206,17 @@ class UNet(object):
                 prefix=prefix,
                 constant_upsample=self.constant_upsample)
 
-            print(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
+            logging.info(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
+
 
             # copy-crop
             f_left_cropped = ops3d.crop_zyx(f_left, g_out_upsampled.get_shape().as_list())
-
-            print(prefix + "f_left_cropped: " + str(f_left_cropped.shape))
+            logging.info(prefix + "f_left_cropped: " + str(f_left_cropped.shape))
 
             # concatenate along channel dimension
             f_right = tf.concat([f_left_cropped, g_out_upsampled], 1)
 
-            print(prefix + "f_right: " + str(f_right.shape))
+            logging.info(prefix + "f_right: " + str(f_right.shape))
 
             # convolve
             f_out, fov = ops3d.conv_pass(
@@ -228,10 +229,9 @@ class UNet(object):
                 prefix=prefix
             )
 
-            print(prefix + "f_out: " + str(f_out.shape))
+            logging.info(prefix + "f_out: " + str(f_out.shape))
 
         return f_out, fov, voxel_size
-
 
 
 if __name__ == "__main__":
