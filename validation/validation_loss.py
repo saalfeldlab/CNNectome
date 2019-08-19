@@ -1,4 +1,3 @@
-from __future__ import print_function
 import h5py
 import numpy as np
 from scipy import ndimage
@@ -87,7 +86,7 @@ class Clefts:
 def bbox2_ND(img):
     N = img.ndim
     out = []
-    for ax in itertools.combinations(range(N), N - 1):
+    for ax in itertools.combinations(list(range(N)), N - 1):
         nonzero = np.any(img, axis=ax)
         out.extend(np.where(nonzero)[0][[0, -1]])
     return tuple(out)
@@ -122,9 +121,9 @@ def run_evaluation(experiment_name):
         # mask_train = mask_train[s_train]
         del truth
         if experiment_name != "DTU2_Bonly":
-            iterations = range(2000, 84000, 2000)
+            iterations = list(range(2000, 84000, 2000))
         else:
-            iterations = range(2000, 56000, 2000)
+            iterations = list(range(2000, 56000, 2000))
         for iteration in iterations:
             validation_json = (
                 "/nrs/saalfeld/heinrichl/synapses/miccai_experiments/{0:}/{1:}.n5/it_{"

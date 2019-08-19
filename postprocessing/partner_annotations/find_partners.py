@@ -1,4 +1,3 @@
-from __future__ import print_function
 import z5py
 import os
 import numpy as np
@@ -16,7 +15,7 @@ SEG_BG_VAL = 0
 def bbox_ND(img):
     N = img.ndim
     out = []
-    for ax in list(itertools.combinations(range(N), N - 1))[::-1]:
+    for ax in list(itertools.combinations(list(range(N)), N - 1))[::-1]:
         nonzero = np.any(img, axis=ax)
         out.extend(np.where(nonzero)[0][[0, -1]])
     return tuple(out)
@@ -648,7 +647,7 @@ class Matchmaker(object):
         # cid) for cid in inputs)
         print("finding all clefts...")
         try:
-            self.list_of_cleftids = range(1, self.cleft_cc.attrs["max_id"] + 1)
+            self.list_of_cleftids = list(range(1, self.cleft_cc.attrs["max_id"] + 1))
         except AssertionError:
             self.list_of_cleftids = np.unique(self.cleft_cc[:])[1:]
         self.list_of_clefts = [
@@ -752,7 +751,7 @@ class Matchmaker(object):
         annotations = cremi.Annotations(offset=self.offset)
         syncounter = itertools.count(1)
         for partner in self.get_partners():
-            preid = syncounter.next()
+            preid = next(syncounter)
             annotations.add_annotation(
                 preid,
                 "presynaptic_site",
@@ -767,7 +766,7 @@ class Matchmaker(object):
                 + ", size: "
                 + str(partner[4]),
             )
-            postid = syncounter.next()
+            postid = next(syncounter)
             annotations.add_annotation(
                 postid,
                 "postsynaptic_site",

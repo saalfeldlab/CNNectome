@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
-iterations = range(30000, 150000, 2000)
+iterations = list(range(30000, 150000, 2000))
 colors = {
     "classic": (62 / 255.0, 150 / 255.0, 81 / 255.0),
     "lite": (57 / 255.0, 106 / 255.0, 177 / 255.0),
@@ -297,7 +297,7 @@ def ratio_summary_plots_augmentations():
         for k, dt in enumerate(data_train):
             avgs, stds, mins = compute_average_ratio(samples, dt, de)
             print(avgs, stds, mins)
-            for l, comp in enumerate(avgs.iterkeys()):
+            for l, comp in enumerate(avgs.keys()):
                 plt.errorbar(
                     x,
                     avgs[comp],
@@ -327,7 +327,7 @@ def ratio_summary_plots_augmentations():
     ax.tick_params("x", labelsize="large", bottom=False)
 
     leg = []
-    for comp, c in colors.iteritems():
+    for comp, c in colors.items():
         p = mpatches.Patch(color=c, label=comp[0] + " / " + comp[1])
         leg.append(p)
     for dt in data_train:
@@ -420,7 +420,7 @@ def ratio_summary_plots_dt():
     ax.tick_params("x", labelsize="large", bottom=False)
 
     leg = []
-    for aug, c in colors.iteritems():
+    for aug, c in colors.items():
         p = mpatches.Patch(color=c, label=aug)
         leg.append(p)
     for c in comparisons:
@@ -471,11 +471,11 @@ def absolute_summary_plots():
     plt.rcParams["font.sans-serif"] = ["Lucida Grande"]
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams.update({"font.size": 22})
-    print(plt.rcParams.keys())  # , 'font.name': 'Comic Sans MS'})
+    print(list(plt.rcParams.keys()))  # , 'font.name': 'Comic Sans MS'})
     fig = plt.figure(figsize=(30, 20))
 
     ax = plt.axes()
-    for p in ax.spines.iterkeys():
+    for p in ax.spines.keys():
         ax.spines[p].set_visible(False)
     ax.grid(which="major", axis="y", linestyle=":", linewidth=2)
     d_tiny = 0.4

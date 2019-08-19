@@ -1,4 +1,3 @@
-from __future__ import print_function
 import h5py
 import numpy as np
 
@@ -70,7 +69,7 @@ def rewrite_mask(sample):
     clefts[clefts == 0xFFFFFFFFFFFFFFFF - 1] = 0
     clefts[clefts == 0xFFFFFFFFFFFFFFFF] = 0
     g.create_dataset("volumes/labels/clefts", data=clefts, chunks=(26, 256, 256))
-    for k, v in f["volumes/labels/clefts"].attrs.iteritems():
+    for k, v in f["volumes/labels/clefts"].attrs.items():
         g["volumes/labels/clefts"].attrs.create(k, v)
     print("done")
 
@@ -81,7 +80,7 @@ def rewrite_mask(sample):
     g.create_dataset(
         "volumes/labels/neuron_ids", data=neuron_ids, chunks=(26, 256, 256)
     )
-    for k, v in f["volumes/labels/neuron_ids"].attrs.iteritems():
+    for k, v in f["volumes/labels/neuron_ids"].attrs.items():
         g["volumes/labels/neuron_ids"].attrs.create(k, v)
     print("done")
 
@@ -90,11 +89,11 @@ def rewrite_mask(sample):
     g.create_dataset(
         "volumes/raw", data=np.array(f["volumes/raw"]), chunks=(26, 256, 256)
     )
-    for k, v in f["volumes/raw"].attrs.iteritems():
+    for k, v in f["volumes/raw"].attrs.items():
         g["volumes/raw"].attrs.create(k, v)
     print("done")
     print("attributes...", end="")
-    for k, v in f.attrs.iteritems():
+    for k, v in f.attrs.items():
         g.attrs.create(k, v)
 
     g.create_group("annotations")
@@ -109,14 +108,14 @@ def rewrite_mask(sample):
         data=f["annotations/comments/comments"],
         chunks=f["annotations/comments/comments"].chunks,
     )
-    for k, v in f["annotations/comments/comments"].attrs.iteritems():
+    for k, v in f["annotations/comments/comments"].attrs.items():
         g["annotations/comments/comments"].attrs.create(k, v)
     g.create_dataset(
         "annotations/comments/target_ids",
         data=f["annotations/comments/target_ids"],
         chunks=f["annotations/comments/target_ids"].chunks,
     )
-    for k, v in f["annotations/comments/target_ids"].attrs.iteritems():
+    for k, v in f["annotations/comments/target_ids"].attrs.items():
         g["annotations/comments/target_ids"].attrs.create(k, v)
 
     g.create_group("annotations/presynaptic_site")
@@ -128,13 +127,13 @@ def rewrite_mask(sample):
         data=f["annotations/presynaptic_site/partners"],
     )
 
-    for k, v in f["annotations/presynaptic_site/partners"].attrs.iteritems():
+    for k, v in f["annotations/presynaptic_site/partners"].attrs.items():
         g["annotations/presynaptic_site/partners"].attrs.create(k, v)
 
     g.create_dataset(
         "annotations/ids", data=f["annotations/ids"], chunks=f["annotations/ids"].chunks
     )
-    for k, v in f["annotations/ids"].attrs.iteritems():
+    for k, v in f["annotations/ids"].attrs.items():
         g["annotations/ids"].attrs.create(k, v)
 
     g.create_dataset(
@@ -142,7 +141,7 @@ def rewrite_mask(sample):
         data=f["annotations/locations"],
         chunks=f["annotations/locations"].chunks,
     )
-    for k, v in f["annotations/locations"].attrs.iteritems():
+    for k, v in f["annotations/locations"].attrs.items():
         g["annotations/locations"].attrs.create(k, v)
 
     g.create_dataset(
@@ -150,7 +149,7 @@ def rewrite_mask(sample):
         data=f["annotations/types"],
         chunks=f["annotations/types"].chunks,
     )
-    for k, v in f["annotations/types"].attrs.iteritems():
+    for k, v in f["annotations/types"].attrs.items():
         g["annotations/types"].attrs.create(k, v)
     print("done")
     f.close()

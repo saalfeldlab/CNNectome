@@ -1,4 +1,3 @@
-from __future__ import print_function
 import z5py
 import h5py
 import numpy as np
@@ -139,7 +138,7 @@ def main():
         "/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test2_64000_render_mem.n5",
         use_zarr_format=False,
     )
-    if "volumes" not in target.keys():
+    if "volumes" not in list(target.keys()):
         target.create_group("volumes")
     if "labels" not in target["volumes"]:
         target["volumes"].create_group("labels")

@@ -25,12 +25,12 @@ def compare(filepath1, filepath2, targetfile, cleft_id_shift, contained_ids):
     for row in reader1:
         if row[0] == "pre_label":
             writer.writerow(row)
-            reader1.next()
+            next(reader1)
             break
 
     for row in reader2:
         if row[0] == "pre_label":
-            reader2.next()
+            next(reader2)
             break
     for row in reader1:
         pre_coord = (float(row[2]), float(row[3]), float(row[4]))

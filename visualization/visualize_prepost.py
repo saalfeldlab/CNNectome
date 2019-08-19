@@ -15,7 +15,7 @@ def make_cleft_to_prepostsyn_neuron_id_dict(csv_files):
     for csv_f in csv_files:
         f = open(csv_f, "r")
         reader = csv.reader(f)
-        reader.next()
+        next(reader)
         for row in reader:
             if int(row[10]) != -1:
                 try:

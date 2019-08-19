@@ -104,19 +104,19 @@ def prepare_out(in_fh, out_fh):
         data=np.array(in_fh["volumes/raw"]),
         chunks=in_fh["volumes/raw"].chunks,
     )
-    for k, v in in_fh["volumes/raw"].attrs.iteritems():
+    for k, v in in_fh["volumes/raw"].attrs.items():
         out_fh["volumes/raw"].attrs.create(k, v)
     logging.info("...done")
 
     logging.info("copy attributes...")
-    for k, v in in_fh.attrs.iteritems():
+    for k, v in in_fh.attrs.items():
         out_fh.attrs.create(k, v)
     logging.info("...done")
 
     logging.info("copy annotations...")
 
     out_fh.create_group("annotations")
-    for k, v in in_fh["annotations"].attrs.iteritems():
+    for k, v in in_fh["annotations"].attrs.items():
         out_fh["annotations"].attrs.create(k, v)
 
     out_fh.create_group("annotations/comments")
@@ -127,14 +127,14 @@ def prepare_out(in_fh, out_fh):
         data=in_fh["annotations/comments/comments"],
         chunks=in_fh["annotations/comments/comments"].chunks,
     )
-    for k, v in in_fh["annotations/comments/comments"].attrs.iteritems():
+    for k, v in in_fh["annotations/comments/comments"].attrs.items():
         out_fh["annotations/comments/comments"].attrs.create(k, v)
     out_fh.create_dataset(
         "annotations/comments/target_ids",
         data=in_fh["annotations/comments/target_ids"],
         chunks=in_fh["annotations/comments/target_ids"].chunks,
     )
-    for k, v in in_fh["annotations/comments/target_ids"].attrs.iteritems():
+    for k, v in in_fh["annotations/comments/target_ids"].attrs.items():
         out_fh["annotations/comments/target_ids"].attrs.create(k, v)
 
     out_fh.create_group("annotations/presynaptic_site")
@@ -144,7 +144,7 @@ def prepare_out(in_fh, out_fh):
         "annotations/presynaptic_site/partners",
         data=in_fh["annotations/presynaptic_site/partners"],
     )
-    for k, v in in_fh["annotations/presynaptic_site/partners"].attrs.iteritems():
+    for k, v in in_fh["annotations/presynaptic_site/partners"].attrs.items():
         out_fh["annotations/presynaptic_site/partners"].attrs.create(k, v)
 
     out_fh.create_dataset(
@@ -152,7 +152,7 @@ def prepare_out(in_fh, out_fh):
         data=in_fh["annotations/ids"],
         chunks=in_fh["annotations/ids"].chunks,
     )
-    for k, v in in_fh["annotations/ids"].attrs.iteritems():
+    for k, v in in_fh["annotations/ids"].attrs.items():
         out_fh["annotations/ids"].attrs.create(k, v)
 
     out_fh.create_dataset(
@@ -160,7 +160,7 @@ def prepare_out(in_fh, out_fh):
         data=in_fh["annotations/locations"],
         chunks=in_fh["annotations/locations"].chunks,
     )
-    for k, v in in_fh["annotations/locations"].attrs.iteritems():
+    for k, v in in_fh["annotations/locations"].attrs.items():
         out_fh["annotations/locations"].attrs.create(k, v)
 
     out_fh.create_dataset(
@@ -168,7 +168,7 @@ def prepare_out(in_fh, out_fh):
         data=in_fh["annotations/types"],
         chunks=in_fh["annotations/types"].chunks,
     )
-    for k, v in in_fh["annotations/types"].attrs.iteritems():
+    for k, v in in_fh["annotations/types"].attrs.items():
         out_fh["annotations/types"].attrs.create(k, v)
 
     logging.info("...done")

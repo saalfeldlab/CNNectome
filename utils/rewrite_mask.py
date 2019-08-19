@@ -1,4 +1,3 @@
-from __future__ import print_function
 import h5py
 import numpy as np
 
@@ -28,7 +27,7 @@ def rewrite_mask(sample):
     g.create_dataset(
         "volumes/masks/groundtruth", data=mask, dtype="float32", chunks=(26, 256, 256)
     )
-    for k, v in f["volumes/masks/training"].attrs.iteritems():
+    for k, v in f["volumes/masks/training"].attrs.items():
         g["volumes/masks/groundtruth"].attrs.create(k, v)
 
     neuron_ids = np.array(f["volumes/labels/neuron_ids"])
@@ -36,7 +35,7 @@ def rewrite_mask(sample):
     g.create_dataset(
         "volumes/labels/neuron_ids", data=neuron_ids, chunks=(26, 256, 256)
     )
-    for k, v in f["volumes/labels/neuron_ids"].attrs.iteritems():
+    for k, v in f["volumes/labels/neuron_ids"].attrs.items():
         g["volumes/labels/neuron_ids"].attrs.create(k, v)
     del neuron_ids
 
@@ -47,7 +46,7 @@ def rewrite_mask(sample):
     clefts = (clefts > 0).astype(clefts_orig.dtype)
     print("Clefts has dtype", clefts.dtype)
     g.create_dataset("volumes/labels/clefts", data=clefts, chunks=(26, 256, 256))
-    for k, v in f["volumes/labels/clefts"].attrs.iteritems():
+    for k, v in f["volumes/labels/clefts"].attrs.items():
         g["volumes/labels/clefts"].attrs.create(k, v)
     del clefts_orig
     del clefts
@@ -66,7 +65,7 @@ def rewrite_mask(sample):
         dtype="float32",
         chunks=(26, 256, 256),
     )
-    for k, v in f["volumes/masks/training"].attrs.iteritems():
+    for k, v in f["volumes/masks/training"].attrs.items():
         g["volumes/masks/training"].attrs.create(k, v)
     del training_mask
     del training_set
@@ -84,21 +83,21 @@ def rewrite_mask(sample):
         dtype="float32",
         chunks=(26, 256, 256),
     )
-    for k, v in f["volumes/masks/validation"].attrs.iteritems():
+    for k, v in f["volumes/masks/validation"].attrs.items():
         g["volumes/masks/validation"].attrs.create(k, v)
     del validation_mask
     del validation_set
     g.create_dataset(
         "volumes/raw", data=np.array(f["volumes/raw"]), chunks=(26, 256, 256)
     )
-    for k, v in f["volumes/raw"].attrs.iteritems():
+    for k, v in f["volumes/raw"].attrs.items():
         g["volumes/raw"].attrs.create(k, v)
     # print(np.sum(clefts_orig == 0xffffffffffffffff-2))
     # print(clefts_orig.shape)
     # print(np.unique(clefts_orig))
     # raise Exception
 
-    for k, v in f.attrs.iteritems():
+    for k, v in f.attrs.items():
         g.attrs.create(k, v)
 
     f.close()

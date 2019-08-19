@@ -1,3 +1,3 @@
-import crop
-import threshold
-import connected_components_double_threshold
+from . import crop
+from . import threshold
+from . import connected_components_double_threshold

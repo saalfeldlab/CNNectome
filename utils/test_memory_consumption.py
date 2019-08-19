@@ -29,7 +29,7 @@ class Test:
         ):
             self.mode = 0
         if self.mode:
-            if isinstance(optimizer, ("".__class__, u"".__class__)):
+            if isinstance(optimizer, ("".__class__, "".__class__)):
                 self.optimizer_loss_names = (optimizer, loss)
             else:
                 self.optimizer_func = optimizer

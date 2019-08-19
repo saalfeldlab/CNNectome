@@ -62,7 +62,7 @@ class ConnectedComponents(luigi.Task):
             tgt = np.ones(data_low_thr.shape, dtype=np.uint64)
             maxid = scipy.ndimage.label(data_low_thr, output=tgt)
             maxes = scipy.ndimage.maximum(
-                data_high_thr, labels=tgt, index=range(1, maxid + 1)
+                data_high_thr, labels=tgt, index=list(range(1, maxid + 1))
             )
             maxes = np.array([0] + list(maxes))
             factors = maxes[tgt]

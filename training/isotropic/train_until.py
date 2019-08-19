@@ -1,4 +1,3 @@
-from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
 from training.gunpowder_wrappers import prepare_h5source

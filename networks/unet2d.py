@@ -1,6 +1,5 @@
-from __future__ import print_function
 import tensorflow as tf
-import ops2d
+from . import ops2d
 
 
 def unet(

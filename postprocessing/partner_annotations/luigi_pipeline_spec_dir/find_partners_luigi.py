@@ -1,4 +1,3 @@
-from __future__ import print_function
 import luigi
 import z5py
 import os
@@ -24,7 +23,7 @@ offsets["C+"] = {True: (37, 1002, 1165), False: (37, 911, 911)}
 def bbox_ND(img):
     N = img.ndim
     out = []
-    for ax in list(itertools.combinations(range(N), N - 1))[::-1]:
+    for ax in list(itertools.combinations(list(range(N)), N - 1))[::-1]:
         nonzero = np.any(img, axis=ax)
         out.extend(np.where(nonzero)[0][[0, -1]])
     return tuple(out)
@@ -568,7 +567,7 @@ class Matchmaker(object):
         self.partners = None
         logging.debug("finding list of cleftids")
         try:
-            self.list_of_cleftids = range(1, self.cleft_cc.attrs["max_id"] + 1)
+            self.list_of_cleftids = list(range(1, self.cleft_cc.attrs["max_id"] + 1))
         except Exception:
             self.list_of_cleftids = np.unique(self.cleft_cc[:])[1:]
         logging.debug(
@@ -677,7 +676,7 @@ class Matchmaker(object):
         annotations = cremi.Annotations(offset=self.offset)
         syncounter = itertools.count(1)
         for partner in self.get_partners():
-            preid = syncounter.next()
+            preid = next(syncounter)
             annotations.add_annotation(
                 preid,
                 "presynaptic_site",
@@ -692,7 +691,7 @@ class Matchmaker(object):
                 + ", size: "
                 + str(partner[4]),
             )
-            postid = syncounter.next()
+            postid = next(syncounter)
             annotations.add_annotation(
                 postid,
                 "postsynaptic_site",

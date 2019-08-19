@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import ops3d
+from . import ops3d
 import warnings
 
 
@@ -117,8 +117,8 @@ def unet_auto(
     # last layer does not recurse
     bottom_layer = layer == len(downsample_factors)
     if bottom_layer:
-        print(prefix + "bottom layer")
-        print(prefix + "f_out: " + str(f_left.shape))
+        print((prefix + "bottom layer"))
+        print((prefix + "f_out: " + str(f_left.shape)))
         return fp_left, fov, voxel_size
 
     # downsample
@@ -154,7 +154,7 @@ def unet_auto(
         constant_upsample=constant_upsample,
     )
 
-    print(prefix + "g_out: " + str(g_out.shape))
+    print((prefix + "g_out: " + str(g_out.shape)))
 
     # upsample
     g_out_upsampled, voxel_size = ops3d.upsample(

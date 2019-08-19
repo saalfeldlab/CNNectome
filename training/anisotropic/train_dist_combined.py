@@ -1,4 +1,3 @@
-from __future__ import print_function
 from gunpowder import *
 from gunpowder.tensorflow import *
 from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance, AddDistance

@@ -1,4 +1,3 @@
-from __future__ import print_function
 import z5py
 import itertools
 import numpy as np

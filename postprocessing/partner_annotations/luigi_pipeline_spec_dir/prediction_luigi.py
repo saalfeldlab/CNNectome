@@ -179,7 +179,7 @@ class Predict(luigi.Task):
                     gpu_list = []
                     for fn in os.listdir(tgt.format(de, s)):
                         if pattern.match(fn) is not None:
-                            gpu_list.append(int(filter(str.isdigit, fn)))
+                            gpu_list.append(int(list(filter(str.isdigit, fn))))
                 if len(gpu_list) == 0:
                     complete = False
                     reprocess.add(de)

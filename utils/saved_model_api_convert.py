@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 from gunpowder.ext import tensorflow as tf
 import json
 import os

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
-iterations = range(30000, 210000, 10000)
+iterations = list(range(30000, 210000, 10000))
 colors = {
     "classic": (62 / 255.0, 150 / 255.0, 81 / 255.0),
     "lite": (57 / 255.0, 106 / 255.0, 177 / 255.0),

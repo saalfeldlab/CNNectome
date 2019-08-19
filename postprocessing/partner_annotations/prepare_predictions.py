@@ -1,6 +1,6 @@
-import connected_components_double_threshold
-import crop
-import threshold
+from . import connected_components_double_threshold
+from . import crop
+from . import threshold
 import logging
 import sys
 

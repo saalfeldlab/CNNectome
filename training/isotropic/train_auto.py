@@ -1,4 +1,3 @@
-from __future__ import print_function
 from gunpowder import *
 from gunpowder.contrib.nodes import *
 from gunpowder.tensorflow import *

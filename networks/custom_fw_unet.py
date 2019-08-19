@@ -1,4 +1,3 @@
-from __future__ import print_function
 import tensorflow as tf
 from networks import ops3d
 

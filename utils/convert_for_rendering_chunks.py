@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 
 sys.path.append("/groups/saalfeld/home/heinrichl/Projects/git_repos/gunpowder")
@@ -6,7 +5,7 @@ import z5py
 import h5py
 import numpy as np
 import collections
-from label import Label
+from .label import Label
 
 TRANSPARENT = 18446744073709551615
 
@@ -289,7 +288,7 @@ def main():
         "/groups/saalfeld/saalfeldlab/projects/cell/nrs-data/cell2/test2.n5",
         use_zarr_format=False,
     )
-    if "volumes" not in target.keys():
+    if "volumes" not in list(target.keys()):
         target.create_group("volumes")
     if "labels" not in target["volumes"]:
         target["volumes"].create_group("labels")
