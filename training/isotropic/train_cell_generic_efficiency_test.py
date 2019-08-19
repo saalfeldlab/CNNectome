@@ -2,7 +2,7 @@ from gunpowder import *
 from gunpowder.tensorflow import *
 from gunpowder.contrib import ZeroOutConstSections, AddDistance
 from networks.isotropic.mk_dtu_cell_generic import *
-import gpn
+import fuse
 import tensorflow as tf
 import os
 import math
@@ -152,8 +152,8 @@ def train_until(
     train_pipeline = (
         data_stream
         + RandomProvider(tuple([ds.labeled_voxels for ds in data_sources]))
-        + gpn.SimpleAugment()
-        + gpn.ElasticAugment(
+        + fuse.SimpleAugment()
+        + fuse.ElasticAugment(
             voxel_size_orig,
             (100, 100, 100),
             (10.0, 10.0, 10.0),
@@ -163,7 +163,7 @@ def train_until(
         )
         +
         # ElasticAugment((40, 1000, 1000), (10., 0., 0.), (0, 0), subsample=8) +
-        gpn.IntensityAugment(ArrayKeys.RAW, 0.25, 1.75, -0.5, 0.35)
+        fuse.IntensityAugment(ArrayKeys.RAW, 0.25, 1.75, -0.5, 0.35)
         + GammaAugment(ArrayKeys.RAW, 0.5, 2.0)
         + IntensityScaleShift(ArrayKeys.RAW, 2, -1)
     )

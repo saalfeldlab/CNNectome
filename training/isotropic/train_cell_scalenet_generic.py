@@ -6,7 +6,7 @@ from gunpowder.contrib import (
     TanhSaturate,
     CombineDistances,
 )
-import gpn
+import fuse
 import tensorflow as tf
 import numpy as np
 import os
@@ -169,8 +169,8 @@ def train_until(
     train_pipeline = (
         data_stream
         + RandomProvider(tuple([ds.labeled_voxels for ds in data_sources]))
-        + gpn.SimpleAugment()
-        + gpn.ElasticAugment(
+        + fuse.SimpleAugment()
+        + fuse.ElasticAugment(
             tuple(scnet.voxel_sizes[0]),
             (100, 100, 100),
             (10.0, 10.0, 10.0),
@@ -178,7 +178,7 @@ def train_until(
             spatial_dims=3,
             subsample=8,
         )
-        + gpn.IntensityAugment(raw_array_keys, 0.25, 1.75, -0.5, 0.35)
+        + fuse.IntensityAugment(raw_array_keys, 0.25, 1.75, -0.5, 0.35)
         + GammaAugment(raw_array_keys, 0.5, 2.0)
     )
     for ak in raw_array_keys:

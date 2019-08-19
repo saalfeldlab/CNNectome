@@ -179,7 +179,7 @@ RUN git clone ${AUGMENT_REPOSITORY} . && \
 #
 ENV GUNPOWDER_ROOT=${PREFIX}/src/gunpowder
 ENV PYTHONPATH ${GUNPOWDER_ROOT}:$PYTHONPATH
-ENV GUNPOWDER_BRANCH=dist_transform
+ENV GUNPOWDER_BRANCH=dist_transform_py3
 ENV GUNPOWDER_REPOSITORY=https://github.com/neptunes5thmoon/gunpowder.git
 
 WORKDIR ${GUNPOWDER_ROOT}
@@ -187,6 +187,21 @@ RUN git clone ${GUNPOWDER_REPOSITORY} . && \
     git checkout ${GUNPOWDER_BRANCH} &&\
     ${PIP} install -r requirements.txt && \
     ${PYTHON} setup.py build_ext --inplace
+
+#
+# fuse
+#
+ENV FUSE_ROOT=${PREFIX}/src/fuse
+ENV PYTHONPATH ${FUSE_ROOT}:$PYTHONPATH
+ENV FUSE_ROOT=intensity_augment
+ENV FUSE_REPOSITORY=https://github.com/neptunes5thmoon/fuse.git
+
+WORKDIR ${FUSE_ROOT}
+RUN git clone ${FUSE_REPOSITORY} . && \
+    git checkout ${FUSE_BRANCH} &&\
+    ${PIP} install -r requirements.txt && \
+    ${PYTHON} setup.py build_ext --inplace
+
 
 RUN pip uninstall -y tensorflow && \
     pip install tensorflow-gpu --force-reinstall

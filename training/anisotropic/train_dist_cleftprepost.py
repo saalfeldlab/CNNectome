@@ -6,7 +6,7 @@ from gunpowder.contrib import (
     AddPrePostCleftDistance,
     TanhSaturate,
 )
-import gpn
+import fuse
 import tensorflow as tf
 import os
 import math
@@ -210,7 +210,7 @@ def train_until(
     if aug_mode == "deluxe":
         train_pipeline = (
             train_pipeline
-            + gpn.ElasticAugment(
+            + fuse.ElasticAugment(
                 (40, 4, 4),
                 (4, 40, 40),
                 (0.0, 2.0, 2.0),
@@ -219,7 +219,7 @@ def train_until(
                 subsample=8,
             )
             + SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2])
-            + gpn.Misalign(
+            + fuse.Misalign(
                 40,
                 prob_slip=0.05,
                 prob_shift=0.05,
@@ -248,7 +248,7 @@ def train_until(
     elif aug_mode == "classic":
         train_pipeline = (
             train_pipeline
-            + gpn.ElasticAugment(
+            + fuse.ElasticAugment(
                 (40, 4, 4),
                 (4, 40, 40),
                 (0.0, 0.0, 0.0),
@@ -256,7 +256,7 @@ def train_until(
                 spatial_dims=3,
                 subsample=8,
             )
-            + gpn.SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2])
+            + fuse.SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2])
             + IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True)
             + DefectAugment(
                 ArrayKeys.RAW,
@@ -272,7 +272,7 @@ def train_until(
     elif aug_mode == "lite":
         train_pipeline = (
             train_pipeline
-            + gpn.ElasticAugment(
+            + fuse.ElasticAugment(
                 (40, 4, 4),
                 (4, 40, 40),
                 (0.0, 0.0, 0.0),
@@ -280,7 +280,7 @@ def train_until(
                 spatial_dims=3,
                 subsample=8,
             )
-            + gpn.SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2])
+            + fuse.SimpleAugment(transpose_only=[1, 2], mirror_only=[1, 2])
             + IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=False)
         )
     else:
