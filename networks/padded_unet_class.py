@@ -6,7 +6,7 @@ import warnings
 import logging
 
 
-class UNet(object):
+class PaddedUNet(object):
 
     def __init__(self, num_fmaps_down, num_fmaps_up, downsample_factors, kernel_size_down, kernel_size_up,
                  activation='relu', constant_upsample=False, trans_equivariant=False, input_fov=(1, 1, 1), \
@@ -164,6 +164,7 @@ class UNet(object):
                 kernel_size=kernel_size_down[layer],
                 num_fmaps=num_fmaps_down[layer],
                 activation=activation,
+                padding='same',
                 name='unet_layer_%i_left' % layer,
                 fov=fov,
                 voxel_size=voxel_size,
@@ -183,6 +184,7 @@ class UNet(object):
             g_in, fov, voxel_size = ops3d.downsample(
                 f_left,
                 downsample_factors[layer],
+                padding='same',
                 name='unet_down_%i_to_%i' % (layer, layer + 1),
                 fov=fov,
                 voxel_size=voxel_size,
@@ -209,6 +211,7 @@ class UNet(object):
                 downsample_factors[layer],
                 num_fmaps_up[layer],
                 activation=activation,
+                padding='same',
                 name='unet_up_%i_to_%i' % (layer + 1, layer),
                 fov=fov,
                 voxel_size=voxel_size,
@@ -217,23 +220,10 @@ class UNet(object):
 
             logging.info(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
 
-            # crop for translation equivariance
-            if self.trans_equivariant:
-                factor_product = None
-                for factor in downsample_factors[layer:]:
-                    if factor_product is None:
-                        factor_product = list(factor)
-                    else:
-                        factor_product = list(f*ff for f, ff in zip(factor, factor_product))
-                g_out_upsampled = ops3d.crop_to_factor(g_out_upsampled, factor=factor_product,
-                                                       kernel_sizes=kernel_size_up[layer])
-
             # copy-crop
-            f_left_cropped = ops3d.crop_zyx(f_left, g_out_upsampled.get_shape().as_list())
-            logging.info(prefix + "f_left_cropped: " + str(f_left_cropped.shape))
 
             # concatenate along channel dimension
-            f_right = tf.concat([f_left_cropped, g_out_upsampled], 1)
+            f_right = tf.concat([f_left, g_out_upsampled], 1)
 
             logging.info(prefix + "f_right: " + str(f_right.shape))
 
@@ -242,6 +232,7 @@ class UNet(object):
                 f_right,
                 kernel_size=kernel_size_up[layer],
                 num_fmaps=num_fmaps_up[layer],
+                padding='same',
                 name='unet_layer_%i_right' % layer,
                 fov=fov,
                 voxel_size=voxel_size,

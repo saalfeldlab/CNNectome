@@ -321,7 +321,7 @@ class SerialUNet(object):
             g_in, fov, voxel_size = ops3d.downsample(
                 f_left,
                 downsample_factors[layer],
-                'unet_down_%i_to_%i' % (layer, layer + 1),
+                name='unet_down_%i_to_%i' % (layer, layer + 1),
                 fov=fov,
                 voxel_size=voxel_size,
                 prefix=prefix)
@@ -330,7 +330,7 @@ class SerialUNet(object):
             g_out, fov, voxel_size = self.build(
                 g_in,
                 fmaps_bottom=fmaps_bottom,
-                num_fmaps_down=num_fmaps_down,
+                num_fmaps_down
                 num_fmaps_up=num_fmaps_up,
                 downsample_factors=downsample_factors,
                 kernel_size_down=kernel_size_down,

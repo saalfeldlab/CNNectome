@@ -4,10 +4,13 @@ import tensorflow as tf
 import json
 
 
-def make_net(unet, added_steps, loss_name='loss_total', mode='train'):
+def make_net(unet, added_steps, loss_name='loss_total', padding='valid', mode='train'):
     # input_shape = (43, 430, 430)
     names = dict()
-    input_size = unet.min_input_shape
+    if padding == 'valid':
+        input_size = unet.min_input_shape
+    else:
+        input_size = np.array((0, 0, 0))
     input_size_actual = (input_size + added_steps * unet.step_valid_shape).astype(np.int)
     raw = tf.placeholder(tf.float32, shape=tuple(input_size_actual))
     names['raw'] = raw.name
@@ -20,6 +23,7 @@ def make_net(unet, added_steps, loss_name='loss_total', mode='train'):
         kernel_size=[[1, 1, 1]],
         num_fmaps=3,
         activation=None,
+        padding=padding,
         fov=fov,
         voxel_size=anisotropy
     )

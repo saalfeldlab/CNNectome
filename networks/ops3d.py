@@ -4,11 +4,13 @@ import numpy as np
 import math
 import logging
 
+
 def conv_pass(
         fmaps_in,
         kernel_size,
         num_fmaps,
         activation='relu',
+        padding='valid',
         name='conv_pass',
         fov=(1, 1, 1),
         voxel_size=(1, 1, 1),
@@ -52,7 +54,7 @@ def conv_pass(
             inputs=fmaps,
             filters=num_fmaps,
             kernel_size=ks,
-            padding='valid',
+            padding=padding,
             data_format='channels_first',
             activation=activation,
             name=name + '_%i'%i)
@@ -60,7 +62,7 @@ def conv_pass(
     return fmaps, fov
 
 
-def downsample(fmaps_in, factors, name='down', fov=(1,1,1), voxel_size=(1, 1, 1), prefix=''):
+def downsample(fmaps_in, factors, padding='valid', name='down', fov=(1,1,1), voxel_size=(1, 1, 1), prefix=''):
     #fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
     voxel_size = tuple(vs * fac for vs, fac in zip(voxel_size, factors))
     logging.info(prefix + 'fov: {0:} voxsize: {1:} anisotropy: {2:}'.format(fov, voxel_size, (fov[0]) / float(fov[1])))
@@ -69,15 +71,15 @@ def downsample(fmaps_in, factors, name='down', fov=(1,1,1), voxel_size=(1, 1, 1)
         fmaps_in,
         pool_size=factors,
         strides=factors,
-        padding='valid',
+        padding=padding,
         data_format='channels_first',
         name=name)
     assert np.sum(np.array(fmaps_in.get_shape()[2:])%np.array(factors))==0
     return fmaps, fov, voxel_size
 
 
-def downsample_stridedconv(fmaps_in, factors, num_fmaps, name='down', fov=(1,1,1), voxel_size=(1, 1, 1), prefix='',
-               activation='relu'):
+def downsample_stridedconv(fmaps_in, factors, num_fmaps, activation='relu', padding='valid', name='down', fov=(1, 1, 1),
+                           voxel_size=(1, 1, 1), prefix=''):
     #fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
     if activation is not None:
         activation = getattr(tf.nn, activation)
@@ -89,21 +91,23 @@ def downsample_stridedconv(fmaps_in, factors, num_fmaps, name='down', fov=(1,1,1
         filters=num_fmaps,
         kernel_size=factors,
         strides=factors,
-        padding='valid',
+        padding=padding,
         data_format='channels_first',
         activation=activation,
         name=name)
 
     return fmaps, fov, voxel_size
 
+
 def repeat(fmaps_in, multiples):
     expanded = tf.expand_dims(fmaps_in, -1)
-    tiled = tf.tile(expanded, multiples = (1,) + multiples)
+    tiled = tf.tile(expanded, multiples=(1,) + multiples)
     repeated = tf.reshape(tiled, tf.shape(fmaps_in) * multiples)
     return repeated
 
-def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up', fov=(1, 1, 1), voxel_size=(1, 1, 1),
-             prefix='', constant_upsample=False):
+
+def upsample(fmaps_in, factors, num_fmaps, activation='relu', padding='valid', constant_upsample=False, name='up', 
+             fov=(1, 1, 1), voxel_size=(1, 1, 1), prefix=''):
 
     voxel_size = tuple(vs / fac for vs, fac in zip(voxel_size, factors))
 
@@ -129,7 +133,7 @@ def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up', fov=(1,
                                        filter=constant_upsample_filter,
                                        output_shape=out_shape,
                                        strides=(1, 1) + tuple(factors),
-                                       padding='VALID',
+                                       padding=padding.upper(),
                                        data_format='NCDHW',
                                        name=name)
         if activation is not None:
@@ -141,7 +145,7 @@ def upsample(fmaps_in, factors, num_fmaps, activation='relu', name='up', fov=(1,
             filters=num_fmaps,
             kernel_size=factors,
             strides=factors,
-            padding='valid',
+            padding=padding,
             data_format='channels_first',
             activation=activation,
             name=name)
@@ -253,11 +257,13 @@ def crop_to_factor(fmaps_in, factor, kernel_sizes):
 
     return fmaps
 
+
 def crossmod_conv_pass(
         fmaps_in,
         pmaps_in,
         num_fmaps,
         activation='relu',
+        padding='valid',
         name='crossmod_conv_pass'):
     in_ch, z = fmaps_in.get_shape().as_list()[1:3]
     in_pred_ch, z_pred = pmaps_in.get_shape().as_list()[1:3]
@@ -267,7 +273,7 @@ def crossmod_conv_pass(
     fp_maps = tf.concat([fmaps_in, pmaps_in], 2)
     num_mods = fp_maps.get_shape().as_list()[2]/z
     f = tf.get_variable('crossmod_filter_of_' + name, (num_mods, 1, 1, in_ch, num_fmaps), trainable=True)
-    return tf.nn.convolution(input=fp_maps, filter=f, padding='VALID', strides=[1, 1, 1],
+    return tf.nn.convolution(input=fp_maps, filter=f, padding=padding.upper(), strides=[1, 1, 1],
                       dilation_rate=[z, 1, 1], data_format='NCDHW', name=name)
 
 
