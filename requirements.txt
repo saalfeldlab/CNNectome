@@ -1,0 +1,12 @@
+tensorflow
+numpy
+luigi
+scipy
+h5py
+joblib
+scikit-image
+matplotlib
+cremi@git+https://github.com/cremi/cremi_python.git
+gunpowder@git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3
+malis@git+https://github.com/TuragaLab/malis.git@beb4ee965acee89ab00a20a70205f51177003c69
+fuse@git+https://github.com/neptunes5thmoon/fuse.git@intensity_augment
