@@ -29,22 +29,16 @@ REQUIRED = [
     "joblib",
     "scikit-image",
     "matplotlib",
-    "gunpowder",
-    "fuse",
+    "gunpowder@https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3",
+    "fuse@https://github.com/neptunes5thmoon/fuse.git@intensity_augment",
 ]
 
 EXTRAS = {
     "synapse_postprocessing": [
         "luigi"
     ],  # also needs simpleference, which is not installable via pip
-    "malis_loss": ["malis"],
+    "malis_loss": ["malis@https://github.com/neptunes5thmoon/malis.git@fix_setup"],
 }
-
-DEPENDENCY_LINKS = [
-    "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
-    "git+https://github.com/neptunes5thmoon/fuse.git@intensity_augment#egg=fuse",
-    "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
-]
 
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "README.md"), "r") as f:
@@ -62,7 +56,6 @@ setup(
     packages=find_packages(),
     install_requires=REQUIRED,
     extras_require=EXTRAS,
-    dependency_links=DEPENDENCY_LINKS,
     include_package_data=True,
     license="BSD-2-Clause",
     classifiers=[
