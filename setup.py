@@ -29,7 +29,6 @@ REQUIRED = [
     "joblib",
     "scikit-image",
     "matplotlib",
-    "cremi",
     "gunpowder",
     "fuse",
 ]
@@ -45,7 +44,6 @@ DEPENDENCY_LINKS = [
     "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
     "git+https://github.com/neptunes5thmoon/fuse.git@intensity_augment#egg=fuse",
     "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
-    "git+https://github.com/cremi/cremi_python.git#egg=cremi",
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))
