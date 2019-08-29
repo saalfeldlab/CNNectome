@@ -29,15 +29,15 @@ REQUIRED = [
     "joblib",
     "scikit-image",
     "matplotlib",
-    "gunpowder@https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3",
-    "fuse@https://github.com/neptunes5thmoon/fuse.git@intensity_augment",
+    "gunpowder@git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3",
+    "fuse@git+https://github.com/neptunes5thmoon/fuse.git@intensity_augment",
 ]
 
 EXTRAS = {
     "synapse_postprocessing": [
         "luigi"
     ],  # also needs simpleference, which is not installable via pip
-    "malis_loss": ["malis@https://github.com/neptunes5thmoon/malis.git@fix_setup"],
+    "malis_loss": ["malis@git+https://github.com/neptunes5thmoon/malis.git@fix_setup"],
 }
 
 here = os.path.abspath(os.path.dirname(__file__))
