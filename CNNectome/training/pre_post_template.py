@@ -1,7 +1,7 @@
 import logging
 from CNNectome.networks.mknet_cleftprepost import make_net
 from CNNectome.networks import unet_class
-from CNNectome.training.anisotropic import train_until
+from CNNectome.training.anisotropic import train_dist_cleftprepost
 import json
 import numpy as np
 
@@ -88,7 +88,7 @@ def test_memory_consumption(steps=steps_train, mode="train"):
 
 def train(steps=steps_train):
     net_name, input_shape, output_shape = build_net(steps=steps, mode="train")
-    train_until(
+    train_dist_cleftprepost.train_until(
         max_iteration,
         samples,
         aug_mode,
