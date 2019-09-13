@@ -1,12 +1,13 @@
-tensorflow
-numpy
-luigi
-scipy
-h5py
-joblib
-scikit-image
-matplotlib
+python_version == 3.6.9
+tensorflow_gpu == 1.14.0
+numpy == 1.17.2
+scipy == 1.3.1
+h5py == 2.10.0
+joblib == 0.13.2
+scikit-image == 0.15.0
+matplotlib == 3.1.1
 cremi@git+https://github.com/cremi/cremi_python.git
 gunpowder@git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3
 malis@git+https://github.com/TuragaLab/malis.git@beb4ee965acee89ab00a20a70205f51177003c69
 fuse@git+https://github.com/neptunes5thmoon/fuse.git@intensity_augment
+malis[malis_loss]@git+https://github.com/neptunes5thmoon/malis.git@fix_setup
