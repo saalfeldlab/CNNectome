@@ -28,7 +28,7 @@ ENV PIP=pip
 ENV PYTHON=python
 
 RUN ${PIP} -V && \
-    ${PIP} install pytest dask toolz
+    ${PIP} install pytest dask toolz memory_profiler
 
 ENV PREFIX=$HOME
 

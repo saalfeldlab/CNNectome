@@ -31,6 +31,7 @@ REQUIRED = [
     "joblib",
     "scikit-image",
     "matplotlib",
+    "memory_profiler",
     "cremi @ git+https://github.com/cremi/cremi_python@python3",
     "gunpowder @ git+https://github.com/neptunes5thmoon/gunpowder@dist_transform_py3",
     "fuse @ git+https://github.com/neptunes5thmoon/fuse@my_pipinstallable_version",
