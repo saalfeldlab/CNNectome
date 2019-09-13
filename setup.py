@@ -31,6 +31,7 @@ REQUIRED = [
     "joblib",
     "scikit-image",
     "matplotlib",
+    "cremi @ git+https://github.com/cremi/cremi_python@python3",
     "gunpowder @ git+https://github.com/neptunes5thmoon/gunpowder@dist_transform_py3",
     "fuse @ git+https://github.com/neptunes5thmoon/fuse@my_pipinstallable_version",
 ]
@@ -43,6 +44,7 @@ EXTRAS = {
 }
 
 DEPENDENCY_LINKS = [
+    "git+https://github.com/cremi/cremi_python.git@python3#egg=cremi",
     "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
     "git+https://github.com/neptunes5thmoon/fuse.git@my_pipinstallable_version#egg=fuse",
     "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
