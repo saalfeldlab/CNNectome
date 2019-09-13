@@ -1,6 +1,6 @@
 from CNNectome.networks import ops3d
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import json
 
 
