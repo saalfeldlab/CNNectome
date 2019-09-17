@@ -34,6 +34,8 @@ def train_until(
     dt_scaling_factor,
     loss_name,
     labels,
+    cache_size=10,
+    num_workers=10,
 ):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")
@@ -146,7 +148,7 @@ def train_until(
             )
     train_pipeline = (
         train_pipeline
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             "build",
             optimizer=net_io_names["optimizer"],

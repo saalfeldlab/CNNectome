@@ -10,7 +10,7 @@ import logging
 
 
 def train_until(
-    max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name
+    max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, cache_size=10, num_workers=10,
 ):
     raw = ArrayKey("RAW")
     # ArrayKey('ALPHA_MASK')
@@ -116,7 +116,7 @@ def train_until(
         # {
         #     ArrayKeys.GT_AFFINITIES: ArrayKeys.GT_MASK
         # }) +
-        PreCache(cache_size=40, num_workers=10)
+        PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             "unet",
             optimizer=net_io_names["optimizer"],

@@ -74,6 +74,8 @@ def train_until(
     loss_name,
     net_name="unet_train",
     min_masked_voxels=17561.0,
+    cache_size=10,
+    num_workers=10,
 ):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")
@@ -327,7 +329,7 @@ def train_until(
             mask=(ArrayKeys.POST_MASK, ArrayKeys.TRAINING_MASK),
             threshold=-0.5,
         )
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             net_name,
             optimizer=net_io_names["optimizer"],

@@ -10,7 +10,7 @@ import json
 import tensorflow as tf
 
 
-def train_until(max_iteration, data_sources):
+def train_until(max_iteration, data_sources, cache_size=10, num_workers=10):
 
     if tf.train.latest_checkpoint("."):
         trained_until = int(tf.train.latest_checkpoint(".").split("_")[-1])
@@ -112,7 +112,7 @@ def train_until(max_iteration, data_sources):
         + RenumberConnectedComponents(ArrayKeys.GT_LABELS)
         + AddAffinities(malis.mknhood3d(), ArrayKeys.GT_LABELS, ArrayKeys.GT_AFFINITIES)
         + BalanceLabels(ArrayKeys.GT_AFFINITIES, ArrayKeys.GT_SCALE)
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             "wnet",
             optimizer=net_io_names["optimizer"],

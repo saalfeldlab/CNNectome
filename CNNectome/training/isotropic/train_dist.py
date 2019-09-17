@@ -9,7 +9,7 @@ import logging
 
 
 def train_until(
-    max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name
+    max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, cache_size=10, num_workers=10
 ):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")
@@ -143,7 +143,7 @@ def train_until(
         # {
         #     VolumeTypes.GT_AFFINITIES: VolumeTypes.GT_MASK
         # }) +
-        PreCache(cache_size=40, num_workers=10)
+        PreCache(cache_size=cache_size, num_workers=num_workers)
         +
         # DefectAugment(
         #    prob_missing=0.03,

@@ -10,7 +10,7 @@ import h5py
 
 
 def train_until(
-    max_iteration, data_dir, data_sources, input_shape, output_shape, loss_name
+    max_iteration, data_dir, data_sources, input_shape, output_shape, loss_name, cache_size=10, num_workers=10,
 ):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")
@@ -119,8 +119,8 @@ def train_until(
         BalanceByThreshold(labels=ArrayKeys.GT_LABELS, scales=ArrayKeys.GT_DIST_SCALE)
         +
         # PreCache(
-        #    cache_size=40,
-        #    num_workers=10) +
+        #    cache_size=cache_size,
+        #    num_workers=num_workers) +
         Train(
             "unet",
             optimizer=net_io_names["optimizer"],

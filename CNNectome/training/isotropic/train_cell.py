@@ -12,7 +12,7 @@ import z5py
 
 
 def train_until(
-    max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name
+    max_iteration, data_sources, input_shape, output_shape, dt_scaling_factor, loss_name, cache_size=10, num_workers=10,
 ):
     ArrayKey("RAW")
     ArrayKey("RAW_UP")
@@ -290,7 +290,7 @@ def train_until(
         #     ArrayKeys.GT_AFFINITIES: ArrayKeys.MASK
         # }) +
         DownSample(ArrayKeys.RAW_UP, 2, ArrayKeys.RAW)
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             "build",
             optimizer=net_io_names["optimizer"],

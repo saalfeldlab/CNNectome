@@ -9,7 +9,7 @@ import sys
 import z5py
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape):
+def train_until(max_iteration, data_sources, input_shape, output_shape, cache_size=10, num_workers=10,):
     ArrayKey("RAW")
     ArrayKey("PRED_RAW")
     data_providers = []
@@ -66,7 +66,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape):
         + IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1)
         + IntensityScaleShift(ArrayKeys.RAW, 2, -1)
         + ZeroOutConstSections(ArrayKeys.RAW)
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             "unet",
             optimizer=net_io_names["optimizer"],

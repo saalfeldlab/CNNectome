@@ -33,6 +33,8 @@ def train_until(
     min_masked_voxels=17561.0,
     mask_ds_name="volumes/masks/training",
     integral_mask_ds_name="volumes/masks/training_integral",
+    cache_size=10,
+    num_workers=10,
 ):
     with open("net_io_names.json", "r") as f:
         net_io_names = json.load(f)
@@ -277,7 +279,7 @@ def train_until(
 
     train_pipeline = (
         train_pipeline
-        + PreCache(cache_size=30, num_workers=30)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             net_name,
             optimizer=net_io_names["optimizer"],

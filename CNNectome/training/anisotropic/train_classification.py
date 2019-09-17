@@ -8,7 +8,7 @@ import json
 import logging
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape, loss_name):
+def train_until(max_iteration, data_sources, input_shape, output_shape, loss_name, cache_size=10, num_workers=10):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")
     ArrayKey("GT_LABELS")
@@ -144,7 +144,7 @@ def train_until(max_iteration, data_sources, input_shape, output_shape, loss_nam
         + IntensityScaleShift(ArrayKeys.RAW, 2, -1)
         + ZeroOutConstSections(ArrayKeys.RAW)
         + BalanceLabels(ArrayKeys.GT_LABELS, ArrayKeys.GT_SCALE, ArrayKeys.GT_MASK)
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         + Train(
             "unet",
             optimizer=net_io_names["optimizer"],

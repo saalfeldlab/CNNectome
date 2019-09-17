@@ -10,7 +10,7 @@ import json
 # print(tensorflow.__version__)
 
 
-def train_until(max_iteration, data_sources):
+def train_until(max_iteration, data_sources, cache_size=10, num_workers=10):
     data_providers = []
     fib25_dir = (
         "/groups/saalfeld/home/funkej/workspace/projects/caffe/run/fib25/01_data/train"
@@ -133,7 +133,7 @@ def train_until(max_iteration, data_sources):
         + BalanceLabels(
             VolumeTypes.GT_AFFINITIES, VolumeTypes.GT_SCALE, VolumeTypes.GT_MASK
         )
-        + PreCache(cache_size=40, num_workers=10)
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
         +
         # DefectAugment(
         #    prob_missing=0.03,
