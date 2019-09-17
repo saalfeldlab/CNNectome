@@ -389,7 +389,7 @@ class SerialUNet(object):
             g_in, fov, voxel_size = ops3d.downsample(
                 f_left,
                 downsample_factors[layer],
-                name='unet_down_%i_to_%i' % (layer, layer + 1),
+                name="unet_down_%i_to_%i" % (layer, layer + 1),
                 fov=fov,
                 voxel_size=voxel_size,
                 prefix=prefix,

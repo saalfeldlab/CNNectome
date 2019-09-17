@@ -10,7 +10,14 @@ import h5py
 
 
 def train_until(
-    max_iteration, data_dir, data_sources, input_shape, output_shape, loss_name, cache_size=10, num_workers=10,
+    max_iteration,
+    data_dir,
+    data_sources,
+    input_shape,
+    output_shape,
+    loss_name,
+    cache_size=10,
+    num_workers=10,
 ):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")

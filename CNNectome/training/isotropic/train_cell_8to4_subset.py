@@ -1,9 +1,6 @@
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import (
-    AddDistance,
-    TanhSaturate,
-)
+from gunpowder.contrib import AddDistance, TanhSaturate
 import fuse
 import tensorflow as tf
 import math

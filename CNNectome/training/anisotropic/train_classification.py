@@ -8,7 +8,15 @@ import json
 import logging
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape, loss_name, cache_size=10, num_workers=10):
+def train_until(
+    max_iteration,
+    data_sources,
+    input_shape,
+    output_shape,
+    loss_name,
+    cache_size=10,
+    num_workers=10,
+):
     ArrayKey("RAW")
     ArrayKey("ALPHA_MASK")
     ArrayKey("GT_LABELS")

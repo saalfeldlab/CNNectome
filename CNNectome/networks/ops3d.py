@@ -110,7 +110,7 @@ def downsample_stridedconv(
     name="down",
     fov=(1, 1, 1),
     voxel_size=(1, 1, 1),
-    prefix=""
+    prefix="",
 ):
     # fov = [f+(fac-1)*ai for f, fac,ai in zip(fov, factors,anisotropy)]
     if activation is not None:

@@ -73,9 +73,11 @@ class Test:
         else:
             to_compute = {}  #'iteration': self.iteration_increment}
         to_compute.update(self.requested_outputs)
-        outputs = self.session.run(to_compute, feed_dict=inputs, options=tf.RunOptions(
-            report_tensor_allocations_upon_oom=True
-                                                                                       ))
+        outputs = self.session.run(
+            to_compute,
+            feed_dict=inputs,
+            options=tf.RunOptions(report_tensor_allocations_upon_oom=True),
+        )
         if iteration is None:
             logging.info("SUCCESS")
         else:

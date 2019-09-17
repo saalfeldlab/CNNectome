@@ -9,7 +9,14 @@ import sys
 import z5py
 
 
-def train_until(max_iteration, data_sources, input_shape, output_shape, cache_size=10, num_workers=10,):
+def train_until(
+    max_iteration,
+    data_sources,
+    input_shape,
+    output_shape,
+    cache_size=10,
+    num_workers=10,
+):
     ArrayKey("RAW")
     ArrayKey("PRED_RAW")
     data_providers = []
