@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 WD=$(pwd)
-NAME=$(basename $(pwd))
-NAME=$(basename $(dirname $(pwd)))-$NAME-training
-USER_ID=${UID}
-GPU=$2
 RUNSCRIPT=$1
-
-echo $TRAIN_PATH
-
 
 echo "Starting as user ${USER_ID}"
 
@@ -17,6 +10,4 @@ singularity exec \
 	    -B /groups/saalfeld,/nrs/saalfeld,/groups/turaga,/groups/cosem/cosem \
 	    --pwd $WD \
 	    /groups/saalfeld/home/heinrichl/singularity-builds/cnnectome.sif \
-	    /bin/bash --norc -c "export CUDA_VISIBLE_DEVICES=$GPU; export OMP_NUM_THREADS=1; nvidia-smi;
-			                 mprof run -CM python -u $RUNSCRIPT 2>&1 | tee -a logfile"
-
+	    /bin/bash --norc -c "export OMP_NUM_THREADS=1; mprof run -C python -u $RUNSCRIPT 2>&1 | tee -a logfile"
