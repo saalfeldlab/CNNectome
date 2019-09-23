@@ -2,6 +2,10 @@
 WD=$(pwd)
 NAME=$(basename $(pwd))
 NAME=$(basename $(dirname $(pwd)))-$NAME-training
+TRAIN_PATH=$(readlink -f $HOME/dev/CNNectome/)
+GP_PATH=$(readlink -f $HOME/dev/gunpowder/)
+RUNSCRIPT=$1
+GPU="device=$2"
 USER_ID=${UID}
 docker rm -f $NAME
 #rm snapshots/*
@@ -12,7 +16,7 @@ cd /nrs/saalfeld
 cd $WD
 #neptunes5thmoon/gunpowder:v0.3-pre6-dask1 \
 docker run \
-    --gpus 1 \
+    --gpus $GPU  \
     --rm \
     -u ${USER_ID} \
     -v /groups/turaga:/groups/turaga:rshared \
@@ -23,5 +27,5 @@ docker run \
     -ti \
     --name ${NAME} \
     neptunes5thmoon/cnnectome:v.2.0.dev1 \
-    /bin/bash -c "export OMP_NUM_THREADS=1; nvidia-smi;
-    mprof run -M python -u $1 2>&1 | tee -a logfile"
+    /bin/bash -c "export OMP_NUM_THREADS=1; nvidia-smi; PYTHONPATH=${TRAIN_PATH}:${GP_PATH}:\$PYTHONPATH;
+    mprof run -CM python -u $RUNSCRIPT 2>&1 | tee -a logfile"
