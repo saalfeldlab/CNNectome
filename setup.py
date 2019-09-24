@@ -28,6 +28,7 @@ REQUIRED = [
     "scipy",
     "cython",
     "h5py",
+    "zarr",
     "joblib",
     "scikit-image",
     "matplotlib",
