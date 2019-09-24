@@ -48,7 +48,7 @@ RUN git clone ${MALIS_REPOSITORY} . && \
     ${PYTHON} setup.py build_ext --inplace
 
 
-ENV CNNECTOME_BRANCH=python3
+ENV CNNECTOME_BRANCH=v2.0
 ENV CNNECTOME_REPOSITORY=https://github.com/saalfeldlab/CNNectome.git
 RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}@${CNNECTOME_BRANCH}
 
