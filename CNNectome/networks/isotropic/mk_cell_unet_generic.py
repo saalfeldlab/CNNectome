@@ -66,22 +66,22 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
 
         loss_total = tf.add_n(lb)
         loss_total_unbalanced = tf.add_n(lub)
-        loss_total_classweighted = tf.tensordot(lb, cw, axes=1)
-        loss_total_unbalanced_classweighted = tf.tensordot(lub, cw, axes=1)
+        # loss_total_classweighted = tf.tensordot(lb, cw, axes=1)
+        # loss_total_unbalanced_classweighted = tf.tensordot(lub, cw, axes=1)
 
         tf.summary.scalar("loss_total", loss_total)
         names["loss_total"] = loss_total.name
         tf.summary.scalar("loss_total_unbalanced", loss_total_unbalanced)
         names["loss_total_unbalanced"] = loss_total_unbalanced.name
-        tf.summary.scalar("loss_total_classweighted", loss_total_classweighted)
-        names["loss_total_classweighted"] = loss_total_classweighted.name
-        tf.summary.scalar(
-            "loss_total_unbalanced_classweighted", loss_total_unbalanced_classweighted
-        )
-        names[
-            "loss_total_unbalanced_classweighted"
-        ] = loss_total_unbalanced_classweighted.name
-
+        # tf.summary.scalar("loss_total_classweighted", loss_total_classweighted)
+        # names["loss_total_classweighted"] = loss_total_classweighted.name
+        # tf.summary.scalar(
+        #     "loss_total_unbalanced_classweighted", loss_total_unbalanced_classweighted
+        # )
+        # names[
+        #     "loss_total_unbalanced_classweighted"
+        # ] = loss_total_unbalanced_classweighted.name
+        #
         opt = tf.train.AdamOptimizer(
             learning_rate=0.5e-4, beta1=0.95, beta2=0.999, epsilon=1e-8
         )
@@ -89,10 +89,10 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
             optimizer = opt.minimize(loss_total)
         elif loss_name == "loss_total_unbalanced":
             optimizer = opt.minimize(loss_total_unbalanced)
-        elif loss_name == "loss_total_unbalanced_classweighted":
-            optimizer = opt.minimize(loss_total_unbalanced_classweighted)
-        elif loss_name == "loss_total_classweighted":
-            optimizer = opt.minimize(loss_total_classweighted)
+        # elif loss_name == "loss_total_unbalanced_classweighted":
+        #     optimizer = opt.minimize(loss_total_unbalanced_classweighted)
+        # elif loss_name == "loss_total_classweighted":
+        #     optimizer = opt.minimize(loss_total_classweighted)
         else:
             raise ValueError(loss_name + " not defined")
         names["optimizer"] = optimizer.name
