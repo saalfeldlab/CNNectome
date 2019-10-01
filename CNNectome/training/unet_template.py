@@ -3,227 +3,102 @@ from CNNectome.utils.label import *
 from CNNectome.networks.isotropic.mk_cell_unet_generic import make_net
 from CNNectome.networks import unet_class
 from CNNectome.training.isotropic.train_cell_generic import train_until
+from gunpowder import Coordinate
 import json
 import numpy as np
+import argparse
 
 logging.basicConfig(level=logging.INFO)
+
+# running parameters
+max_iteration = 500000
+cache_size=5
+num_workers=10
+
+# voxel size parameters
+voxel_size_labels = Coordinate((2,) * 3)
+voxel_size = Coordinate((4,) * 3)
+
+# network parameters
 steps_train = 4
 steps_inference = 11
-data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v061719_o750x750x750_m1800x1800x1800_8nm/{0:}.n5"
-data_sources = list()
-data_sources.append(N5Dataset("crop1", 500 * 500 * 100, data_dir=data_dir))
-data_sources.append(N5Dataset("crop3", 400 * 400 * 250, data_dir=data_dir))
-data_sources.append(
-    N5Dataset(
-        "crop4", 300 * 300 * 238, special_categories=("centrosomes",), data_dir=data_dir
-    )
-)
-data_sources.append(N5Dataset("crop6", 250 * 250 * 250, data_dir=data_dir))
-data_sources.append(N5Dataset("crop7", 300 * 300 * 80, data_dir=data_dir))
-data_sources.append(N5Dataset("crop8", 200 * 200 * 100, data_dir=data_dir))
-data_sources.append(N5Dataset("crop9", 100 * 100 * 53, data_dir=data_dir))
-data_sources.append(N5Dataset("crop13", 160 * 160 * 110, data_dir=data_dir))
-data_sources.append(N5Dataset("crop14", 150 * 150 * 65, data_dir=data_dir))
-data_sources.append(N5Dataset("crop15", 150 * 150 * 64, data_dir=data_dir))
-data_sources.append(
-    N5Dataset(
-        "crop16",
-        200 * 200 * 200,
-        special_categories=("ribosomes", "nucleolus"),
-        data_dir=data_dir,
-    )
-)
-data_sources.append(N5Dataset("crop18", 200 * 200 * 110, data_dir=data_dir))
-data_sources.append(N5Dataset("crop19", 150 * 150 * 55, data_dir=data_dir))
-data_sources.append(N5Dataset("crop20", 200 * 200 * 85, data_dir=data_dir))
-data_sources.append(N5Dataset("crop21", 160 * 160 * 55, data_dir=data_dir))
-data_sources.append(N5Dataset("crop22", 170 * 170 * 100, data_dir=data_dir))
-data_sources.append(N5Dataset("crop31", 150 * 150 * 150, data_dir=data_dir))
-data_sources.append(N5Dataset("crop33", 200 * 200 * 200, data_dir=data_dir))
-data_sources.append(N5Dataset("crop34", 200 * 200 * 200, data_dir=data_dir))
-
-ribo_sources = filter_by_category(data_sources, "ribosomes")
-nucleolus_sources = filter_by_category(data_sources, "nucleolus")
-centrosomes_sources = filter_by_category(data_sources, "centrosomes")
-
-# input_shape = (196, 196, 196)
-# output_shape = (92, 92, 92)
-dt_scaling_factor = 50
-max_iteration = 500000
 loss_name = "loss_total"
+constant_upsample = True
+trans_equivariant = True
+feature_widths_down = [12, 12 * 6, 12 * 6 ** 2, 12 * 6 **3]
+feature_widths_up = [12 * 6, 12 * 6, 12 * 6 ** 2, 12 * 6 **3]
+downsampling_factors = [(2,) * 3, (3,) * 3, (3,) * 3]
+kernel_sizes_down = [
+    [(3,) * 3, (3,) * 3],
+    [(3,) * 3, (3,) * 3],
+    [(3,) * 3, (3,) * 3],
+    [(3,) * 3, (3,) * 3]
+]
+kernel_sizes_up = [
+    [(3,) * 3, (3,) * 3],
+    [(3,) * 3, (3,) * 3],
+    [(3,) * 3, (3,) * 3]
+]
 
+# groundtruth source parameters
+gt_version = "v0003"
+db_name = 'crops'
+completion_min = 5
+
+
+# groundtruth construction parameters
+min_masked_voxels = 17561.
+dt_scaling_factor = 50
 labels = list()
-labels.append(Label("ecs", 1, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("plasma_membrane", 2, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("mito", (3, 4, 5), data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label(
-        "mito_membrane",
-        3,
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(
-    Label(
-        "mito_DNA",
-        5,
-        scale_loss=False,
-        scale_key=labels[-2].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(Label("golgi", (6, 7), data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("golgi_membrane", 6, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("vesicle", (8, 9), data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label(
-        "vesicle_membrane",
-        8,
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(Label("MVB", (10, 11), data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label(
-        "MVB_membrane",
-        10,
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(Label("lysosome", (12, 13), data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label(
-        "lysosome_membrane",
-        12,
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(Label("LD", (14, 15), data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label(
-        "LD_membrane",
-        14,
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(
-    Label(
-        "er",
-        (16, 17, 18, 19, 20, 21, 22, 23),
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(
-    Label(
-        "er_membrane",
-        (16, 18, 20),
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(Label("ERES", (18, 19), data_sources=data_sources, data_dir=data_dir))
-# labels.append(Label('ERES_membrane', 18, scale_loss=False, scale_key=labels[-1].scale_key,
-#                    data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label(
-        "nucleus",
-        (20, 21, 22, 23, 24, 25, 26, 27, 28, 29),
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(Label("nucleolus", 29, data_sources=nucleolus_sources, data_dir=data_dir))
-labels.append(
-    Label("NE", (20, 21, 22, 23), data_sources=data_sources, data_dir=data_dir)
-)
-labels.append(
-    Label(
-        "NE_membrane",
-        (20, 22, 23),
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(
-    Label("nuclear_pore", (22, 23), data_sources=data_sources, data_dir=data_dir)
-)
-labels.append(
-    Label(
-        "nuclear_pore_out",
-        22,
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(
-    Label("chromatin", (24, 25, 26, 27), data_sources=data_sources, data_dir=data_dir)
-)
-# labels.append(Label('NHChrom', 25, scale_loss=False, scale_key=labels[-1].scale_key))
-# labels.append(Label('EChrom', 26, scale_loss=False, scale_key=labels[-2].scale_key))
-# labels.append(Label('NEChrom', 27, scale_loss=False, scale_key=labels[-3].scale_key))
-labels.append(Label("NHChrom", 25, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("EChrom", 26, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("NEChrom", 27, data_sources=data_sources, data_dir=data_dir))
-labels.append(
-    Label("microtubules", (30, 36), data_sources=data_sources, data_dir=data_dir)
-)
-labels.append(
-    Label(
-        "microtubules_out",
-        (30,),
-        scale_loss=False,
-        scale_key=labels[-1].scale_key,
-        data_sources=data_sources,
-        data_dir=data_dir,
-    )
-)
-labels.append(
-    Label("centrosomes", 255, data_sources=centrosomes_sources, data_dir=data_dir)
-)
-labels.append(Label("distal_app", 32, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("subdistal_app", 33, data_sources=data_sources, data_dir=data_dir))
-labels.append(Label("ribosomes", 1, data_sources=ribo_sources, data_dir=data_dir))
+labels.append(Label("ecs", 1))
+labels.append(Label("plasma_membrane", 2))
+labels.append(Label("mito", (3, 4, 5)))
+labels.append(Label("mito_membrane", 3, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("mito_DNA", 5, scale_loss=False, scale_key=labels[-2].scale_key))
+labels.append(Label("golgi", (6, 7)))
+labels.append(Label("golgi_membrane", 6))
+labels.append(Label("vesicle", (8, 9)))
+labels.append(Label("vesicle_membrane", 8, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("MVB", (10, 11), ))
+labels.append(Label("MVB_membrane", 10, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("lysosome", (12, 13)))
+labels.append(Label("lysosome_membrane", 12, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("LD", (14, 15)))
+labels.append(Label("LD_membrane", 14, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("er", (16, 17, 18, 19, 20, 21, 22, 23)))
+labels.append(Label("er_membrane", (16, 18, 20), scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("ERES", (18, 19)))
+labels.append(Label("nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37)))
+labels.append(Label("nucleolus", 29, separate_labelset=True))
+labels.append(Label("NE", (20, 21, 22, 23)))
+labels.append(Label("NE_membrane", (20, 22, 23), scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("nuclear_pore", (22, 23)))
+labels.append(Label("nuclear_pore_out", 22, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(Label("chromatin", (24, 25, 26, 27)))
+labels.append(Label("NHChrom", 25))
+labels.append(Label("EChrom", 26))
+labels.append(Label("NEChrom", 27))
+labels.append(Label("microtubules", (30, 36)))
+labels.append(Label("microtubules_out", (30,),
+                    scale_loss=False,
+                    scale_key=labels[-1].scale_key))
+labels.append(Label("centrosomes", 31, separate_labelset=True))
+labels.append(Label("distal_app", 32))
+labels.append(Label("subdistal_app", 33))
+labels.append(Label("ribosomes", 34, add_constant=8, separate_labelset=True))
 
 
 def build_net(steps=steps_inference, mode="inference"):
     unet = unet_class.UNet(
-        [12, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3],
-        [12 * 6, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3],
-        [(2, 2, 2), (3, 3, 3), (3, 3, 3)],
-        [
-            [(3, 3, 3), (3, 3, 3)],
-            [(3, 3, 3), (3, 3, 3)],
-            [(3, 3, 3), (3, 3, 3)],
-            [(3, 3, 3), (3, 3, 3)],
-        ],
-        [[(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)], [(3, 3, 3), (3, 3, 3)]],
-        input_voxel_size=(4, 4, 4),
-        input_fov=(4, 4, 4),
+        feature_widths_down,
+        feature_widths_up,
+        downsampling_factors,
+        kernel_sizes_down,
+        kernel_sizes_up,
+        input_voxel_size=voxel_size,
+        input_fov=voxel_size,
     )
-    net, input_shape, output_shape = make_net(unet, labels, steps, mode=mode)
+    net, input_shape, output_shape = make_net(unet, labels, steps, loss_name=loss_name, mode=mode)
     logging.info(
         "Built {0:} with input shape {1:} and output_shape {2:}".format(
             net, input_shape, output_shape
@@ -274,18 +149,50 @@ def train(steps=steps_train):
     net_name, input_shape, output_shape = build_net(steps=steps, mode="train")
     train_until(
         max_iteration,
-        data_sources,
-        ribo_sources,
-        nucleolus_sources,
-        centrosomes_sources,
-        input_shape,
-        output_shape,
-        dt_scaling_factor,
-        loss_name,
+        gt_version,
         labels,
         net_name,
+        input_shape,
+        output_shape,
+        loss_name,
+        input_shape,
+        output_shape,
+        db_username,
+        db_password,
+        db_name=db_name,
+        completion_min=completion_min,
+        dt_scaling_factor=dt_scaling_factor,
+        cache_size=cache_size,
+        num_workers=num_workers,
+        min_masked_voxels=min_masked_voxels,
+        voxel_size_labels=voxel_size_labels,
+        voxel_size=voxel_size
     )
 
 
 if __name__ == "__main__":
-    train()
+    parser = argparse.ArgumentParser("Run a variety of functions for a U-Net")
+    parser.add_argument("db_username", type=str, help="username for the database")
+    parser.add_argument("db_password", type=str, help="password for the database")
+    parser.add_argument("script", type=str, help="Pick script that should be run",
+                        choices=["train", "build", "test_mem"], default="train")
+    parser.add_argument("mode", type=str, help="for build and test_mem specify whether to run for inference or "
+                                               "training network", choices=["training", "inference"],
+                        default="training")
+    args = parser.parse_args()
+    db_username = args.db_username
+    db_password = args.db_password
+    mode = args.mode
+
+    if mode == "inference":
+        steps = steps_inference
+    elif mode == "train":
+        steps = steps_train
+
+    if args.script == "train":
+        assert mode != "inference"
+        train()
+    elif args.script == "build":
+        build_net(steps, mode)
+    elif args.script == "test_mem":
+        test_memory_consumption(steps, mode)
