@@ -3,11 +3,8 @@ WD=$(pwd)
 NAME=$(basename $(pwd))
 NAME=$(basename $(dirname $(pwd)))-$NAME-training
 USER_ID=${UID}
-GPU=$2
-RUNSCRIPT=$1
-
-echo $TRAIN_PATH
-
+GPU=${*: -1}
+RUNSCRIPT=${@:1:$#-1}
 
 echo "Starting as user ${USER_ID}"
 

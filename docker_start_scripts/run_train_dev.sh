@@ -4,8 +4,8 @@ NAME=$(basename $(pwd))
 NAME=$(basename $(dirname $(pwd)))-$NAME-training
 TRAIN_PATH=$(readlink -f $HOME/dev/CNNectome/)
 GP_PATH=$(readlink -f $HOME/dev/gunpowder/)
-RUNSCRIPT=$1
-GPU="device=$2"
+RUNSCRIPT=${@:1:$#-1}
+GPU="device=${*: -1}"
 USER_ID=${UID}
 docker rm -f $NAME
 #rm snapshots/*
@@ -15,6 +15,7 @@ cd /groups/saalfeld
 cd /nrs/saalfeld
 cd $WD
 #neptunes5thmoon/gunpowder:v0.3-pre6-dask1 \
+echo $RUNSCRIPT
 docker run \
     --gpus $GPU  \
     --rm \
@@ -22,6 +23,7 @@ docker run \
     -v /groups/turaga:/groups/turaga:rshared \
     -v /groups/saalfeld:/groups/saalfeld:rshared \
     -v /groups/cosem/cosem:/groups/cosem/cosem:rshared \
+    -v /nrs/cosem:/nrs/cosem:rshared \
     -v /nrs/saalfeld:/nrs/saalfeld:rshared \
     -w ${PWD} \
     -ti \

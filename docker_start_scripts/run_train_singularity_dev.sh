@@ -5,8 +5,8 @@ NAME=$(basename $(dirname $(pwd)))-$NAME-training
 TRAIN_PATH=$(readlink -f $HOME/dev/CNNectome/)
 GP_PATH=$(readlink -f $HOME/dev/gunpowder/)
 USER_ID=${UID}
-GPU=$2
-RUNSCRIPT=$1
+GPU=${*: -1}
+RUNSCRIPT=${@:1:$#-1}
 
 echo $TRAIN_PATH
 

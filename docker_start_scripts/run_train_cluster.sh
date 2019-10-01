@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 WD=$(pwd)
-RUNSCRIPT=$1
+RUNSCRIPT=${@}
 
 echo "Starting as user ${USER_ID}"
 
