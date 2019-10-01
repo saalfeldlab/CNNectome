@@ -155,8 +155,6 @@ def train(steps=steps_train):
         input_shape,
         output_shape,
         loss_name,
-        input_shape,
-        output_shape,
         db_username,
         db_password,
         db_name=db_name,
