@@ -39,13 +39,13 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
 
         gt = []
         w = []
-        cw = []
+        # cw = []
         masks = []
         for l in labels:
             masks.append(tf.placeholder(tf.float32, shape=output_shape))
             gt.append(tf.placeholder(tf.float32, shape=output_shape))
             w.append(tf.placeholder(tf.float32, shape=output_shape))
-            cw.append(l.class_weight)
+            #cw.append(l.class_weight)
 
         lb = []
         lub = []
