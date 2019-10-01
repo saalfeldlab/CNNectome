@@ -18,5 +18,5 @@ singularity exec \
 	    --pwd $WD \
 	    /groups/saalfeld/home/heinrichl/singularity-builds/cnnectome.sif \
 	    /bin/bash --norc -c "export CUDA_VISIBLE_DEVICES=$GPU; export OMP_NUM_THREADS=1; nvidia-smi;
-			                 mprof run -CM python -u $RUNSCRIPT 2>&1 | tee -a logfile"
+			                 mprof run -T 1 -CM python -u $RUNSCRIPT 2>&1 | tee -a logfile"
 
