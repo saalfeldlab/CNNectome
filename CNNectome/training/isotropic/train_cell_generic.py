@@ -43,7 +43,7 @@ def train_until(
     num_workers=10,
     min_masked_voxels=17561.,
     voxel_size_labels=Coordinate((2, 2, 2)),
-    voxel_size = Coordinate((4, 4, 4)),
+    voxel_size=Coordinate((4, 4, 4)),
 ):
     def label_filter(cond_f):
         return [ll for ll in labels if cond_f(ll)]
@@ -57,14 +57,13 @@ def train_until(
 
     def make_crop_source(crop):
         n5file = zarr.open(ensure_str(crop["parent"]), mode='r')
-        blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}".format(
-            version=gt_version.lstrip("v"), cropno=crop["number"])
-        blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}".format(
-            version=gt_version.lstrip("v"), cropno=crop["number"])
+        blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
+        blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
         blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
 
         raw_ds = "volumes/raw"
         label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
+        labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
         mask_ds = blueprint_mask_ds.format(version=gt_version.lstrip("v"))
 
         # add sources for all groundtruth labels
@@ -97,7 +96,7 @@ def train_until(
         # add mask source per label
         labelmask_srcs = []
         for label in labels:
-            labelmask_ds = blueprint_labelmask_ds.format(label.labelname)
+            labelmask_ds = labelmask_ds.format(label=label.labelname)
             if labelmask_ds in n5file:  # specified mask available:
                 labelmask_srcs.append(ZarrSource(crop["parent"],
                                                  {label.mask_key:labelmask_ds}
@@ -186,9 +185,9 @@ def train_until(
             outputs[net_io_names[label.labelname]] = label.pred_dist_key
         return net_io_names, start_iteration, inputs, outputs
 
-    ak_raw = ArrayKeys.RAW
-    ak_labels = ArrayKeys.GT_LABELS
-    ak_mask = ArrayKeys.MASK
+    ak_raw = ArrayKey("RAW")
+    ak_labels = ArrayKey("GT_LABELS")
+    ak_mask = ArrayKey("MASK")
 
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
@@ -210,7 +209,7 @@ def train_until(
     request.add(ak_mask, output_size, voxel_size=voxel_size)
     request.add(ak_raw, input_size, voxel_size=voxel_size)
     for label in labels:
-        if label.spearate_labelset:
+        if label.separate_labelset:
             request.add(label.gt_key, output_size, voxel_size=voxel_size_labels)
         request.add(label.gt_dist_key, output_size, voxel_size=voxel_size)
         request.add(label.pred_dist_key, output_size, voxel_size=voxel_size)
