@@ -33,7 +33,8 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
     names["dist"] = dist_c.name
     network_outputs = tf.unstack(dist_c, len(labels), axis=0)
     if mode.lower() == "train" or mode.lower() == "training":
-        # mask = tf.placeholder(tf.float32, shape=output_shape)
+        mask = tf.placeholder(tf.float32, shape=output_shape)
+        names["mask"] = mask.name
         # ribo_mask = tf.placeholder(tf.float32, shape=output_shape)
 
         gt = []
@@ -51,8 +52,8 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
         for output_it, gt_it, w_it, m_it, label in zip(
             network_outputs, gt, w, masks, labels
         ):
-            lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it))
-            lub.append(tf.losses.mean_squared_error(gt_it, output_it, m_it))
+            lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it * mask))
+            lub.append(tf.losses.mean_squared_error(gt_it, output_it, m_it * mask))
             names[label.labelname] = output_it.name
             names["gt_" + label.labelname] = gt_it.name
             names["w_" + label.labelname] = w_it.name
