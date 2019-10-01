@@ -170,17 +170,17 @@ def train(steps=steps_train):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Run a variety of functions for a U-Net")
-    parser.add_argument("db_username", type=str, help="username for the database")
-    parser.add_argument("db_password", type=str, help="password for the database")
     parser.add_argument("script", type=str, help="Pick script that should be run",
                         choices=["train", "build", "test_mem"], default="train")
-    parser.add_argument("mode", type=str, help="for build and test_mem specify whether to run for inference or "
+    parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
                                                "training network", choices=["training", "inference"],
                         default="training")
+    parser.add_argument("--db_username", type=str, help="username for the database")
+    parser.add_argument("--db_password", type=str, help="password for the database")
     args = parser.parse_args()
+    mode = args.mode
     db_username = args.db_username
     db_password = args.db_password
-    mode = args.mode
 
     if mode == "inference":
         steps = steps_inference
@@ -189,6 +189,8 @@ if __name__ == "__main__":
 
     if args.script == "train":
         assert mode != "inference"
+        assert db_username is not None and db_password is not None, \
+            "db_username and db_password need to be given to run training"
         train()
     elif args.script == "build":
         build_net(steps, mode)
