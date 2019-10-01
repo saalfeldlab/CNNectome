@@ -7,6 +7,8 @@ joblib == 0.13.2
 scikit-image == 0.15.0
 matplotlib == 3.1.1
 memory_profiler == 0.55.0
+zarr == 2.3.2
+pymongo == 3.9.0
 cremi@git+https://github.com/cremi/cremi_python.git@python3
 gunpowder@git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3
 malis@git+https://github.com/TuragaLab/malis.git@beb4ee965acee89ab00a20a70205f51177003c69
