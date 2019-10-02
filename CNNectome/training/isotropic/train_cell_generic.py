@@ -68,15 +68,18 @@ def train_until(
 
         # add sources for all groundtruth labels
         all_srcs = []
-        if len(label_filter(lambda l: not l.separate_labelset)) > 0:
-            logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-                cropno=crop["number"], file=crop["parent"], ds=label_ds.format(label="all"), ak=ak_labels))
-            all_srcs.append(
-                ZarrSource(crop["parent"],
-                           {ak_labels: label_ds.format(label="all")}
-                           )
-                + Pad(ak_labels, Coordinate(output_shape))
-            )
+        #if len(label_filter(lambda l: not l.separate_labelset)) > 0:
+        # We should really only be adding this with the above if statement, but need it for now because we need to
+        # construct masks from it as separate labelsets contain zeros
+        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"], file=crop["parent"], ds=label_ds.format(label="all"), ak=ak_labels))
+        all_srcs.append(
+            ZarrSource(crop["parent"],
+                       {ak_labels: label_ds.format(label="all")}
+                       )
+            + Pad(ak_labels, Coordinate(output_shape))
+            + DownSample(ak_labels, (2,2,2), ak_labels_downsampled)
+        )
 
         for label in label_filter(lambda l: l.separate_labelset):
             if all(l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid):
@@ -105,18 +108,22 @@ def train_until(
                                       + Pad(label.mask_key, Coordinate(output_shape)))
             else:
                 if all(l in get_all_annotated_label_ids(crop) for l in label.labelid):
-                    f = np.ones
+                    f = lambda val: ((val > 0) * 1).astype(np.bool)
                 else:
-                    f = np.zeros
-                logging.debug("Adding LambdaSource {f:} for crop {cropno:}, providing {ak}".format(
-                    cropno=crop["number"], f=f, ak=label.mask_key))
-                labelmask_srcs.append(
-                    LambdaSource(
-                        f,
-                        label.mask_key,
-                        {label.mask_key: ArraySpec(voxel_size=voxel_size, interpolatable=False)}
-                    )
-                )
+                    f = lambda val: ((val > 0) * 0).astype(np.bool)
+                # This does not work because there are crops that are very close to each other. This would lead to
+                # issues with masking
+                # logging.debug("Adding LambdaSource {f:} for crop {cropno:}, providing {ak}".format(
+                #     cropno=crop["number"], f=f, ak=label.mask_key))
+                # labelmask_srcs.append(
+                #     LambdaSource(
+                #         f,
+                #         label.mask_key,
+                #         {label.mask_key: ArraySpec(voxel_size=voxel_size, interpolatable=False)}
+                #     )
+                # )
+                all_srcs[0] += LambdaFilter(f, ak_labels_downsampled, target_key=label.mask_key, target_spec=ArraySpec(
+                    dtype=np.bool, interpolatable=False))
         all_srcs.extend(labelmask_srcs)
 
         # add raw source
@@ -197,6 +204,7 @@ def train_until(
 
     ak_raw = ArrayKey("RAW")
     ak_labels = ArrayKey("GT_LABELS")
+    ak_labels_downsampled = ArrayKey("GT_LABELS_DOWNSAMPLED")
     ak_mask = ArrayKey("MASK")
 
     input_size = Coordinate(input_shape) * voxel_size
@@ -214,8 +222,9 @@ def train_until(
 
     # construct batch request
     request = BatchRequest()
-    if len(label_filter(lambda l: not l.separate_labelset)) > 0:
-        request.add(ak_labels, output_size, voxel_size=voxel_size_labels)
+    #if len(label_filter(lambda l: not l.separate_labelset)) > 0:
+    request.add(ak_labels, output_size, voxel_size=voxel_size_labels)
+    request.add(ak_labels_downsampled, output_size, voxel_size=voxel_size)
     request.add(ak_mask, output_size, voxel_size=voxel_size)
     request.add(ak_raw, input_size, voxel_size=voxel_size)
     for label in labels:
