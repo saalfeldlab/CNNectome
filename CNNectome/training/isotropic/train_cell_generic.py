@@ -137,7 +137,7 @@ def train_until(
             ZarrSource(
                 crop["parent"],
                 {ak_mask: mask_ds},
-                array_specs={ak_mask: ArraySpec(interpolatable=False)}
+                array_specs={ak_mask: ArraySpec(interpolatable=False, voxel_size=voxel_size)}
             )
         )
         all_srcs.append(mask_src)
