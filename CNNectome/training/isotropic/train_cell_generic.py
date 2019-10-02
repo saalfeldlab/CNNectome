@@ -299,35 +299,35 @@ def train_until(
 
     # combine distances for centrosomes
 
-    centrosomes = get_label("centrosomes")
+    centrosome = get_label("centrosome")
     microtubules = get_label("microtubules")
     microtubules_out = get_label("microtubules_out")
     subdistal_app = get_label("subdistal_app")
     distal_app = get_label("distal_app")
 
     # add the centrosomes to the microtubules
-    if microtubules_out is not None and centrosomes is not None:
+    if microtubules_out is not None and centrosome is not None:
         pipeline += CombineDistances(
-            (microtubules_out.gt_dist_key, centrosomes.gt_dist_key),
+            (microtubules_out.gt_dist_key, centrosome.gt_dist_key),
             microtubules_out.gt_dist_key,
-            (microtubules_out.mask_key, centrosomes.mask_key),
+            (microtubules_out.mask_key, centrosome.mask_key),
             microtubules_out.mask_key
         )
-    if microtubules is not None and centrosomes is not None:
+    if microtubules is not None and centrosome is not None:
         pipeline += CombineDistances(
-            (microtubules.gt_dist_key, centrosomes.gt_dist_key),
+            (microtubules.gt_dist_key, centrosome.gt_dist_key),
             microtubules.gt_dist_key,
-            (microtubules.mask_key, centrosomes.mask_key),
+            (microtubules.mask_key, centrosome.mask_key),
             microtubules.mask_key
         )
 
     # add the distal_app and subdistal_app to the centrosomes
-    if centrosomes is not None and distal_app is not None and subdistal_app is not None:
+    if centrosome is not None and distal_app is not None and subdistal_app is not None:
         pipeline += CombineDistances(
-            (distal_app.gt_dist_key, subdistal_app.gt_dist_key, centrosomes.gt_dist_key),
-            centrosomes.gt_dist_key,
-            (distal_app.mask_key, subdistal_app.mask_key, centrosomes.mask_key),
-            centrosomes.mask_key
+            (distal_app.gt_dist_key, subdistal_app.gt_dist_key, centrosome.gt_dist_key),
+            centrosome.gt_dist_key,
+            (distal_app.mask_key, subdistal_app.mask_key, centrosome.mask_key),
+            centrosome.mask_key
         )
 
     for label in labels:
