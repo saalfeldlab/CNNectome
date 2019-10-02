@@ -162,7 +162,7 @@ def train_until(
                    )
 
         # contrast adjustment
-        contr_adj = n5file[raw_ds].attrs["contrastAdjustment"]
+        contr_adj = n5file["volumes/raw"].attrs["contrastAdjustment"]
         scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
         shift = - scale * float(contr_adj["min"])
         logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
