@@ -67,9 +67,11 @@ def train_until(
         mask_ds = blueprint_mask_ds.format(version=gt_version.lstrip("v"))
 
         # add sources for all groundtruth labels
-        label_srcs = []
+        all_srcs = []
         if len(label_filter(lambda l: not l.separate_labelset)) > 0:
-            label_srcs.append(
+            logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+                cropno=crop["number"], file=crop["parent"], ds=label_ds.format(label="all"), ak=ak_labels))
+            all_srcs.append(
                 ZarrSource(crop["parent"],
                            {ak_labels: label_ds.format(label="all")}
                            )
@@ -83,23 +85,22 @@ def train_until(
                                                                                                  file=n5file.store.path)
             else:
                 ds = label_ds.format(label="all")
-            label_srcs.append(ZarrSource(crop["parent"],
+            logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+                cropno=crop["number"], file=crop["parent"], ds=ds, ak=label.gt_key))
+            all_srcs.append(ZarrSource(crop["parent"],
                                          {label.gt_key: ds}
                                          )
                               + Pad(label.gt_key, Coordinate(output_shape)))
-
-        if len(label_srcs) > 1:
-            label_src = tuple(label_srcs) + MergeProvider()
-        else:
-            label_src = label_srcs[0]
 
         # add mask source per label
         labelmask_srcs = []
         for label in labels:
             labelmask_ds = labelmask_ds.format(label=label.labelname)
             if labelmask_ds in n5file:  # specified mask available:
+                logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+                    cropno=crop["number"], file=crop["parent"], ds=labelmask_ds, ak=label.mask_key))
                 labelmask_srcs.append(ZarrSource(crop["parent"],
-                                                 {label.mask_key:labelmask_ds}
+                                                 {label.mask_key: labelmask_ds}
                                                  )
                                       + Pad(label.mask_key, Coordinate(output_shape)))
             else:
@@ -107,6 +108,8 @@ def train_until(
                     f = np.ones
                 else:
                     f = np.zeros
+                logging.debug("Adding LambdaSource {f:} for crop {cropno:}, providing {ak}".format(
+                    cropno=crop["number"], f=f, ak=label.mask_key))
                 labelmask_srcs.append(
                     LambdaSource(
                         f,
@@ -114,17 +117,22 @@ def train_until(
                         {label.mask_key: ArraySpec(voxel_size=voxel_size, interpolatable=False)}
                     )
                 )
-        labelmask_src = tuple(labelmask_srcs) + MergeProvider()
+        all_srcs.extend(labelmask_srcs)
 
         # add raw source
+        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"], file=crop["parent"], ds=raw_ds, ak=ak_raw))
         raw_src = (
             ZarrSource(
                 crop["parent"],
                 {ak_raw: raw_ds},
                 array_specs={ak_raw: ArraySpec(voxel_size=voxel_size)})
         )
+        all_srcs.append(raw_src)
 
         # add gt mask source
+        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"], file=crop["parent"], ds=mask_ds, ak=ak_mask))
         mask_src = (
             ZarrSource(
                 crop["parent"],
@@ -132,19 +140,21 @@ def train_until(
                 array_specs={ak_mask: ArraySpec(interpolatable=False)}
             )
         )
+        all_srcs.append(mask_src)
 
         # combine all sources and pick a random location
         crop_src = (
-            (label_src + labelmask_src + raw_src + mask_src)
+            tuple(all_srcs)
             + MergeProvider()
             + RandomLocation()
-            + Reject()
+            + Reject(ak_mask, min_masked=keep_thr)
                    )
 
         # contrast adjustment
         contr_adj = n5file[raw_ds].attrs["contrastAdjustment"]
         scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
         shift = - scale * float(contr_adj["min"])
+        logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
         crop_src += IntensityScaleShift(ak_raw,
                                         scale,
                                         shift
