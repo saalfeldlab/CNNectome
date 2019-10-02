@@ -26,8 +26,8 @@ steps_inference = 11
 loss_name = "loss_total"
 constant_upsample = True
 trans_equivariant = True
-feature_widths_down = [12, 12 * 6, 12 * 6 ** 2, 12 * 6 **3]
-feature_widths_up = [12 * 6, 12 * 6, 12 * 6 ** 2, 12 * 6 **3]
+feature_widths_down = [12, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3]
+feature_widths_up = [12 * 6, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3]
 downsampling_factors = [(2,) * 3, (3,) * 3, (3,) * 3]
 kernel_sizes_down = [
     [(3,) * 3, (3,) * 3],
@@ -181,7 +181,7 @@ def train(steps=steps_train):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Run a variety of functions for a U-Net")
+    parser = argparse.ArgumentParser("Build, train or test memory consumption for a U-Net")
     parser.add_argument("script", type=str, help="Pick script that should be run",
                         choices=["train", "build", "test_mem"], default="train")
     parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
