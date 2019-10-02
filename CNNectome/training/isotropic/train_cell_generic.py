@@ -77,8 +77,8 @@ def train_until(
             ZarrSource(crop["parent"],
                        {ak_labels: label_ds.format(label="all")}
                        )
-            + Pad(ak_labels, Coordinate(output_shape))
-            + DownSample(ak_labels, (2,2,2), ak_labels_downsampled)
+            + Pad(ak_labels, Coordinate(output_size))
+            + DownSample(ak_labels, (2, 2, 2), ak_labels_downsampled)
         )
 
         for label in label_filter(lambda l: l.separate_labelset):
@@ -93,7 +93,7 @@ def train_until(
             all_srcs.append(ZarrSource(crop["parent"],
                                          {label.gt_key: ds}
                                          )
-                              + Pad(label.gt_key, Coordinate(output_shape)))
+                              + Pad(label.gt_key, Coordinate(output_size)))
 
         # add mask source per label
         labelmask_srcs = []
@@ -105,7 +105,7 @@ def train_until(
                 labelmask_srcs.append(ZarrSource(crop["parent"],
                                                  {label.mask_key: labelmask_ds}
                                                  )
-                                      + Pad(label.mask_key, Coordinate(output_shape)))
+                                      + Pad(label.mask_key, Coordinate(output_size)))
             else:
                 if all(l in get_all_annotated_label_ids(crop) for l in label.labelid):
                     f = lambda val: ((val > 0) * 1).astype(np.bool)
