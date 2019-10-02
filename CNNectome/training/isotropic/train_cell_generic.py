@@ -134,6 +134,7 @@ def train_until(
                 crop["parent"],
                 {ak_raw: raw_ds},
                 array_specs={ak_raw: ArraySpec(voxel_size=voxel_size)})
+            + Pad(ak_raw, Coordinate(input_size), 0)
         )
         all_srcs.append(raw_src)
 
