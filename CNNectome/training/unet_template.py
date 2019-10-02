@@ -1,6 +1,6 @@
 import logging
 from CNNectome.utils.label import *
-from CNNectome.networks.isotropic.mk_cell_unet_generic import make_net
+from CNNectome.networks.isotropic.mk_cell_unet_generic import make_net, make_net_upsample
 from CNNectome.networks import unet_class
 from CNNectome.training.isotropic.train_cell_generic import train_until
 from gunpowder import Coordinate
@@ -18,6 +18,7 @@ num_workers=10
 # voxel size parameters
 voxel_size_labels = Coordinate((2,) * 3)
 voxel_size = Coordinate((4,) * 3)
+voxel_size_input = Coordinate((4,) * 3)
 
 # network parameters
 steps_train = 4
@@ -39,6 +40,11 @@ kernel_sizes_up = [
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3]
 ]
+
+# additional network parameters for upsampling network
+upsample_factor = tuple(voxel_size_input/voxel_size)
+final_kernel_size = [(3,) * 3, (3,) * 3]
+final_feature_width = 12 * 6
 
 # groundtruth source parameters
 gt_version = "v0003"
@@ -98,7 +104,12 @@ def build_net(steps=steps_inference, mode="inference"):
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
-    net, input_shape, output_shape = make_net(unet, labels, steps, loss_name=loss_name, mode=mode)
+    if voxel_size == voxel_size_input:
+        net, input_shape, output_shape = make_net(unet, labels, steps, loss_name=loss_name, mode=mode)
+    else:
+        net, input_shape, output_shape = make_net_upsample(unet, labels, steps, upsample_factor,
+                                                           final_kernel_size, final_feature_width,
+                                                           loss_name=loss_name, mode=mode)
     logging.info(
         "Built {0:} with input shape {1:} and output_shape {2:}".format(
             net, input_shape, output_shape
@@ -164,7 +175,8 @@ def train(steps=steps_train):
         num_workers=num_workers,
         min_masked_voxels=min_masked_voxels,
         voxel_size_labels=voxel_size_labels,
-        voxel_size=voxel_size
+        voxel_size=voxel_size,
+        voxel_size_input=voxel_size_input
     )
 
 

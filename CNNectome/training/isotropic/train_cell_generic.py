@@ -44,6 +44,7 @@ def train_until(
     min_masked_voxels=17561.,
     voxel_size_labels=Coordinate((2, 2, 2)),
     voxel_size=Coordinate((4, 4, 4)),
+    voxel_size_input=Coordinate((4, 4, 4))
 ):
     def label_filter(cond_f):
         return [ll for ll in labels if cond_f(ll)]
@@ -55,13 +56,15 @@ def train_until(
         else:
             return None
 
-    def make_crop_source(crop):
+    def make_crop_source(crop, subsample_variant=None):
         n5file = zarr.open(ensure_str(crop["parent"]), mode='r')
         blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
         blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
         blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
-
-        raw_ds = "volumes/raw"
+        if subsample_variant is None:
+            raw_ds = "volumes/raw"
+        else:
+            raw_ds = "volumes/subsampled/raw/{0:}".format(subsample_variant)
         label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
         labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
         mask_ds = blueprint_mask_ds.format(version=gt_version.lstrip("v"))
@@ -227,7 +230,7 @@ def train_until(
     request.add(ak_labels, output_size, voxel_size=voxel_size_labels)
     request.add(ak_labels_downsampled, output_size, voxel_size=voxel_size)
     request.add(ak_mask, output_size, voxel_size=voxel_size)
-    request.add(ak_raw, input_size, voxel_size=voxel_size)
+    request.add(ak_raw, input_size, voxel_size=voxel_size_input)
     for label in labels:
         if label.separate_labelset:
             request.add(label.gt_key, output_size, voxel_size=voxel_size_labels)
@@ -259,8 +262,13 @@ def train_until(
     crop_srcs = []
     crop_sizes = []
     for crop in collection.find(filter, skip):
-        crop_srcs.append(make_crop_source(crop))
-        crop_sizes.append(get_crop_size(crop))
+        if voxel_size_input != voxel_size:
+            for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
+                crop_srcs.append(make_crop_source(crop, subsample_variant))
+                crop_sizes.append(get_crop_size(crop))
+        else:
+            crop_srcs.append(make_crop_source(crop))
+            crop_sizes.append(get_crop_size(crop))
 
     pipeline = (tuple(crop_srcs)
                 + RandomProvider(crop_sizes)
