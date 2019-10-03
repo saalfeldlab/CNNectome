@@ -143,7 +143,7 @@ def train_until(
             ZarrSource(
                 crop["parent"],
                 {ak_raw: raw_ds},
-                array_specs={ak_raw: ArraySpec(voxel_size=voxel_size)})
+                array_specs={ak_raw: ArraySpec(voxel_size=voxel_size_input)})
             + Pad(ak_raw, Coordinate(input_size), 0)
         )
         all_srcs.append(raw_src)
@@ -217,8 +217,7 @@ def train_until(
     ak_labels = ArrayKey("GT_LABELS")
     ak_labels_downsampled = ArrayKey("GT_LABELS_DOWNSAMPLED")
     ak_mask = ArrayKey("MASK")
-
-    input_size = Coordinate(input_shape) * voxel_size
+    input_size = Coordinate(input_shape) * voxel_size_input
     output_size = Coordinate(output_shape) * voxel_size
 
     keep_thr = float(min_masked_voxels)/np.prod(output_shape)
