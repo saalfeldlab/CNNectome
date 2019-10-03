@@ -130,10 +130,10 @@ def test_memory_consumption(steps=steps_train, mode="train"):
     input_arrays[net_io_names["raw"]] = np.random.random(
         input_shape.astype(np.int)
     ).astype(np.float32)
-    input_arrays[net_io_names["mask"]] = np.random.randint(0, 1, output_shape).astype(
-        np.float32)
     for l in labels:
         if mode.lower() == "train" or mode.lower() == "training":
+            input_arrays[net_io_names["mask"]] = np.random.randint(0, 1, output_shape).astype(
+                np.float32)
             input_arrays[net_io_names["gt_" + l.labelname]] = np.random.random(
                 output_shape
             ).astype(np.float32)
