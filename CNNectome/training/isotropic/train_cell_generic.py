@@ -26,6 +26,13 @@ def get_crop_size(crop):
     return np.prod(list(crop["dimensions"][0].values()))
 
 
+def get_all_labelids(labels):
+    all_labelids = []
+    for label in labels:
+        all_labelids += list(label.labelid)
+    return all_labelids
+
+
 def train_until(
     max_iteration,
     gt_version,
@@ -262,13 +269,15 @@ def train_until(
     crop_srcs = []
     crop_sizes = []
     for crop in collection.find(filter, skip):
-        if voxel_size_input != voxel_size:
-            for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
-                crop_srcs.append(make_crop_source(crop, subsample_variant))
+        if len(set(get_all_annotated_label_ids(crop)).intersection(set(get_all_labelids(labels)))) > 0:
+            print(crop["number"])
+            if voxel_size_input != voxel_size:
+                for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
+                    crop_srcs.append(make_crop_source(crop, subsample_variant))
+                    crop_sizes.append(get_crop_size(crop))
+            else:
+                crop_srcs.append(make_crop_source(crop))
                 crop_sizes.append(get_crop_size(crop))
-        else:
-            crop_srcs.append(make_crop_source(crop))
-            crop_sizes.append(get_crop_size(crop))
 
     pipeline = (tuple(crop_srcs)
                 + RandomProvider(crop_sizes)
