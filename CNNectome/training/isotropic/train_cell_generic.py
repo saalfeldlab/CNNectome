@@ -188,7 +188,7 @@ def train_until(
 
         # find checkpoint from previous training, start a new one if not found
         if tf.train.latest_checkpoint("."):
-            start_iteration = int(tf.train.latest_checkpoint(".").split("_"[-1]))
+            start_iteration = int(tf.train.latest_checkpoint(".").split("_")[-1])
             if start_iteration >= max_iteration:
                 logging.info("Network has already been trained for {0:} iterations".format(start_iteration))
             else:
