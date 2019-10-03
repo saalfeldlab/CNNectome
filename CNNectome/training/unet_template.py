@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     if mode == "inference":
         steps = steps_inference
-    elif mode == "train":
+    elif mode == "training":
         steps = steps_train
 
     if args.script == "train":
