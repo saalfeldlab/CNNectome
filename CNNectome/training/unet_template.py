@@ -24,6 +24,7 @@ voxel_size_input = Coordinate((4,) * 3)
 steps_train = 4
 steps_inference = 11
 loss_name = "loss_total"
+padding = "valid"
 constant_upsample = True
 trans_equivariant = True
 feature_widths_down = [12, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3]
@@ -101,6 +102,7 @@ def build_net(steps=steps_inference, mode="inference"):
         downsampling_factors,
         kernel_sizes_down,
         kernel_sizes_up,
+        padding=padding,
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
