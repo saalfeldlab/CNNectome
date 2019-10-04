@@ -89,7 +89,7 @@ labels.append(Label("microtubules", (30, 36)))
 labels.append(Label("microtubules_out", (30,),
                     scale_loss=False,
                     scale_key=labels[-1].scale_key))
-labels.append(Label("centrosome", 31, separate_labelset=True))
+labels.append(Label("centrosome", 31, add_constant=2, separate_labelset=True))
 labels.append(Label("distal_app", 32))
 labels.append(Label("subdistal_app", 33))
 labels.append(Label("ribosomes", 34, add_constant=8, separate_labelset=True))
