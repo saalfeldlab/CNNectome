@@ -75,7 +75,7 @@ labels.append(Label("LD_membrane", 14, scale_loss=False, scale_key=labels[-1].sc
 labels.append(Label("er", (16, 17, 18, 19, 20, 21, 22, 23)))
 labels.append(Label("er_membrane", (16, 18, 20), scale_loss=False, scale_key=labels[-1].scale_key))
 labels.append(Label("ERES", (18, 19)))
-labels.append(Label("nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37)))
+labels.append(Label("nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37))
 labels.append(Label("nucleolus", 29, separate_labelset=True))
 labels.append(Label("NE", (20, 21, 22, 23)))
 labels.append(Label("NE_membrane", (20, 22, 23), scale_loss=False, scale_key=labels[-1].scale_key))

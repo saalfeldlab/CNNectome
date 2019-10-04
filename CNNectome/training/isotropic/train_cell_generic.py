@@ -117,7 +117,14 @@ def train_until(
                                                  )
                                       + Pad(label.mask_key, Coordinate(output_size)))
             else:
-                if all(l in get_all_annotated_label_ids(crop) for l in label.labelid):
+                if label.generic_label is not None:
+                    specific_labels = list(set(label.labelid) - set(label.generic_label))
+                    generic_condition = (all(l in get_all_annotated_label_ids(crop) for l in label.generic_label) or
+                                         all(l in get_all_annotated_label_ids(crop) for l in specific_labels))
+                else:
+                    generic_condition = False
+
+                if all(l in get_all_annotated_label_ids(crop) for l in label.labelid) or generic_condition:
                     f = lambda val: ((val > 0) * 1).astype(np.bool)
                 else:
                     f = lambda val: ((val > 0) * 0).astype(np.bool)

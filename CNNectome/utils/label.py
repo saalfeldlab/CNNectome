@@ -26,6 +26,7 @@ class Label(object):
         self,
         labelname,
         labelid,
+        generic_label=None,
         targetid=None,
         thr=128,
         scale_loss=True,
@@ -40,6 +41,9 @@ class Label(object):
         if not isinstance(labelid, collections.Iterable):
             labelid = (labelid,)
         self.labelid = labelid
+        if generic_label is not None and not isinstance(generic_label, collections.Iterable):
+            generic_label = (generic_label,)
+        self.generic_label = generic_label
         self.targetid = targetid
         self.thr = thr
         self.separate_labelset = separate_labelset
