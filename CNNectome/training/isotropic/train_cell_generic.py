@@ -23,7 +23,7 @@ def get_all_annotated_label_ids(crop):
 
 
 def get_crop_size(crop):
-    return np.prod(list(crop["dimensions"][0].values()))
+    return np.prod(list(crop["dimensions"].values()))
 
 
 def get_all_labelids(labels):
