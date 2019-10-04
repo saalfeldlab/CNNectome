@@ -16,7 +16,7 @@ echo "Starting as user ${USER_ID}"
 singularity exec \
             --nv \
 	    --containall \
-	    -B /groups/saalfeld,/nrs/saalfeld,/groups/turaga,/groups/cosem/cosem \
+	    -B /groups/saalfeld,/nrs/saalfeld,/groups/turaga,/groups/cosem/cosem,/nrs/cosem \
 	    --pwd $WD \
 	    /groups/saalfeld/home/heinrichl/singularity-builds/cnnectome.sif \
 	    /bin/bash --norc -c "export CUDA_VISIBLE_DEVICES=$GPU; export OMP_NUM_THREADS=1;
