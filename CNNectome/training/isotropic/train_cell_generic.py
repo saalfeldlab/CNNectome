@@ -254,6 +254,7 @@ def train_until(
     # specify snapshot data layout
     snapshot_data = dict()
     snapshot_data[ak_raw] = "volumes/raw"
+    snapshot_data[ak_mask] = "volumes/masks/all"
     if len(label_filter(lambda l: not l.separate_labelset)) > 0:
         snapshot_data[ak_labels] = "volumes/labels/gt_labels"
     for label in label_filter(lambda l: l.separate_labelset):
@@ -261,6 +262,7 @@ def train_until(
     for label in labels:
         snapshot_data[label.gt_dist_key] = "volumes/labels/gt_dist_" + label.labelname
         snapshot_data[label.pred_dist_key] = "volumes/labels/pred_dist_" + label.labelname
+        snapshot_data[label.mask_key] = "volumes/masks/" +label.labelname
 
     # specify snapshot request
     snapshot_request = BatchRequest()
@@ -269,7 +271,7 @@ def train_until(
     crop_sizes = []
     for crop in collection.find(filter, skip):
         if len(set(get_all_annotated_label_ids(crop)).intersection(set(get_all_labelids(labels)))) > 0:
-            print(crop["number"])
+            logging.info("Adding crop number {0:}".format(crop["number"]))
             if voxel_size_input != voxel_size:
                 for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
                     crop_srcs.append(make_crop_source(crop, subsample_variant))
