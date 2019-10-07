@@ -23,6 +23,7 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
         kernel_size=[[1, 1, 1]],
         num_fmaps=len(labels),
         activation=None,
+        padding=unet.padding,
         fov=fov,
         voxel_size=anisotropy,
     )
@@ -141,6 +142,7 @@ def make_net_upsample(unet, labels, added_steps, upsample_factor, final_kernel_s
         kernel_size=final_kernel_size,
         num_fmaps=final_feature_width,
         activation="relu",
+        padding=unet.padding,
         fov=fov,
         voxel_size=anisotropy,
         name="final_conv",
@@ -151,6 +153,7 @@ def make_net_upsample(unet, labels, added_steps, upsample_factor, final_kernel_s
         kernel_size=[[1, 1, 1]],
         num_fmaps=len(labels),
         activation=None,
+        padding=unet.padding,
         fov=fov,
         voxel_size=anisotropy,
     )
