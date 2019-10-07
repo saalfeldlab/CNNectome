@@ -14,7 +14,7 @@ def readfile(filename, startline=0):
 
 
 def extract_times(text, skip_first=True):
-    times = [float(x) for x in re.findall("INFO:root:it \d*: ([\d,.]*)", text)]
+    times = [float(x) for x in re.findall("INFO:root:it\d*: ([\d,.]*)", text)]
     if skip_first:
         times = times[1:]
     return times
