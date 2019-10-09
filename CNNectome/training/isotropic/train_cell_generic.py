@@ -1,6 +1,6 @@
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, IntensityCrop
+from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, IntensityCrop, Sum
 from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
 
@@ -224,10 +224,12 @@ def train_until(
     ak_labels = ArrayKey("GT_LABELS")
     ak_labels_downsampled = ArrayKey("GT_LABELS_DOWNSAMPLED")
     ak_mask = ArrayKey("MASK")
+    ak_labelmasks_comb = ArrayKey("LABELMASKS_COMBINED")
     input_size = Coordinate(input_shape) * voxel_size_input
     output_size = Coordinate(output_shape) * voxel_size
 
     keep_thr = float(min_masked_voxels)/np.prod(output_shape)
+    one_vx_thr = 1./np.prod(output_shape)
 
     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
     db = client[db_name]  # db_name = "crops"
@@ -243,6 +245,7 @@ def train_until(
     request.add(ak_labels, output_size, voxel_size=voxel_size_labels)
     request.add(ak_labels_downsampled, output_size, voxel_size=voxel_size)
     request.add(ak_mask, output_size, voxel_size=voxel_size)
+    request.add(ak_labelmasks_comb, output_size, voxel_size=voxel_size)
     request.add(ak_raw, input_size, voxel_size=voxel_size_input)
     for label in labels:
         if label.separate_labelset:
@@ -364,6 +367,9 @@ def train_until(
             label.scale_key,
             mask=(label.mask_key, ak_mask)
         )
+    pipeline += Sum([l.mask_key for l in labels], ak_labelmasks_comb, sum_array_spec=ArraySpec(
+                    dtype=np.uint8, interpolatable=False))
+    pipeline += Reject(ak_labelmasks_comb, min_masked=one_vx_thr)
 
     pipeline = (pipeline
                 + PreCache(cache_size=cache_size,
