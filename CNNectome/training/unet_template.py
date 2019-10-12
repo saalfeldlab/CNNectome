@@ -3,6 +3,7 @@ from CNNectome.utils.label import *
 from CNNectome.networks.isotropic.mk_cell_unet_generic import make_net, make_net_upsample
 from CNNectome.networks import unet_class
 from CNNectome.training.isotropic.train_cell_generic import train_until
+from CNNectome.validation.single_block_inference import single_block_inference
 from gunpowder import Coordinate
 import json
 import numpy as np
@@ -184,31 +185,64 @@ def train(steps=steps_train):
     )
 
 
+def inference(steps=steps_inference):
+    net_name, input_shape, output_shape = build_net(steps=steps, mode="inference")
+    outputs = [l.labelname for l in labels]
+    single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, coordinate=coordinate,
+                           output_file=output_file, voxel_size_input=voxel_size_input, voxel_size_output=voxel_size)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Build, train or test memory consumption for a U-Net")
     parser.add_argument("script", type=str, help="Pick script that should be run",
-                        choices=["train", "build", "test_mem"], default="train")
+                        choices=["train", "build", "test_mem", "inference"], default="train")
     parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
                                                "training network", choices=["training", "inference"],
-                        default="training")
+                        )
     parser.add_argument("--db_username", type=str, help="username for the database")
     parser.add_argument("--db_password", type=str, help="password for the database")
+    parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
+    parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
+    parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
+    parser.add_argument("--coordinate", type=tuple, help="upper left coordinate of block to predict from (input)",
+                        default=(0, 0, 0))
     args = parser.parse_args()
     mode = args.mode
     db_username = args.db_username
     db_password = args.db_password
+    ckpt = args.ckpt
+    input_file = args.input_file
+    output_file = args.output_file
+    coordinate = args.coordinate
+
+    if args.script == "train":
+        if mode == "inference":
+            raise ValueError("script train should not be run with mode inference")
+        else:
+            mode = "training"
+        assert db_username is not None and db_password is not None, \
+            "db_username and db_password need to be given to run training"
+
+    elif args.script == "inference":
+        if mode == "training":
+            raise ValueError("script inference should not be run with mode training")
+        else:
+            mode = "inference"
+        assert ckpt is not None and input_file is not None, \
+            "ckpt and input_file need to be given to run inference"
 
     if mode == "inference":
         steps = steps_inference
     elif mode == "training":
         steps = steps_train
+    else:
+        raise ValueError("mode needs to be given to run script {0:}".format(args.script))
 
     if args.script == "train":
-        assert mode != "inference"
-        assert db_username is not None and db_password is not None, \
-            "db_username and db_password need to be given to run training"
-        train()
+        train(steps)
     elif args.script == "build":
         build_net(steps, mode)
     elif args.script == "test_mem":
         test_memory_consumption(steps, mode)
+    elif args.script == "inference":
+        inference(steps)
