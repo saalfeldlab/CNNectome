@@ -104,6 +104,8 @@ def build_net(steps=steps_inference, mode="inference"):
         kernel_sizes_down,
         kernel_sizes_up,
         padding=padding,
+        constant_upsample=constant_upsample,
+        trans_equivariant=trans_equivariant,
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
