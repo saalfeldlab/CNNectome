@@ -16,8 +16,8 @@ class UNet(object):
         kernel_size_up,
         activation="relu",
         padding="valid",
-        constant_upsample=False,
-        trans_equivariant=False,
+        constant_upsample=True,
+        trans_equivariant=True,
         input_fov=(1, 1, 1),
         input_voxel_size=(1, 1, 1),
     ):
@@ -261,6 +261,7 @@ class UNet(object):
             )
 
             logging.info(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
+
             if padding == "valid":
                 # crop for translation equivariance
                 if self.trans_equivariant:
