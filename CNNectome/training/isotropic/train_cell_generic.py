@@ -1,6 +1,6 @@
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, IntensityCrop, Sum
+from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, IntensityCrop, Sum, CropArray
 from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
 
@@ -87,7 +87,7 @@ def train_until(
             ZarrSource(crop["parent"],
                        {ak_labels: label_ds.format(label="all")}
                        )
-            + Pad(ak_labels, Coordinate(output_size))
+            + Pad(ak_labels, Coordinate(output_size) + crop_width)
             + DownSample(ak_labels, (2, 2, 2), ak_labels_downsampled)
         )
 
@@ -103,7 +103,7 @@ def train_until(
             all_srcs.append(ZarrSource(crop["parent"],
                                          {label.gt_key: ds}
                                          )
-                              + Pad(label.gt_key, Coordinate(output_size)))
+                              + Pad(label.gt_key, Coordinate(output_size) + crop_width))
 
         # add mask source per label
         labelmask_srcs = []
@@ -115,7 +115,7 @@ def train_until(
                 labelmask_srcs.append(ZarrSource(crop["parent"],
                                                  {label.mask_key: labelmask_ds}
                                                  )
-                                      + Pad(label.mask_key, Coordinate(output_size)))
+                                      + Pad(label.mask_key, Coordinate(output_size) + crop_width))
             else:
                 if label.generic_label is not None:
                     specific_labels = list(set(label.labelid) - set(label.generic_label))
@@ -220,6 +220,10 @@ def train_until(
             outputs[net_io_names[label.labelname]] = label.pred_dist_key
         return net_io_names, start_iteration, inputs, outputs
 
+    keep_thr = float(min_masked_voxels) / np.prod(output_shape)
+    one_vx_thr = 1. / np.prod(output_shape)
+    max_distance = 2.76 * dt_scaling_factor
+
     ak_raw = ArrayKey("RAW")
     ak_labels = ArrayKey("GT_LABELS")
     ak_labels_downsampled = ArrayKey("GT_LABELS_DOWNSAMPLED")
@@ -227,9 +231,14 @@ def train_until(
     ak_labelmasks_comb = ArrayKey("LABELMASKS_COMBINED")
     input_size = Coordinate(input_shape) * voxel_size_input
     output_size = Coordinate(output_shape) * voxel_size
+    crop_width = Coordinate((max_distance,)* len(voxel_size_labels))
+    crop_width = crop_width//voxel_size
+    if crop_width == 0:
+        crop_width *= voxel_size
+    else:
+        crop_width= (crop_width+(1,)*len(crop_width)) * voxel_size
+    crop_width = crop_width #(Coordinate((max_distance,) * len(voxel_size_labels))/2 )
 
-    keep_thr = float(min_masked_voxels)/np.prod(output_shape)
-    one_vx_thr = 1./np.prod(output_shape)
 
     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
     db = client[db_name]  # db_name = "crops"
@@ -322,7 +331,7 @@ def train_until(
             add_constant=label.add_constant,
             label_id=label.labelid,
             factor=2,
-            max_distance=2.76 * dt_scaling_factor,
+            max_distance=max_distance,
         )
 
     # combine distances for centrosomes
@@ -357,6 +366,12 @@ def train_until(
             (distal_app.mask_key, subdistal_app.mask_key, centrosome.mask_key),
             centrosome.mask_key
         )
+    for label in labels:
+        # pipeline += CropArray(label.gt_key, crop_width, crop_width)
+        pipeline += CropArray(label.gt_dist_key, crop_width, crop_width)
+        pipeline += CropArray(label.mask_key, crop_width, crop_width)
+    pipeline += CropArray(ak_labels, crop_width, crop_width)
+    pipeline += CropArray(ak_labels_downsampled, crop_width, crop_width)
 
     for label in labels:
         pipeline += TanhSaturate(label.gt_dist_key, dt_scaling_factor)
