@@ -64,7 +64,6 @@ def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, i
         saver.restore(sess, ckpt)
     output_data = sess.run(network_output_keys, feed_dict={network_input_key: input_data})
 
-
     logging.info("Writing data to file {0:}".format(output_file))
     # write input data to file
     root[input][...] = input_data
