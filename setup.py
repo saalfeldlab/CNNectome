@@ -23,7 +23,7 @@ REQUIRES_PYTHON = ">=3.6"
 VERSION = "2.0.dev7"
 
 REQUIRED = [
-    "tensorflow_gpu<2",
+    "tensorflow_gpu<1.15",
     "numpy",
     "scipy",
     "cython",
