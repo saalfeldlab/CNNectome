@@ -281,7 +281,7 @@ def train_until(
     for label in labels:
         snapshot_data[label.gt_dist_key] = "volumes/labels/gt_dist_" + label.labelname
         snapshot_data[label.pred_dist_key] = "volumes/labels/pred_dist_" + label.labelname
-        snapshot_data[label.mask_key] = "volumes/masks/" +label.labelname
+        snapshot_data[label.mask_key] = "volumes/masks/" + label.labelname
 
     # specify snapshot request
     snapshot_request = BatchRequest()
@@ -366,12 +366,18 @@ def train_until(
             (distal_app.mask_key, subdistal_app.mask_key, centrosome.mask_key),
             centrosome.mask_key
         )
+
+    arrays_that_need_to_be_cropped = []
+
     for label in labels:
-        # pipeline += CropArray(label.gt_key, crop_width, crop_width)
-        pipeline += CropArray(label.gt_dist_key, crop_width, crop_width)
-        pipeline += CropArray(label.mask_key, crop_width, crop_width)
-    pipeline += CropArray(ak_labels, crop_width, crop_width)
-    pipeline += CropArray(ak_labels_downsampled, crop_width, crop_width)
+        arrays_that_need_to_be_cropped.append(label.gt_key)
+        arrays_that_need_to_be_cropped.append(label.gt_dist_key)
+        arrays_that_need_to_be_cropped.append(label.mask_key)
+    arrays_that_need_to_be_cropped.append(ak_labels)
+    arrays_that_need_to_be_cropped.append(ak_labels_downsampled)
+    arrays_that_need_to_be_cropped = list(set(arrays_that_need_to_be_cropped))
+    for ak in arrays_that_need_to_be_cropped:
+        pipeline += CropArray(ak, crop_width, crop_width)
 
     for label in labels:
         pipeline += TanhSaturate(label.gt_dist_key, dt_scaling_factor)
