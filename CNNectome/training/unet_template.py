@@ -206,8 +206,8 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
     parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
     parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
-    parser.add_argument("--coordinate", type=tuple, help="upper left coordinate of block to predict from (input)",
-                        default=(0, 0, 0))
+    parser.add_argument("--coordinate", type=int, help="upper left coordinate of block to predict from (input)",
+                        default=(0, 0, 0), nargs='+')
     args = parser.parse_args()
     mode = args.mode
     db_username = args.db_username
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     ckpt = args.ckpt
     input_file = args.input_file
     output_file = args.output_file
-    coordinate = args.coordinate
+    coordinate = tuple(args.coordinate)
 
     if args.script == "train":
         if mode == "inference":
