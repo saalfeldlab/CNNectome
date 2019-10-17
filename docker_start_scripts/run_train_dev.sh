@@ -28,6 +28,6 @@ docker run \
     -w ${PWD} \
     -ti \
     --name ${NAME} \
-    neptunes5thmoon/cnnectome:v2.0.dev6 \
+    neptunes5thmoon/cnnectome:v2.0.dev7 \
     /bin/bash -c "export OMP_NUM_THREADS=1; nvidia-smi; PYTHONPATH=${TRAIN_PATH}:${GP_PATH}:\$PYTHONPATH;
     mprof run -T 1 -CM python -u $RUNSCRIPT 2>&1 | tee -a logfile"
