@@ -67,8 +67,9 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
 
     return factor, scale, shift
 
+
 def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, setup_path, factor,
-                           min_sc, max_sc, finish_interrupted):
+                           min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
     assert os.path.exists(setup_path), "Path to experiment directory does not exist"
     sys.path.append(setup_path)
     import unet_template
@@ -76,16 +77,16 @@ def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, se
     if raw_data_path.endswith('/'):
         raw_data_path = raw_data_path[:-1]
     assert os.path.exists(raw_data_path), "Path to N5 dataset with raw data and mask does not exist"
-    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}".format(iteration)))
-    assert os.path.exists(os.path.join(setup_path, "unet_inference"))
+    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.meta".format(iteration)))
+    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.index".format(iteration)))
+    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.data-00000-of-00001".format(iteration)))
+    assert os.path.exists(os.path.join(setup_path, "unet_inference.meta"))
     assert os.path.exists(os.path.join(setup_path, "net_io_names.json"))
-
 
     rf = z5py.File(raw_data_path, use_zarr_format=False)
     assert raw_ds in rf, "Raw data not present in N5 dataset"
     assert mask_ds in rf, "Mask data not present in N5 dataset"
     shape_vc = rf[raw_ds].shape
-
 
     net_name, input_shape_vc, output_shape_vc = unet_template.build_net(steps=unet_template.steps_inference,
                                                                         mode="inference")
@@ -102,7 +103,6 @@ def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, se
     output_dir, out_file = get_output_paths(raw_data_path, setup_path)
 
     # offset file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/offsets_volumes_masks_foreground_shape180x180x180.json"
-
     offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(mask_ds.replace("/", "_"), *output_shape_wc)
     offset_file = os.path.join(output_dir, offset_filename)
 
@@ -121,9 +121,11 @@ def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, se
         f[label.labelname].attrs["raw_scale"] = scale
         f[label.labelname].attrs["raw_shift"] = shift
         f[label.labelname].attrs["raw_normalize_factor"] = factor
+        f[label.labelname].attrs["float_range"] = float_range
+        f[label.labelname].attrs["safe_scale"] = safe_scale
 
     if not os.path.exists(offset_file) and not finish_interrupted:
-        generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds)
+        generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
 
     if not finish_interrupted:
         with open(offset_file, 'r') as f:
@@ -131,6 +133,13 @@ def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, se
         offset_list_from_precomputed(offset_list, list(range(n_jobs)), out_file)
     else:
         redistribute_offset_lists(list(range(n_jobs)), out_file)
+
+    shapes_file = os.path.join(setup_path, "shapes_steps{0:}".format(unet_template.steps_inference))
+    shapes = {"input_shape_vc": input_shape_vc,
+              "output_shape_vc": output_shape_vc,
+              "chunk_shape_vc": chunk_shape_vc}
+    with open(shapes_file, "w") as f:
+        json.dump(shapes, f)
     return input_shape_vc, output_shape_vc, chunk_shape_vc
 
 
@@ -138,20 +147,27 @@ def preprocess(data, scale=2, shift=-1., factor=None):
     return clip(scale_shift(normalize(data, factor=factor), scale, shift))
 
 
-def single_job_inference(job_no, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds,
-                         setup_path, factor=None, min_sc=None, max_sc=None):
+def single_job_inference(raw_data_path, iteration, job_no, raw_ds, setup_path, factor=None, min_sc=None, max_sc=None,
+                         float_range=(-1, 1), safe_scale=False, n_cpus=5):
     sys.path.append(setup_path)
     import unet_template
 
     output_dir, out_file = get_output_paths(raw_data_path, setup_path)
 
     rf = z5py.File(raw_data_path, use_zarr_format=False)
-    shape = rf[raw_ds].shape
+    shape_vc = rf[raw_ds].shape
     weight_meta_graph = os.path.join(setup_path, "unet_train_checkpoint_{0:}".format(iteration))
     inference_meta_graph = os.path.join(setup_path, "unet_inference")
+
     net_io_json = os.path.join(setup_path, "net_io_names.json")
     with open(net_io_json, "r") as f:
         net_io_names = json.load(f)
+
+    shapes_file = os.path.join(setup_path, "shapes_steps{0:}".format(unet_template.steps_inference))
+    with open(shapes_file, "r") as f:
+        shapes = json.load(f)
+    input_shape_vc, output_shape_vc, chunk_shape_vc = \
+        shapes["input_shape_vc"], shapes["output_shape_vc"], shapes["chunk_shape_vc"]
 
     offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(job_no))
     with open(offset_file, 'r') as f:
@@ -186,7 +202,7 @@ def single_job_inference(job_no, input_shape_vc, output_shape_vc, chunk_shape_vc
     run_inference_n5_multi_crop(
         prediction,
         functools.partial(preprocess, factor=1./factor, scale=scale, shift=shift),
-        functools.partial(clip_float_to_uint8, float_range=(-1, 1), safe_scale=False),
+        functools.partial(clip_float_to_uint8, float_range=float_range, safe_scale=safe_scale),
         raw_data_path,
         out_file,
         offset_list,
@@ -197,25 +213,27 @@ def single_job_inference(job_no, input_shape_vc, output_shape_vc, chunk_shape_vc
         target_keys=dataset_target_keys,
         input_resolutions=[tuple(voxel_size_input), ],
         target_resolutions=[tuple(voxel_size_output), ] * len(dataset_target_keys),
-        log_processed=os.path.join(os.path.dirname(offset_file), "list_gpu_{0:}_{1:}_processed.txt".format(job_no,
-                                                                                                           iteration)),
-        pad_value=int(round(-factor*(shift/scale)))
+        log_processed=os.path.join(os.path.dirname(offset_file),
+                                   "list_gpu_{0:}_{1:}_processed.txt".format(job_no,iteration)),
+        pad_value=int(round(-factor*(shift/scale))),
+        num_cpus=n_cpus
     )
 
     t_predict = time.time() - t_predict
 
 
-def submit_jobs(n_job, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds, setup_path,
-                factor=None, min_sc=None, max_sc=None):
-    subprocess.call(['./submit_inference_job.sh', ])
+# def submit_jobs(n_job, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds, setup_path,
+#                 factor=None, min_sc=None, max_sc=None):
+#     subprocess.call(['./submit_inference_job.sh', ])
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("action", type=str, choices=("prepare", "inference"))
+    parser.add_argument("n_job", type=int)
+    parser.add_argument("n_cpus", type=int)
     parser.add_argument("raw_data_path", type=str)
     parser.add_argument("iteration", type=int)
-    parser.add_argument("n_job", type=int)
     parser.add_argument("--raw_ds", type=str, default="volumes/raw")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground")
     parser.add_argument("--setup_path", type=str, default='.')
@@ -223,7 +241,8 @@ if __name__ == "__main__":
     parser.add_argument("--factor", type=int, default=None)
     parser.add_argument("--min_sc", type=float, default=None)
     parser.add_argument("--max_sc", type=float, default=None)
-
+    parser.add_argument("--float_range", type=int, nargs="+", default=(-1, 1))
+    parser.add_argument("--safe_scale", type=bool, default=False)
     args = parser.parse_args()
     action = args.action
     raw_data_path = args.raw_data_path
@@ -235,17 +254,21 @@ if __name__ == "__main__":
     factor = args.factor
     min_sc = args.min_sc
     max_sc = args.max_sc
+    float_range = tuple(args.float_range)
+    assert len(float_range) == 2
+    safe_scale = args.safe_scale
     finish_interrupted = args.finish_interrupted
     if action == "prepare":
         prepare_cell_inference(n_job, raw_data_path, iteration, raw_ds, mask_ds, setup_path, factor,
-                               min_sc, max_sc, finish_interrupted)
-    elif action == "run":
-        input_shape_vc, output_shape_vc, chunk_shape_vc = prepare_cell_inference(n_job, raw_data_path, iteration,
-                                                                                 raw_ds, mask_ds, setup_path, factor,
-                                                                                 min_sc, max_sc, finish_interrupted)
-        submit_jobs(n_job, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds,
-                    setup_path, factor=factor, min_sc=min_sc, max_sc=max_sc)
+                               min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted)
+    # elif action == "run":
+    #     input_shape_vc, output_shape_vc, chunk_shape_vc = prepare_cell_inference(n_job, raw_data_path, iteration,
+    #                                                                              raw_ds, mask_ds, setup_path, factor,
+    #                                                                              min_sc, max_sc, finish_interrupted)
+    #     submit_jobs(n_job, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds,
+    #                 setup_path, factor=factor, min_sc=min_sc, max_sc=max_sc)
 
     elif action == "inference":
-        single_job_inference(n_job, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds,
-                             setup_path, factor=factor, min_sc=min_sc, max_sc=max_sc)
+        single_job_inference(n_job, raw_data_path, iteration, raw_ds,
+                             setup_path, factor=factor, min_sc=min_sc, max_sc=max_sc, float_range=float_range,
+                             safe_scale=safe_scale, n_cpus=n_cpus)
