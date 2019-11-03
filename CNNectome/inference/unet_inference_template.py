@@ -63,12 +63,12 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
             )
 
     scale = (factor / (float(max_sc) - float(min_sc))) * 2.
-    shift = (- scale * (float(min_sc) / factor)) * 2. - 1
+    shift = - scale * (float(min_sc) / factor)  - 1
 
     return factor, scale, shift
 
 
-def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, setup_path, factor,
+def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, setup_path, factor,
                            min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
     assert os.path.exists(setup_path), "Path to experiment directory does not exist"
     sys.path.append(setup_path)
@@ -87,67 +87,71 @@ def prepare_cell_inference(raw_data_path, iteration, n_jobs, raw_ds, mask_ds, se
     assert raw_ds in rf, "Raw data not present in N5 dataset"
     assert mask_ds in rf, "Mask data not present in N5 dataset"
     shape_vc = rf[raw_ds].shape
-
-    net_name, input_shape_vc, output_shape_vc = unet_template.build_net(steps=unet_template.steps_inference,
-                                                                        mode="inference")
-    voxel_size_input = unet_template.voxel_size_input
-    voxel_size_output = unet_template.voxel_size
-
-    output_shape_wc = Coordinate(output_shape_vc) * voxel_size_output
-    chunk_shape_vc = output_shape_vc
-    chunk_shape_wc = Coordinate(output_shape_vc) * voxel_size_output
-
-    full_shape_wc = Coordinate(shape_vc) * voxel_size_input
-    full_shape_vc_output = full_shape_wc / voxel_size_output
-
     output_dir, out_file = get_output_paths(raw_data_path, setup_path)
 
-    # offset file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/offsets_volumes_masks_foreground_shape180x180x180.json"
-    offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(mask_ds.replace("/", "_"), *output_shape_wc)
-    offset_file = os.path.join(output_dir, offset_filename)
-
-    # prepare datasets
-    factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
-
-    f = z5py.File(out_file, use_zarr_format=False)
-    for label in unet_template.labels:
-        f.require_dataset(label.labelname, shape=full_shape_vc_output, compression="gzip", dtype="uint8",
-                          chunks=chunk_shape_vc)
-        f[label.labelname].attrs["resolution"] = tuple(voxel_size_output)
-        f[label.labelname].attrs["offset"] = (0, 0, 0)
-        f[label.labelname].attrs["raw_data_path"] = raw_data_path
-        f[label.labelname].attrs["raw_ds"] = raw_ds
-        f[label.labelname].attrs["iteration"] = iteration
-        f[label.labelname].attrs["raw_scale"] = scale
-        f[label.labelname].attrs["raw_shift"] = shift
-        f[label.labelname].attrs["raw_normalize_factor"] = factor
-        f[label.labelname].attrs["float_range"] = float_range
-        f[label.labelname].attrs["safe_scale"] = safe_scale
-
-    if not os.path.exists(offset_file) and not finish_interrupted:
-        generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
-
     if not finish_interrupted:
+        net_name, input_shape_vc, output_shape_vc = unet_template.build_net(steps=unet_template.steps_inference,
+                                                                        mode="inference")
+        voxel_size_input = unet_template.voxel_size_input
+        voxel_size_output = unet_template.voxel_size
+
+        output_shape_wc = Coordinate(output_shape_vc) * voxel_size_output
+        chunk_shape_vc = output_shape_vc
+        chunk_shape_wc = Coordinate(output_shape_vc) * voxel_size_output
+
+        full_shape_wc = Coordinate(shape_vc) * voxel_size_input
+        full_shape_vc_output = full_shape_wc / voxel_size_output
+
+
+        # offset file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/offsets_volumes_masks_foreground_shape180x180x180.json"
+        offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(mask_ds.replace("/", "_"), *output_shape_wc)
+        offset_file = os.path.join(output_dir, offset_filename)
+
+        # prepare datasets
+        factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
+
+        f = z5py.File(out_file, use_zarr_format=False)
+        for label in unet_template.labels:
+            f.require_dataset(label.labelname, shape=full_shape_vc_output, compression="gzip", dtype="uint8",
+                          chunks=chunk_shape_vc)
+            f[label.labelname].attrs["resolution"] = tuple(voxel_size_output)[::-1]
+            f[label.labelname].attrs["offset"] = (0, 0, 0)
+            f[label.labelname].attrs["raw_data_path"] = raw_data_path
+            f[label.labelname].attrs["raw_ds"] = raw_ds
+            f[label.labelname].attrs["iteration"] = iteration
+            f[label.labelname].attrs["raw_scale"] = scale
+            f[label.labelname].attrs["raw_shift"] = shift
+            f[label.labelname].attrs["raw_normalize_factor"] = factor
+            f[label.labelname].attrs["float_range"] = float_range
+            f[label.labelname].attrs["safe_scale"] = safe_scale
+
+        if not os.path.exists(offset_file):
+            generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
+
         with open(offset_file, 'r') as f:
             offset_list = json.load(f)
         offset_list_from_precomputed(offset_list, list(range(n_jobs)), out_file)
+
+        shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(unet_template.steps_inference))
+        if not os.path.exists(shapes_file):
+            shapes = {"input_shape_vc":  tuple(int(isv) for isv in input_shape_vc),
+                      "output_shape_vc": tuple(int(osv) for osv in output_shape_vc),
+                      "chunk_shape_vc":  tuple(int(csv) for csv in chunk_shape_vc)}
+            with open(shapes_file, "w") as f:
+                json.dump(shapes, f)
+        return input_shape_vc, output_shape_vc, chunk_shape_vc
+
     else:
         redistribute_offset_lists(list(range(n_jobs)), out_file)
+        return 0
 
-    shapes_file = os.path.join(setup_path, "shapes_steps{0:}".format(unet_template.steps_inference))
-    shapes = {"input_shape_vc": input_shape_vc,
-              "output_shape_vc": output_shape_vc,
-              "chunk_shape_vc": chunk_shape_vc}
-    with open(shapes_file, "w") as f:
-        json.dump(shapes, f)
-    return input_shape_vc, output_shape_vc, chunk_shape_vc
 
 
 def preprocess(data, scale=2, shift=-1., factor=None):
     return clip(scale_shift(normalize(data, factor=factor), scale, shift))
 
 
-def single_job_inference(raw_data_path, iteration, job_no, raw_ds, setup_path, factor=None, min_sc=None, max_sc=None,
+def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, factor=None, min_sc=None, max_sc=None,
                          float_range=(-1, 1), safe_scale=False, n_cpus=5):
     sys.path.append(setup_path)
     import unet_template
@@ -163,7 +167,7 @@ def single_job_inference(raw_data_path, iteration, job_no, raw_ds, setup_path, f
     with open(net_io_json, "r") as f:
         net_io_names = json.load(f)
 
-    shapes_file = os.path.join(setup_path, "shapes_steps{0:}".format(unet_template.steps_inference))
+    shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(unet_template.steps_inference))
     with open(shapes_file, "r") as f:
         shapes = json.load(f)
     input_shape_vc, output_shape_vc, chunk_shape_vc = \
@@ -179,7 +183,7 @@ def single_job_inference(raw_data_path, iteration, job_no, raw_ds, setup_path, f
 
     for label in unet_template.labels:
         network_output_keys.append(net_io_names[label.labelname])
-        dataset_target_keys.append(net_io_names[label.labelname])
+        dataset_target_keys.append(label.labelname)
 
     voxel_size_input = unet_template.voxel_size_input
     voxel_size_output = unet_template.voxel_size
@@ -244,10 +248,12 @@ if __name__ == "__main__":
     parser.add_argument("--float_range", type=int, nargs="+", default=(-1, 1))
     parser.add_argument("--safe_scale", type=bool, default=False)
     args = parser.parse_args()
+    print(args)
     action = args.action
     raw_data_path = args.raw_data_path
     iteration = args.iteration
     n_job = args.n_job
+    n_cpus = args.n_cpus
     raw_ds = args.raw_ds
     mask_ds = args.mask_ds
     setup_path = args.setup_path
