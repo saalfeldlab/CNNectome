@@ -80,7 +80,6 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
     assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.meta".format(iteration)))
     assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.index".format(iteration)))
     assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.data-00000-of-00001".format(iteration)))
-    assert os.path.exists(os.path.join(setup_path, "unet_inference.meta"))
     assert os.path.exists(os.path.join(setup_path, "net_io_names.json"))
 
     rf = z5py.File(raw_data_path, use_zarr_format=False)
