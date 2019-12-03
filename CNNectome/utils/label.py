@@ -2,7 +2,6 @@ import collections
 import z5py
 from gunpowder import ArrayKey
 
-
 class N5Dataset(object):
     def __init__(
         self,
@@ -33,6 +32,8 @@ class Label(object):
         scale_key=None,
         add_constant=None,
         separate_labelset=False,
+        frac_pos = 0.5,
+        frac_neg = 0.5
         # data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
         # data_sources=None,
     ):
@@ -56,6 +57,8 @@ class Label(object):
         self.mask_key = ArrayKey("MASK_" + self.labelname.upper())
         self.scale_loss = scale_loss
         self.add_constant = add_constant
+        self.frac_pos = frac_pos
+        self.frac_neg = frac_neg
         # self.data_dir = data_dir
         # self.data_sources = data_sources
         # self.total_voxels = compute_total_voxels(self.data_dir, self.data_sources)
