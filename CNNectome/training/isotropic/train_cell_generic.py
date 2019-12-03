@@ -43,6 +43,7 @@ def train_until(
     loss_name,
     db_username,
     db_password,
+    balance_global=False,
     db_name="crops",
     completion_min=6,
     dt_scaling_factor=50,
@@ -383,11 +384,19 @@ def train_until(
         pipeline += TanhSaturate(label.gt_dist_key, dt_scaling_factor)
 
     for label in label_filter(lambda l: l.scale_loss):
-        pipeline += BalanceByThreshold(
-            label.gt_dist_key,
-            label.scale_key,
-            mask=(label.mask_key, ak_mask)
-        )
+        if balance_global:
+            pipeline += BalanceGlobalByThreshold(
+                label.gt_dist_key,
+                label.scale_key,
+                label.frac_pos,
+                label.frac_neg
+            )
+        else:
+            pipeline += BalanceByThreshold(
+                label.gt_dist_key,
+                label.scale_key,
+                mask=(label.mask_key, ak_mask)
+                )
     pipeline += Sum([l.mask_key for l in labels], ak_labelmasks_comb, sum_array_spec=ArraySpec(
                     dtype=np.uint8, interpolatable=False))
     pipeline += Reject(ak_labelmasks_comb, min_masked=one_vx_thr)
