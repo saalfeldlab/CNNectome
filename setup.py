@@ -44,6 +44,7 @@ EXTRAS = {
         "luigi"
     ],  # also needs simpleference, which is not installable via pip
     "malis_loss": ["malis @ git+https://github.com/neptunes5thmoon/malis@fix_setup"],
+    "napari": [ "napari" ],
 }
 
 DEPENDENCY_LINKS = [
