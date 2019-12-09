@@ -10,6 +10,7 @@ import json
 import time
 import z5py
 import functools
+import logging
 from gunpowder import Coordinate
 
 
