@@ -1,5 +1,4 @@
 import sys
-sys.path.append("/groups/saalfeld/home/heinrichl/dev/simpleference")
 from simpleference.inference.inference import run_inference_n5_multi_crop
 from simpleference.inference.util import *
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict
