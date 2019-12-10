@@ -8,9 +8,10 @@ import argparse
 import os
 import json
 import time
-import z5py
+import zarr
 import functools
 import logging
+import numcodecs
 from gunpowder import Coordinate
 
 
@@ -82,7 +83,7 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
     assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.data-00000-of-00001".format(iteration)))
     assert os.path.exists(os.path.join(setup_path, "net_io_names.json"))
 
-    rf = z5py.File(raw_data_path, use_zarr_format=False)
+    rf = zarr.open(raw_data_path, mode="r")
     assert raw_ds in rf, "Raw data not present in N5 dataset"
     assert mask_ds in rf, "Mask data not present in N5 dataset"
     shape_vc = rf[raw_ds].shape
@@ -109,20 +110,23 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
         # prepare datasets
         factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
 
-        f = z5py.File(out_file, use_zarr_format=False)
+        f = zarr.open(out_file)
         for label in unet_template.labels:
-            f.require_dataset(label.labelname, shape=full_shape_vc_output, compression="gzip", dtype="uint8",
-                          chunks=chunk_shape_vc)
-            f[label.labelname].attrs["resolution"] = tuple(voxel_size_output)[::-1]
-            f[label.labelname].attrs["offset"] = (0, 0, 0)
-            f[label.labelname].attrs["raw_data_path"] = raw_data_path
-            f[label.labelname].attrs["raw_ds"] = raw_ds
-            f[label.labelname].attrs["iteration"] = iteration
-            f[label.labelname].attrs["raw_scale"] = scale
-            f[label.labelname].attrs["raw_shift"] = shift
-            f[label.labelname].attrs["raw_normalize_factor"] = factor
-            f[label.labelname].attrs["float_range"] = float_range
-            f[label.labelname].attrs["safe_scale"] = safe_scale
+            if label.labelname not in f:
+                ds = f.empty(name=label.labelname, shape=full_shape_vc_output, compressor=numcodecs.GZip(6),
+                             dtype="uint8", chunks=chunk_shape_vc)
+            else:
+                ds = f[label.labelname]
+            ds.attrs["resolution"] = tuple(voxel_size_output)[::-1]
+            ds.attrs["offset"] = (0, 0, 0)
+            ds.attrs["raw_data_path"] = raw_data_path
+            ds.attrs["raw_ds"] = raw_ds
+            ds.attrs["iteration"] = iteration
+            ds.attrs["raw_scale"] = scale
+            ds.attrs["raw_shift"] = shift
+            ds.attrs["raw_normalize_factor"] = factor
+            ds.attrs["float_range"] = float_range
+            ds.attrs["safe_scale"] = safe_scale
 
         if not os.path.exists(offset_file):
             generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
@@ -157,7 +161,7 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, f
 
     output_dir, out_file = get_output_paths(raw_data_path, setup_path)
 
-    rf = z5py.File(raw_data_path, use_zarr_format=False)
+    rf = zarr.open(raw_data_path)
     shape_vc = rf[raw_ds].shape
     weight_meta_graph = os.path.join(setup_path, "unet_train_checkpoint_{0:}".format(iteration))
     inference_meta_graph = os.path.join(setup_path, "unet_inference")
