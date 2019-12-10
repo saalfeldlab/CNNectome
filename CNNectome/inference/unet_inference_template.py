@@ -144,9 +144,16 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
                 json.dump(shapes, f)
         return input_shape_vc, output_shape_vc, chunk_shape_vc
 
-    else:
+    p_proc = re.compile("list_gpu_\d+_\S+_processed.txt")
+    print(any([p_proc.match(f) is not None for f in os.listdir(out_file)]))
+    if any([p_proc.match(f) is not None for f in os.listdir(out_file)]):
+        print("Redistributing offset lists over {0:} jobs".format(n_jobs))
         redistribute_offset_lists(list(range(n_jobs)), out_file)
-        return 0
+    else:
+        with open(offset_file, 'r') as f:
+            offset_list = json.load(f)
+            offset_list_from_precomputed(offset_list, list(range(n_jobs)), out_file)
+    return input_shape_vc, output_shape_vc, chunk_shape_vc
 
 
 
@@ -160,8 +167,14 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, f
     import unet_template
 
     output_dir, out_file = get_output_paths(raw_data_path, setup_path)
+    offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(job_no))
+    if not os.path.exists(offset_file):
+        return
 
-    rf = zarr.open(raw_data_path)
+    with open(offset_file, 'r') as f:
+        offset_list = json.load(f)
+
+    rf = zarr.open(raw_data_path, mode="r")
     shape_vc = rf[raw_ds].shape
     weight_meta_graph = os.path.join(setup_path, "unet_train_checkpoint_{0:}".format(iteration))
     inference_meta_graph = os.path.join(setup_path, "unet_inference")
