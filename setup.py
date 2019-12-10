@@ -28,7 +28,7 @@ REQUIRED = [
     "scipy",
     "cython",
     "h5py",
-    "zarr",
+    "zarr @ git+https://github.com/zarr-developers/zarr@master",
     "joblib",
     "scikit-image",
     "matplotlib",
@@ -53,7 +53,8 @@ DEPENDENCY_LINKS = [
     "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
     "git+https://github.com/neptunes5thmoon/fuse.git@my_pipinstallable_version#egg=fuse",
     "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
-    "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=neptunes5thmoon-simpleference"
+    "git+https://github.com/zarr-developers/zarr.git@master#egg=zarr",
+    "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=simpleference[zarr]"
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))
