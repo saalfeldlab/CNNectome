@@ -219,7 +219,7 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, f
 
     factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
 
-    run_inference_n5_multi_crop(
+    run_inference_zarr_multi_crop(
         prediction,
         functools.partial(preprocess, factor=1./factor, scale=scale, shift=shift),
         functools.partial(clip_float_to_uint8, float_range=float_range, safe_scale=safe_scale),
