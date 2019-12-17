@@ -1,5 +1,5 @@
 import sys
-from simpleference.inference.inference import run_inference_n5_multi_crop
+from simpleference.inference.inference import run_inference_zarr_multi_crop
 from simpleference.inference.util import *
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict
 from simpleference.backends.gunpowder.preprocess import normalize, clip, scale_shift
