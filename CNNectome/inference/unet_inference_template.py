@@ -131,10 +131,6 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
         if not os.path.exists(offset_file):
             generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
 
-        with open(offset_file, 'r') as f:
-            offset_list = json.load(f)
-        offset_list_from_precomputed(offset_list, list(range(n_jobs)), out_file)
-
         shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(unet_template.steps_inference))
         if not os.path.exists(shapes_file):
             shapes = {"input_shape_vc":  tuple(int(isv) for isv in input_shape_vc),
@@ -142,7 +138,6 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
                       "chunk_shape_vc":  tuple(int(csv) for csv in chunk_shape_vc)}
             with open(shapes_file, "w") as f:
                 json.dump(shapes, f)
-        return input_shape_vc, output_shape_vc, chunk_shape_vc
 
     p_proc = re.compile("list_gpu_\d+_\S+_processed.txt")
     print(any([p_proc.match(f) is not None for f in os.listdir(out_file)]))
@@ -188,10 +183,6 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, f
         shapes = json.load(f)
     input_shape_vc, output_shape_vc, chunk_shape_vc = \
         shapes["input_shape_vc"], shapes["output_shape_vc"], shapes["chunk_shape_vc"]
-
-    offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(job_no))
-    with open(offset_file, 'r') as f:
-        offset_list = json.load(f)
 
     input_key = net_io_names["raw"]
     network_output_keys = []
