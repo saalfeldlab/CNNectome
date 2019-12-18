@@ -58,7 +58,7 @@ def plot_param(param_settings, plot_by_field="seg", fields_to_plot="fscore 0"):
                     [float(x) for x in i],
                     "o",
                 )
-        plt.gca().set_color_cycle(None)
+        plt.gca().set_prop_cycle(None)
         # plt.gca().set_xticks([(field_idx+1)*dist+x-0.5 for x in xrange(0, len(i))])
         plt.xticks([])
     plt.legend()
