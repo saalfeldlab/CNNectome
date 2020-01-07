@@ -5,7 +5,7 @@ import itertools
 import json
 import os
 import sys
-import z5py
+import zarr
 
 
 class Clefts:
@@ -106,8 +106,7 @@ def run_evaluation(experiment_name):
         val_ds = "volumes/masks/validation"
         train_ds = "volumes/masks/training"
         truth = h5py.File(truth_path, "r")[truth_ds]
-        # mask_train = z5py.File(mask_path, use_zarr_format=False)[train_ds]
-        mask_val = z5py.File(mask_path, use_zarr_format=False)[val_ds]
+        mask_val = zarr.open(mask_path, mode="r")[val_ds]
         mask_val = np.array(mask_val[:].astype(np.bool))
         x_min, x_max, y_min, y_max, z_min, z_max = bbox2_ND(mask_val)
         s_val = np.s_[z_min : z_max + 1, y_min : y_max + 1, x_min : x_max + 1]
@@ -137,7 +136,7 @@ def run_evaluation(experiment_name):
                 )
                 test_ds = "it_{0:}".format(iteration)
                 print(test_path, test_ds)
-                test = z5py.File(test_path, use_zarr_format=False)[test_ds]
+                test = zarr.open(test_path, mode="r")[test_ds]
                 thr = 127
                 test_val = test[s_val]
                 test_val = test_val > thr
