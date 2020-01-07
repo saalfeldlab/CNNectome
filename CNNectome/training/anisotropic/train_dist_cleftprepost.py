@@ -106,7 +106,7 @@ def train_until(
         logging.info("Starting fresh training")
     for sample in samples:
         logging.info("Adding sample {0:}".format(sample))
-        n5_source = N5Source(
+        n5_source = ZarrSource(
             os.path.join(cremi_dir, n5_filename_format.format(sample)),
             datasets={
                 ArrayKeys.RAW: "volumes/raw",

@@ -7,9 +7,6 @@ import math
 import json
 import sys
 
-print("syspath", sys.path)
-import z5py
-
 
 def train_until(
     max_iteration,
@@ -77,7 +74,7 @@ def train_until(
         trained_until = 0
         print("Starting fresh training")
     for src in data_sources:
-        n5_source = N5Source(
+        n5_source = ZarrSource(
             os.path.join(data_dir.format(src)),
             datasets={
                 ArrayKeys.RAW_UP: "volumes/raw",

@@ -8,9 +8,6 @@ import json
 import sys
 import logging
 
-print("syspath", sys.path)
-import z5py
-
 
 class Label(object):
     def __init__(self, labelname, labelid, scale_loss=True, scale_key=None):
@@ -55,7 +52,7 @@ def train_until(
         trained_until = 0
         print("Starting fresh training")
     for src in data_sources:
-        n5_source = N5Source(
+        n5_source = ZarrSource(
             os.path.join(data_dir.format(src)),
             datasets={
                 ArrayKeys.RAW: "volumes/raw",

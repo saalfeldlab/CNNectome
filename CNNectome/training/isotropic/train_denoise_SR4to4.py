@@ -5,8 +5,6 @@ import tensorflow as tf
 import os
 import math
 import json
-import sys
-import z5py
 
 
 def train_until(
@@ -44,7 +42,7 @@ def train_until(
 
     # construct DAG
     for src in data_sources:
-        n5_source = N5Source(
+        n5_source = ZarrSource(
             data_dir.format(src), datasets={ArrayKeys.RAW: "volumes/raw"}
         )
         data_providers.append(n5_source)
