@@ -76,14 +76,14 @@ class Predict(luigi.Task):
         completed = []
         for de in self.data_eval:
             for s in self.samples:
-                srcf = z5py.File(src.format(de, s), use_zarr_format=False)
+                srcf = zarr.open(src.format(de, s), mode="r")
                 shape = srcf["volumes/raw"].shape
-                tgtf = z5py.File(tgt.format(de, s), use_zarr_format=False)
+                tgtf = zarr.open(tgt.format(de, s), mode="a")
                 if not os.path.exists(os.path.join(tgt.format(de, s), "clefts")):
-                    tgtf.create_dataset(
-                        "clefts",
+                    tgtf.empty(
+                        name="clefts",
                         shape=shape,
-                        compression="gzip",
+                        compressor=numcodecs.GZip(6),
                         dtype="uint8",
                         chunks=output_shape,
                     )
@@ -94,10 +94,10 @@ class Predict(luigi.Task):
                     else:
                         completed.append(False)
                 if not os.path.exists(os.path.join(tgt.format(de, s), "pre_dist")):
-                    tgtf.create_dataset(
-                        "pre_dist",
+                    tgtf.empty(
+                        name="pre_dist",
                         shape=shape,
-                        compression="gzip",
+                        compressor=numcodecs.GZip(6),
                         dtype="uint8",
                         chunks=output_shape,
                     )
@@ -110,10 +110,10 @@ class Predict(luigi.Task):
 
                 if not os.path.exists(os.path.join(tgt.format(de, s), "post_dist")):
 
-                    tgtf.create_dataset(
-                        "post_dist",
+                    tgtf.empty(
+                        name="post_dist",
                         shape=shape,
-                        compression="gzip",
+                        compressor=numcodecs.GZip(6),
                         dtype="uint8",
                         chunks=output_shape,
                     )

@@ -2,7 +2,8 @@ import luigi
 import os
 import numpy as np
 import scipy.ndimage
-import z5py
+import zarr
+import numcodecs
 from threshold_luigi import Threshold
 
 
@@ -41,7 +42,7 @@ class ConnectedComponents(luigi.Task):
         self.set_progress_percentage(progress)
         for s in self.samples:
             filename = os.path.join(os.path.dirname(self.input().fn), s + ".n5")
-            f = z5py.File(filename, use_zarr_format=False)
+            f = zarr.open(filename, mode="a")
             assert (
                 f[dataset_src.format(thr_high)].attrs["offset"]
                 == f[dataset_src.format(thr_low)].attrs["offset"]
@@ -50,10 +51,10 @@ class ConnectedComponents(luigi.Task):
                 f[dataset_src.format(thr_high)].shape
                 == f[dataset_src.format(thr_low)].shape
             )
-            f.create_dataset(
-                dataset_tgt,
+            f.empty(
+                name=dataset_tgt,
                 shape=f[dataset_src.format(thr_high)].shape,
-                compression="gzip",
+                compressor=numcodecs.GZip(6),
                 dtype="uint64",
                 chunks=f[dataset_src.format(thr_high)].chunks,
             )

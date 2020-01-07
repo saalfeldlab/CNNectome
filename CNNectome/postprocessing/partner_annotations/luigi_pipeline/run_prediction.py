@@ -1,13 +1,9 @@
 import os
 import sys
-
-sys.path.append("/groups/saalfeld/home/papec/Work/my_projects/z5/bld27/python")
-sys.path.append("/groups/saalfeld/home/heinrichl/Projects/simpleference")
 import time
 import json
-import z5py
 from functools import partial
-from simpleference.inference.inference import run_inference_n5
+from simpleference.inference.inference import run_inference_zarr
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict
 from simpleference.backends.gunpowder.preprocess import preprocess
 from simpleference.postprocessing import *
@@ -54,7 +50,7 @@ def single_gpu_inference(data_train, augmentation, data_eval, samples, gpu, iter
             offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(gpu))
             with open(offset_file, "r") as f:
                 offset_list = json.load(f)
-            run_inference_n5(
+            run_inference_zarr(
                 prediction,
                 preprocess,
                 partial(clip_float_to_uint8, safe_scale=False, float_range=(-1, 1)),

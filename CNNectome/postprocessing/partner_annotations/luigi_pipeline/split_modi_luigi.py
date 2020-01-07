@@ -1,8 +1,6 @@
 import luigi
 import os
-import shutil
-import z5py
-import h5py
+import zarr
 import numpy as np
 from cremi.io import CremiFile
 from find_partners_luigi import FindPartners
@@ -59,7 +57,7 @@ class SplitModi(luigi.Task):
             # shutil.copy(filename, filename_tgt)
             f = CremiFile(filename, "a")
             g = CremiFile(filename_tgt, "a")
-            maskf = z5py.File(mask_filename, use_zarr_format=False)
+            maskf = zarr.open(mask_filename, mode="r")
             mask = maskf[mask_dataset]
             off = mask.attrs["offset"]
             res = mask.attrs["resolution"]

@@ -4,7 +4,8 @@ import numpy as np
 from scipy import ndimage
 import h5py
 import json
-import z5py
+import zarr
+import numcodecs
 from threshold_luigi import Threshold
 
 # d OUTSIDE
@@ -124,17 +125,17 @@ class CleftReport(luigi.Task):
                 s + ".n5",
             )
             test = np.array(
-                z5py.File(testfile, use_zarr_format=False)[
+                zarr.open(testfile, mode="r")[
                     "clefts_cropped_thr" + str(thr)
                 ][:]
             )
             truth = np.array(
-                z5py.File(truthfile, use_zarr_format=False)[
+                zarr.open(truthfile, mode="r")[
                     "volumes/labels/clefts_cropped"
                 ][:]
             )
             mask = np.array(
-                z5py.File(truthfile, use_zarr_format=False)[
+                zarr.open(truthfile, mode="r")[
                     "volumes/masks/" + self.m + "_cropped"
                 ][:]
             )

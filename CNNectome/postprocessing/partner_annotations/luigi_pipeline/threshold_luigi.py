@@ -1,7 +1,8 @@
 import luigi
 import os
 import numpy as np
-import z5py
+import zarr
+import numcodecs
 from crop_luigi import Crop
 
 
@@ -37,12 +38,12 @@ class Threshold(luigi.Task):
             filename = os.path.join(os.path.dirname(self.input().fn), s + ".n5")
             dataset_src = "clefts_cropped"
             dataset_tgt = "clefts_cropped_thr{0:}"
-            f = z5py.File(filename, use_zarr_format=False)
+            f = zarr.open(filename, mode="a")
             for t in thrs:
-                f.create_dataset(
-                    dataset_tgt.format(t),
+                f.empty(
+                    name=dataset_tgt.format(t),
                     shape=f[dataset_src].shape,
-                    compression="gzip",
+                    compressor=numcodecs.GZip(6),
                     dtype="uint8",
                     chunks=f[dataset_src].chunks,
                 )

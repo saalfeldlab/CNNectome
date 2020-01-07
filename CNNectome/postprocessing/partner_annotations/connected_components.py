@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import os
 import numpy as np
 import scipy.ndimage
@@ -6,17 +7,15 @@ import logging
 
 
 def cc(filename_src, dataset_src, filename_tgt, dataset_tgt):
-    srcf = z5py.File(filename_src, use_zarr_format=False)
+    srcf = zarr.open(filename_src, mode="r")
     if not os.path.exists(filename_tgt):
         os.makedirs(filename_tgt)
-    tgtf = z5py.File(filename_tgt, use_zarr_format=False)
-    tgtf.create_dataset(
-        dataset_tgt,
-        shape=srcf[dataset_src].shape,
-        compression="gzip",
-        dtype="uint64",
-        chunks=srcf[dataset_src].chunks,
-    )
+    tgtf = zarr.open(filename_tgt, mode="a")
+    tgtf.empty(name=dataset_tgt,
+               shape=srcf[dataset_src].shape,
+               compressor=numcodecs.GZip(6),
+               dtype="uint64",
+               chunks=srcf[dataset_src].chunks)
     data = np.array(srcf[dataset_src][:])
     tgt = np.ones(data.shape, dtype=np.uint64)
     maxid = scipy.ndimage.label(data, output=tgt)
@@ -60,4 +59,9 @@ def run():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    run()
+    # run()
+    filepath = "/nrs/saalfeld/heinrichl/synapses/cremi_all/cremi_all_0116_01/prediction_cremi_warped_sampleB_200000.n5"
+    dataset = "syncleft_dist_thr0.0"
+    dataset_tgt = dataset + "_cc"
+    filepath_tgt = "/groups/saalfeld/home/heinrichl/Desktop/test.n5"
+    cc(filepath, dataset, filepath_tgt, dataset_tgt)
