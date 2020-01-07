@@ -1,5 +1,5 @@
 import h5py
-import z5py
+import zarr
 import numpy as np
 import os
 import sys
@@ -231,7 +231,7 @@ def main(large_h5, patterns_h5, axis_orders=[(0, 1, 2)]):
     # test()
 
     # read dense gt
-    lds_f = z5py.File(large_h5[0], use_zarr_format=False)
+    lds_f = zarr.open(large_h5[0], mode="r")
     large_ds = lds_f[large_h5[1]]
 
     patterns_ds = []

@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import h5py
 import numpy as np
 import collections
@@ -21,8 +22,8 @@ def multiple_inputs(func):
 
 def add_ds(target, name, shape, dtype, chunks, resolution, offset, **kwargs):
     logging.info("Preparing dataset {0:} in {1:}".format(name, target.path))
-    ds = target.require_dataset(
-        name, shape=shape, chunks=chunks, dtype=dtype, compression="gzip"
+    ds = target.empty(
+        name=name, shape=shape, chunks=chunks, dtype=dtype, compressor=numcodecs.GZip(6)
     )
     ds.attrs["resolution"] = resolution
     ds.attrs["offset"] = offset
@@ -515,10 +516,10 @@ def main_multiscale(
 def generate_integral_mask(
     crop, offset, mask_ds_name="volumes/masks/training", datestr="061719"
 ):
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/{2:}.n5".format(
             datestr, offset, crop
-        )
+        ), mode="a"
     )
     mask_ds = target[mask_ds_name]
     target_ds_name = mask_ds_name + "_integral"
@@ -541,11 +542,11 @@ def main_multiscale_crop1(labels, offset, datestr="061719"):
         "/Cell2_Crop1_2000x2000x1800+5716-525-250_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop1.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a"
     )
     # mapping = np.array([0, 4, 3, 10, 16, 2, 1, 1, 17, 11, 8, 30, 18, 19, 35, 9])
     # [0, mito lumen, mito membrane, MVB membrane, er membrane, plasma membrane, ECS, ECS, er lumen, MVB lumen,
@@ -564,11 +565,11 @@ def main_multiscale_crop3(labels, offset, datestr="061719"):
         "/HeLa_Cell2_Crop3_1900x1900x1800+7050-550+3224_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop3.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 16, 10, 2, 3, 8, 30, 17, 4, 11, 9, 18, 35, 1, 5, 19, 12, 13])
     # [0, er membrane, MVB membrane, plasma membrane, mito membrane, vesicle membrane, microtubules, er lumen,
@@ -588,11 +589,11 @@ def main_multiscale_crop4(labels, offset, datestr="061719"):
         "/HeLa_Cell2_Crop4_1800x1800x1800+5350-550+1956_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop4.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a"
     )
     # mapping = np.array([0, 20, 24, 10, 30, 28, 22, 23, 6, 35, 16, 7, 13, 11, 17, 21, 33, 32, 8, 9, 12])
     # [0, NE membrane, HChrom , MVB membrane, microtubules, nucleoplasm, nuclear pore outside, nuclear pore inside,
@@ -626,11 +627,11 @@ def main_multiscale_crop6(labels, offset, datestr="061719"):
         "/Cell2_Crop6_1800x1800x1800+2245-375+2224_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop6.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a"
     )
     # mapping = np.array([30, 16, 17, 3, 4, 10, 11, 35, 18, 19, 30])
     # [0, er membrane, er lumen, mito membrane, mito lumen, MVB membrane, MVB lumen, cytosol, ERES membrane,
@@ -649,11 +650,11 @@ def main_multiscale_crop7(labels, offset, datestr="061719"):
         "/Cell2_Crop7_1800x1800x1800+7530-510-860_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop7.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a"
     )
     # mapping = np.array([0, 2, 2, 1, 35, 35, 30, 8, 9, 3, 4])
     # [0, plasma membrane, plasma membrane, ECS, cytosol, cytosol, microtubules, vesicle membrane, vesicle lumen,
@@ -672,11 +673,11 @@ def main_multiscale_crop8(labels, offset, datestr="061719"):
         "/Cell2_Crop8_1800x1800x1800+2585-520+399_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop8.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 16, 18, 19, 30, 35, 17, 8, 9, 10])
     # [0, er membrane, ERES membrane, ERES lumen, microtubules, cytosol, er lumen, vesicle membrane, vesicle lumen,
@@ -695,11 +696,11 @@ def main_multiscale_crop9(labels, offset, datestr="061719"):
         "/HeLa_Cell2_Crop9_1800x1800x1801+2050-430+735_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop9.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 18, 3, 4, 35, 16, 17, 19, 10, 11, 30, 8, 9])
     # [0, ERES membrane, mito membrane, mito lumen, cytosol, er membrane, er lumen, ERES lumen, MVB membrane,
@@ -718,11 +719,11 @@ def main_multiscale_crop13(labels, offset, datestr="061719"):
         "/HeLa_Cell2_Crop13_1800x1800x1800+4340-60+3087_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop13.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 16, 18, 19, 10, 11, 35, 30, 20, 21, 36, 28, 17, 8, 9])
     # [0, er membrane, ERES membrane, ERES lumen, MVB  membrane, MVB lumen, cytosol, microtubules, nuclear envelope
@@ -741,11 +742,11 @@ def main_multiscale_crop14(labels, offset, datestr="061719"):
         "/Cell2_Crop14_1800x1800x1801+5505-450+3548_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop14.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 16, 19, 18, 30, 35, 17, 8, 9])
     # [0, er membrane, ERES lumen, ERES membrane, microtubules, cytosol, er lumen, vesicle membrane, vesicle lumen]
@@ -763,11 +764,11 @@ def main_multiscale_crop15(labels, offset, datestr="061719"):
         "/Cell2_Crop15_1800x1800x1800+5305-380+3542_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop15.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 16, 17, 18, 19, 35, 30])
     # [0, er membrane, er lumen, ERES membrane, ERES lumen, cytosol, microtubules]
@@ -785,11 +786,11 @@ def main_multiscale_crop16(labels, offset, datestr="061719"):
         "/HeLa_Cell2_Crop16_1800x1800x1800+4410+310+1100_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop16.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     mapping = None
     min_ad = 89.0
@@ -812,11 +813,11 @@ def main_multiscale_crop18(labels, offset, datestr="061719"):
         "/Cell2_Crop18_1800x1800x1800+1110-600+2885_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop18.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 30, 35, 16, 17, 10, 11, 8, 9])
     # [0, microtubules, cytosol, er membrane, er lumen, MVB membrane, MVB lumen, vesicle membrane, vesicle lumen]
@@ -834,11 +835,11 @@ def main_multiscale_crop19(labels, offset, datestr="061719"):
         "/Cell2_Crop19_1800x1800x1801+6075-425+4062_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop19.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 16, 17, 14, 15, 30, 8, 9, 35])
     # [0, er membrane, er lumen, LD membrane, LD lumen, microtubules, vesicle membrane, vesicle lumen, cytosol]
@@ -856,11 +857,11 @@ def main_multiscale_crop20(labels, offset, datestr="061719"):
         "/Cell2_Crop20_1800x1800x1801+3905-55+4643_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop20.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 3, 4, 14, 15, 16, 17, 10, 11, 35])
     # [0, mito membrane, mito lumen, LD membrane, LD lumen, er membrane, er lumen, MVB membrane, MVB lumen, cytosol]
@@ -878,11 +879,11 @@ def main_multiscale_crop21(labels, offset, datestr="061719"):
         "/Cell2_Crop21_1800x1800x1801+3740-190+4703_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop21.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 3, 4, 16, 17, 14, 15, 35])
     # [0, mito membrane, mito lumen, er membrane, er lumen, LD membrane LD lumen, cytosol]
@@ -900,11 +901,11 @@ def main_multiscale_crop22(labels, offset, datestr="061719"):
         "/Cell2_Crop22_1800x1800x1800+3195-355+4530_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop22.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     # mapping = np.array([0, 35, 16, 17, 14, 15, 10, 11, 30])
     # [0, cytosol, er membrane, er lumen, LD membrane, LD lumen, MVB membrane, MVB lumen, microtubules]
@@ -922,11 +923,11 @@ def main_multiscale_crop31(labels, offset, datestr="061719"):
         "/Mac_Cell2_Crop31_1800x1800x1800+3195+0+8005_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop31.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     mapping = None
     min_ad = 0.75 * 255.0
@@ -942,11 +943,11 @@ def main_multiscale_crop33(labels, offset, datestr="061719"):
         "/HeLa_Cell3_Crop33_1800x1800x1800+2650-570+4850_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop33.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     mapping = None
     min_ad = 0.0
@@ -962,11 +963,11 @@ def main_multiscale_crop34(labels, offset, datestr="061719"):
         "/HeLa_Cell3_Crop34_1800x1800x1800+5870-150+5100_8nm.h5",
         "r",
     )
-    target = z5py.File(
+    target = zarr.open(
         "/groups/saalfeld/saalfeldlab/larissa/data/cell/multires/v{0:}_{1:}_8nm/crop34.n5".format(
             datestr, offset
         ),
-        use_zarr_format=False,
+        mode="a",
     )
     mapping = None
     min_ad = 0.0

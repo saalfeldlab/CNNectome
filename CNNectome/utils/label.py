@@ -1,5 +1,5 @@
 import collections
-import z5py
+import zarr
 from gunpowder import ArrayKey
 
 class N5Dataset(object):
@@ -97,11 +97,10 @@ def compute_total_voxels(data_dir, data_sources):
     voxels = 0
     if data_sources is not None:
         for ds in data_sources:
-            zf = z5py.File(ds.full_path, use_zarr_format=False)
+            zf = zarr.open(ds.full_path, mode="r")
             try:
                 for c in zf["volumes/labels/all"].attrs["orig_counts"]:
                     voxels += c
             except KeyError as e:
-                print(ds.filename)
                 raise e
     return voxels

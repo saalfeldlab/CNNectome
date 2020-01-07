@@ -1,14 +1,15 @@
 import logging
 import argparse
-import z5py
+import zarr
+import numcodecs
 import numpy as np
 import skimage.transform
 
 
 def add_ds(target, name, shape, dtype, chunks, resolution, offset, **kwargs):
     logging.info("Preparing dataset {0:} in {1:}".format(name, target.path))
-    ds = target.require_dataset(
-        name, shape=shape, chunks=chunks, dtype=dtype, compression="gzip"
+    ds = target.empty(
+        name=name, shape=shape, chunks=chunks, dtype=dtype, compressor=numcodecs.GZip(6)
     )
     ds.attrs["resolution"] = resolution
     ds.attrs["offset"] = offset
@@ -22,7 +23,7 @@ def generate_integral_mask(
     mask_ds_name="volumes/masks/training",
     target_mask_ds_name="volumes/masks/training_integral",
 ):
-    target = z5py.File(filename, use_zarr_format=False)
+    target = zarr.open(filename, mode="a")
     mask_ds = target[mask_ds_name]
     integral_mask_ds = add_ds(
         target,
