@@ -1,4 +1,4 @@
-import z5py
+import zarr, numcodecs
 import os
 import numpy as np
 
@@ -9,20 +9,14 @@ def sizefilter(
     filename_src, dataset_src, filename_tgt, dataset_tgt, thr, dat_file=None
 ):
 
-    srcf = z5py.File(filename_src, use_zarr_format=False)
+    srcf = zarr.open(filename_src, mode="r")
     if not os.path.exists(filename_tgt):
         os.makedirs(filename_tgt)
-    tgtf = z5py.File(filename_tgt, use_zarr_format=False)
-    grps = ""
-    for grp in dataset_tgt.split("/")[:-1]:
-        grps += grp
-        if not os.path.exists(os.path.join(filename_tgt, grps)):
-            tgtf.create_group(grps)
-        grps += "/"
-    tgtf.create_dataset(
-        dataset_tgt,
+    tgtf = zarr.open(filename_tgt, mode="a")
+    tgtf.empty(
+        name=dataset_tgt,
         shape=srcf[dataset_src].shape,
-        compression="gzip",
+        compressor=numcodecs.GZip(6),
         dtype="uint64",
         chunks=srcf[dataset_src].chunks,
     )

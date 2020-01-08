@@ -122,11 +122,11 @@ def train_until(
 
     for src in data_sources:
         if src not in ribo_sources:
-            n5_source = N5Source(
+            n5_source = ZarrSource(
                 src.full_path, datasets=datasets_no_ribo, array_specs=array_specs
             )
         else:
-            n5_source = N5Source(
+            n5_source = ZarrSource(
                 src.full_path, datasets=datasets_ribo, array_specs=array_specs
             )
 

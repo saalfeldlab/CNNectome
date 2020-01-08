@@ -341,8 +341,8 @@ class Matchmaker(object):
         num_cores=10,
         safe_mem=False,
     ):
-        self.synf = z5py.File(syn_file, use_zarr_format=False)
-        self.segf = z5py.File(seg_file, use_zarr_format=False)
+        self.synf = zarr.open(syn_file, mode="r")
+        self.segf = zarr.open(seg_file, mode="r")
         self.cleft_cc = self.synf[cleft_cc_ds]
         self.cleft_cc_np = self.synf[cleft_cc_ds][:]
         self.seg = self.segf[seg_ds]
@@ -362,7 +362,7 @@ class Matchmaker(object):
         self.cremi_file = cremi.CremiFile(tgt_file, "w")
         self.offset = offset
         if raw_file is not None:
-            self.rawf = z5py.File(raw_file, use_zarr_format=False)
+            self.rawf = zarr.open(raw_file, mode="r")
             self.raw = self.rawf[raw_ds]
         else:
             self.rawf = None

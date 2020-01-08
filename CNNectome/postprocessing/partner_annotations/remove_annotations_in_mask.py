@@ -3,7 +3,7 @@ import h5py
 import shutil
 import numpy as np
 import sys
-import z5py
+import zarr
 
 
 def remove_annotations_in_mask(filename, mask_filename, mask_ds):
@@ -11,7 +11,7 @@ def remove_annotations_in_mask(filename, mask_filename, mask_ds):
     if mask_filename.endswith(".h5") or mask_filename.endswith(".hdf"):
         maskfh = h5py.File(mask_filename, "r")
     else:
-        maskfh = z5py.File(mask_filename, use_zarr_format=False)
+        maskfh = zarr.open(mask_filename, mode="r")
     mask = maskfh[mask_ds]
     off = mask.attrs["offset"]
     res = mask.attrs["resolution"]

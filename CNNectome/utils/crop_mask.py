@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import itertools
 import numpy as np
 
@@ -24,7 +25,7 @@ def crop_mask(
         )
     )
     # open file
-    zf = z5py.File(filename, use_zarr_format=False)
+    zf = zarr.open(filename, mode="a")
     # read mask
     ds = zf[mask_ds]
     mask = ds[:]
@@ -45,10 +46,10 @@ def crop_mask(
     mask_cropped = mask[sl]
     print("shape", mask_cropped.shape)
     # save
-    zf.require_dataset(
-        target_ds,
+    zf.empty(
+        name=target_ds,
         shape=mask_cropped.shape,
-        compression="gzip",
+        compressor=numcodecs.GZip(6),
         dtype=mask_cropped.dtype,
         chunks=ds.chunks,
     )

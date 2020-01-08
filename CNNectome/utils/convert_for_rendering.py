@@ -1,7 +1,8 @@
-import z5py
 import h5py
 import numpy as np
 import collections
+import zarr
+import numcodecs
 
 TRANSPARENT = 18446744073709551615
 
@@ -11,13 +12,13 @@ def add_ds_combined(
 ):
     if name not in target:
         print("Writing dataset {0:} to {1:}".format(name, target.path))
-        ds = target.create_dataset(
-            name, shape=data.shape, chunks=chunks, dtype="uint64", compression="gzip"
+        ds = target.empty(
+            name=name, shape=data.shape, chunks=chunks, dtype="uint64", compressor=numcodecs.GZip(6)
         )
         data = np.array(data[:])
         data = (data > thr).astype(np.bool)
         all_data[data] = labelid
-        data[data == False] = TRANSPARENT
+        data[data==False] = TRANSPARENT
         target[name][:] = data.astype(np.uint64)
         target[name].attrs["resolution"] = resolution
         target[name].attrs["offset"] = offset
@@ -38,8 +39,8 @@ def add_ds_combined(
 def add_ds_rest(target, name, data, chunks, resolution, offset, thr=127):
     if name not in target:
         print("Writing dataset {0:} to {1:}".format(name, target.path))
-        ds = target.create_dataset(
-            name, shape=data.shape, chunks=chunks, dtype="uint64", compression="gzip"
+        ds = target.empty(
+            name=name, shape=data.shape, chunks=chunks, dtype="uint64", compressor=numcodecs.GZip(6)
         )
         data = np.array(data[:])
         data = (data > thr).astype(np.uint64)
@@ -62,7 +63,7 @@ def add_ds_asis(target, name, data, chunks, resolution, offset):
     if name not in target:
         print("Writing dataset {0:} to {1:}".format(name, target.path))
         ds = target.create_dataset(
-            name, shape=data.shape, chunks=chunks, dtype=data.dtype, compression="gzip"
+            name=name, shape=data.shape, chunks=chunks, dtype=data.dtype, compressor=numcodecs.GZip(6)
         )
         target[name][:] = data
         target[name].attrs["resolution"] = resolution
@@ -88,9 +89,9 @@ def add_ds_asis(target, name, data, chunks, resolution, offset):
 def main():
     # orig = z5py.File('/nrs/saalfeld/heinrichl/cell/gt_v2.1/0821_01/test_cell2_v1_pred_200000.n5',use_zarr_format=False)
     # orig = z5py.File('/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test_cell2_v1_60000.n5',
-    orig = z5py.File(
+    orig = zarr.open(
         "/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test2_64000.n5",
-        use_zarr_format=False,
+        mode="r"
     )
     # labels_combined = [('plasma_membrane', 5, 128), ('ERES_membrane', 12, 128), ('MVB_membrane', 3, 128),
     #                   ('er_membrane',
@@ -134,9 +135,9 @@ def main():
     offset = [0.0, 0.0, 0.0]
     # labels = orig['volumes/labels/gt']
     # target = z5py.File('/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test_cell2_v1_pred_56000_render.n5',
-    target = z5py.File(
+    target = zarr.open(
         "/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test2_64000_render_mem.n5",
-        use_zarr_format=False,
+        mode="a"
     )
     if "volumes" not in list(target.keys()):
         target.create_group("volumes")
@@ -174,9 +175,9 @@ def main():
     # for labelname in labels_rest:
     #    add_ds_rest(target, 'volumes/labels/{0:}'.format(labelname), orig[labelname], (128,128,128), res, offset)
 
-    orig_raw = z5py.File(
+    orig_raw = zarr.open(
         "/groups/saalfeld/saalfeldlab/projects/cell/nrs-data/cell2/test2.n5",
-        use_zarr_format=False,
+        mode="r"
     )
     # orig_raw = z5py.File('/groups/saalfeld/saalfeldlab/larissa/data/cell/test_cell2_v1.n5')
     add_ds_asis(

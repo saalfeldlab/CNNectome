@@ -141,7 +141,7 @@ def train_until(
         if src in centrosomes_sources:
             datasets_i[ArrayKeys.CENTROSOMES_GT] = "volumes/labels/centrosomes"
 
-        n5_source = N5Source(
+        n5_source = ZarrSource(
             src.full_path, datasets=datasets_i, array_specs=array_specs
         )
         data_providers.append(n5_source)

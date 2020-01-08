@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import os
 import numpy as np
 import logging
@@ -6,14 +7,14 @@ import logging
 
 def threshold(filename_src, dataset_src, filename_tgt, dataset_tgt, thr):
 
-    srcf = z5py.File(filename_src, use_zarr_format=False)
+    srcf = zarr.open(filename_src, mode="r")
     if not os.path.exists(filename_tgt):
         os.makedirs(filename_tgt)
-    tgtf = z5py.File(filename_tgt, use_zarr_format=False)
+    tgtf = zarr.open(filename_tgt, mode="a")
     tgtf.create_dataset(
-        dataset_tgt,
+        name=dataset_tgt,
         shape=srcf[dataset_src].shape,
-        compression="gzip",
+        compressor=numcodecs.GZip(6),
         dtype="uint8",
         chunks=srcf[dataset_src].chunks,
     )

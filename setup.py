@@ -3,17 +3,6 @@ import sys
 from setuptools import find_packages, setup
 import warnings
 
-try:
-    import z5py
-except ModuleNotFoundError as e:
-    warnings.warn(
-        str(e)
-        + " - 'z5py' dependency needs to be installed manually, it is not installable via "
-        "pip",
-        category=UserWarning,
-    )
-
-
 NAME = "CNNectome"
 DESCRIPTION = "A collection of scripts for building, training and validating Convolutional Neural Networks (CNNs) for Connectomics"
 URL = "https://github.com/saalfeldlab/CNNectome"

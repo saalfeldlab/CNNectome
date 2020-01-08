@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import os
 import logging
 import h5py
@@ -46,16 +47,10 @@ def crop_to_seg_h5(filename_src, dataset_src, filename_tgt, dataset_tgt, offset,
 
 
 def crop_to_seg(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, shape):
-    srcf = z5py.File(filename_src, use_zarr_format=False)
+    srcf = zarr.open(filename_src, mode="r")
     if not os.path.exists(filename_tgt):
         os.makedirs(filename_tgt)
-    tgtf = z5py.File(filename_tgt, use_zarr_format=False)
-    grps = ""
-    for grp in dataset_tgt.split("/")[:-1]:
-        grps += grp
-        if not os.path.exists(os.path.join(filename_tgt, grps)):
-            tgtf.create_group(grps)
-        grps += "/"
+    tgtf = zarr.open(filename_tgt, mode="a")
     chunk_size = tuple(min(c, s) for c, s in zip(srcf[dataset_src].chunks, shape))
     if os.path.exists(os.path.join(filename_tgt, dataset_tgt)):
         assert (
@@ -68,10 +63,10 @@ def crop_to_seg(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, sh
     else:
         skip_ds_creation = False
     if not skip_ds_creation:
-        tgtf.create_dataset(
-            dataset_tgt,
+        tgtf.empty(
+            name=dataset_tgt,
             shape=shape,
-            compression="gzip",
+            compression=numcodecs.GZip(6),
             dtype=srcf[dataset_src].dtype,
             chunks=chunk_size,
         )

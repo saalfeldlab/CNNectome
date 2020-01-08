@@ -1,7 +1,6 @@
 import sys
-
-sys.path.append("/groups/saalfeld/home/heinrichl/Projects/git_repos/gunpowder")
-import z5py
+import zarr
+import numcodecs
 import h5py
 import numpy as np
 import collections
@@ -20,8 +19,8 @@ def add_container(
     offset=(0, 0, 0),
 ):
     if name not in target:
-        ds = target.create_dataset(
-            name, shape=shape, chunks=chunks, dtype=dtype, compression="gzip"
+        ds = target.empty(
+            name=name, shape=shape, chunks=chunks, dtype=dtype, compression=numcodecs.GZip(6)
         )
         target[name].attrs["resolution"] = resolution
         target[name].attrs["offset"] = offset
@@ -79,9 +78,9 @@ def add_labels_blockwise(coord, blocksize, labels, target, orig):
 
 def main():
 
-    orig = z5py.File(
+    orig = zarr.open(
         "/nrs/saalfeld/heinrichl/cell/gt122018/setup01/run02/test2_55000.n5",
-        use_zarr_format=False,
+        mode="r"
     )
 
     # labels_combined_all = [('cell', 3, 128),
@@ -280,13 +279,13 @@ def main():
     # shape = orig[labels_combined_all[0][0]].shape
     res = [4.0, 4.0, 4.0]
     offset = [0.0, 0.0, 0.0]
-    target = z5py.File(
+    target = zarr.open(
         "/nrs/saalfeld/heinrichl/cell/gt122018/setup01/run02/test2_55000_render_adapthr.n5",
-        use_zarr_format=False,
+        mode="a"
     )
-    orig_raw = z5py.File(
+    orig_raw = zarr.open(
         "/groups/saalfeld/saalfeldlab/projects/cell/nrs-data/cell2/test2.n5",
-        use_zarr_format=False,
+        mode="r"
     )
     if "volumes" not in list(target.keys()):
         target.create_group("volumes")

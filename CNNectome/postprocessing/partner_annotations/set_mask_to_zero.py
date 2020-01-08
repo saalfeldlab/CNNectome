@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import os
 import logging
 
@@ -36,24 +37,24 @@ def set_mask_to_zero(
     shape,
 ):
     logging.info("setting mask to zero for " + filename_src + "/" + dataset_src)
-    srcf = z5py.File(filename_src, use_zarr_format=False)
-    maskf = z5py.File(filename_mask, use_zarr_format=False)
+    srcf = zarr.open(filename_src, mode="r")
+    maskf = zarr.open(filename_mask, mode="r")
 
     if not os.path.exists(filename_tgt):
         os.makedirs(filename_tgt)
-    tgtf = z5py.File(filename_tgt, use_zarr_format=False)
-    grps = ""
-    for grp in dataset_tgt.split("/")[:-1]:
-        grps += grp
-        if not os.path.exists(os.path.join(filename_tgt, grps)):
-            tgtf.create_group(grps)
-        grps += "/"
+    tgtf = zarr.open(filename_tgt, mode="a")
+    # grps = ""
+    # for grp in dataset_tgt.split("/")[:-1]:
+    #     grps += grp
+    #     if not os.path.exists(os.path.join(filename_tgt, grps)):
+    #         tgtf.create_group(grps)
+    #     grps += "/"
     chunk_size = tuple(min(c, s) for c, s in zip(srcf[dataset_src].chunks, shape))
 
-    tgtf.create_dataset(
+    tgtf.empty(
         dataset_tgt,
         shape=shape,
-        compression="gzip",
+        compressor=numcodecs.GZip(6),
         dtype=srcf[dataset_src].dtype,
         chunks=chunk_size,
     )

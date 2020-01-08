@@ -1,4 +1,4 @@
-import z5py
+import zarr
 import os
 import numpy as np
 from .find_partners import bbox_ND
@@ -9,7 +9,7 @@ def find_crop(filename_src, dataset_src, bg_label=0xFFFFFFFFFFFFFFFD):
     if filename_src.endswith(".hdf") or filename_src.endswith(".h5"):
         srcf = h5py.File(filename_src, "r")
     else:
-        srcf = z5py.File(filename_src, use_zarr_format=False)
+        srcf = zarr.open(filename_src, mode="r")
     bb = bbox_ND(srcf[dataset_src][:] != bg_label)
     print(srcf[dataset_src].shape)
     off = (bb[0], bb[2], bb[4])

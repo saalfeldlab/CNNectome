@@ -1,4 +1,5 @@
-import z5py
+import zarr
+import numcodecs
 import os
 import numpy as np
 import scipy.ndimage
@@ -9,8 +10,7 @@ import scipy.ndimage
 def cc2(
     filename_src, dataset_src_high_thr, dataset_src_low_thr, filename_tgt, dataset_tgt
 ):
-
-    srcf = z5py.File(filename_src, use_zarr_format=False)
+    srcf = zarr.open(filename_src, mode="r")
     if not os.path.exists(filename_tgt):
         os.makedirs(filename_tgt)
     assert (
@@ -18,11 +18,11 @@ def cc2(
         == srcf[dataset_src_low_thr].attrs["offset"]
     )
     assert srcf[dataset_src_high_thr].shape == srcf[dataset_src_low_thr].shape
-    tgtf = z5py.File(filename_tgt, use_zarr_format=False)
-    tgtf.create_dataset(
-        dataset_tgt,
+    tgtf = zarr.open(filename_tgt, mode="a")
+    tgtf.empty(
+        name=dataset_tgt,
         shape=srcf[dataset_src_high_thr].shape,
-        compression="gzip",
+        compressor=numcodecs.GZip(6),
         dtype="uint64",
         chunks=srcf[dataset_src_high_thr].chunks,
     )

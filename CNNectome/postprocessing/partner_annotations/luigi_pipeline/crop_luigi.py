@@ -1,6 +1,7 @@
 import luigi
 import os
-import z5py
+import zarr
+import numcodecs
 from prediction_luigi import Predict
 
 
@@ -54,13 +55,13 @@ class Crop(luigi.Task):
             datasets_tgt = ["clefts_cropped", "pre_dist_cropped", "post_dist_cropped"]
             off = offsets[s][aligned]
             sh = shapes[s][aligned]
-            f = z5py.File(filename, use_zarr_format=False)
+            f = zarr.open(filename, mode="a")
             for dss, dst in zip(datasets_src, datasets_tgt):
                 chunk_size = tuple(min(c, shi) for c, shi in zip(f[dss].chunks, sh))
                 f.create_dataset(
-                    dst,
+                    name=dst,
                     shape=sh,
-                    compression="gzip",
+                    compressor=numcodecs.GZip(6),
                     dtype=f[dss].dtype,
                     chunks=chunk_size,
                 )
