@@ -15,20 +15,25 @@ import numcodecs
 from gunpowder import Coordinate
 
 
-def get_output_paths(raw_data_path, setup_path):
-    basename, n5_filename = os.path.split(raw_data_path)
-    assert n5_filename.endswith('.n5')
+def get_output_paths(raw_data_path, setup_path, output_path):
+    if output_path is None:
+        basename, n5_filename = os.path.split(raw_data_path)
+        assert n5_filename.endswith('.n5')
 
-    # output directory, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/"
-    all_data_dir, cell_identifier = os.path.split(basename)
-    output_dir = os.path.join(setup_path, cell_identifier)
+        # output directory, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/"
+        all_data_dir, cell_identifier = os.path.split(basename)
+        output_dir = os.path.join(setup_path, cell_identifier)
+
+        # output file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm_it10000.n5"
+        base_n5_filename, n5 = os.path.splitext(n5_filename)
+        output_filename = base_n5_filename + '_it{0:}'.format(iteration) + n5
+        out_file = os.path.join(output_dir, output_filename)
+    else:
+        assert output_path.endswith('.n5') or output_path.endswith('.n5/')
+        output_dir = os.path.abspath(os.path.dirname(output_path))
+        out_file = os.path.abspath(output_path)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-
-    # output file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm_it10000.n5"
-    base_n5_filename, n5 = os.path.splitext(n5_filename)
-    output_filename = base_n5_filename + '_it{0:}'.format(iteration) + n5
-    out_file = os.path.join(output_dir, output_filename)
     if not os.path.exists(out_file):
         os.mkdir(out_file)
     return output_dir, out_file
@@ -69,7 +74,7 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
     return factor, scale, shift
 
 
-def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, setup_path, factor,
+def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, setup_path, output_path, factor,
                            min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
     assert os.path.exists(setup_path), "Path to experiment directory does not exist"
     sys.path.append(setup_path)
@@ -82,12 +87,13 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
     assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.index".format(iteration)))
     assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.data-00000-of-00001".format(iteration)))
     assert os.path.exists(os.path.join(setup_path, "net_io_names.json"))
-
     rf = zarr.open(raw_data_path, mode="r")
     assert raw_ds in rf, "Raw data not present in N5 dataset"
-    assert mask_ds in rf, "Mask data not present in N5 dataset"
+    if mask_ds is not None:
+        assert mask_ds in rf, "Mask data not present in N5 dataset"
     shape_vc = rf[raw_ds].shape
-    output_dir, out_file = get_output_paths(raw_data_path, setup_path)
+
+    output_dir, out_file = get_output_paths(raw_data_path, setup_path, output_path)
 
     if not finish_interrupted:
         net_name, input_shape_vc, output_shape_vc = unet_template.build_net(steps=unet_template.steps_inference,
@@ -104,7 +110,11 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
 
 
         # offset file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/offsets_volumes_masks_foreground_shape180x180x180.json"
-        offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(mask_ds.replace("/", "_"), *output_shape_wc)
+        if mask_ds is not None:
+            offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(mask_ds.replace("/", "_"),
+                                                                             *output_shape_wc)
+        else:
+            offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format("nomask", *output_shape_wc)
         offset_file = os.path.join(output_dir, offset_filename)
 
         # prepare datasets
@@ -129,8 +139,10 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
             ds.attrs["safe_scale"] = safe_scale
 
         if not os.path.exists(offset_file):
-            generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
-
+            if mask_ds is not None:
+                generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
+            else:
+                generate_full_list(offset_file, output_shape_wc, raw_data_path, raw_ds)
         shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(unet_template.steps_inference))
         if not os.path.exists(shapes_file):
             shapes = {"input_shape_vc":  tuple(int(isv) for isv in input_shape_vc),
@@ -156,12 +168,11 @@ def preprocess(data, scale=2, shift=-1., factor=None):
     return clip(scale_shift(normalize(data, factor=factor), scale, shift))
 
 
-def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, factor=None, min_sc=None, max_sc=None,
-                         float_range=(-1, 1), safe_scale=False, n_cpus=5):
+def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, output_path=None, factor=None,
+                         min_sc=None, max_sc=None, float_range=(-1, 1), safe_scale=False, n_cpus=5):
     sys.path.append(setup_path)
     import unet_template
-
-    output_dir, out_file = get_output_paths(raw_data_path, setup_path)
+    output_dir, out_file = get_output_paths(raw_data_path, setup_path, output_path)
     offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(job_no))
     if not os.path.exists(offset_file):
         return
@@ -248,6 +259,7 @@ if __name__ == "__main__":
     parser.add_argument("--raw_ds", type=str, default="volumes/raw")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground")
     parser.add_argument("--setup_path", type=str, default='.')
+    parser.add_argument("--output_path", type=str, default=None)
     parser.add_argument("--finish_interrupted", type=bool, default=False)
     parser.add_argument("--factor", type=int, default=None)
     parser.add_argument("--min_sc", type=float, default=None)
@@ -258,11 +270,15 @@ if __name__ == "__main__":
     print(args)
     action = args.action
     raw_data_path = args.raw_data_path
+    output_path = args.output_path
     iteration = args.iteration
     n_job = args.n_job
     n_cpus = args.n_cpus
     raw_ds = args.raw_ds
-    mask_ds = args.mask_ds
+    if args.mask_ds == "None":
+        mask_ds = None
+    else:
+        mask_ds = args.mask_ds
     setup_path = args.setup_path
     factor = args.factor
     min_sc = args.min_sc
@@ -272,7 +288,7 @@ if __name__ == "__main__":
     safe_scale = args.safe_scale
     finish_interrupted = args.finish_interrupted
     if action == "prepare":
-        prepare_cell_inference(n_job, raw_data_path, iteration, raw_ds, mask_ds, setup_path, factor,
+        prepare_cell_inference(n_job, raw_data_path, iteration, raw_ds, mask_ds, setup_path, output_path, factor,
                                min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted)
     # elif action == "run":
     #     input_shape_vc, output_shape_vc, chunk_shape_vc = prepare_cell_inference(n_job, raw_data_path, iteration,
@@ -283,5 +299,5 @@ if __name__ == "__main__":
 
     elif action == "inference":
         single_job_inference(n_job, raw_data_path, iteration, raw_ds,
-                             setup_path, factor=factor, min_sc=min_sc, max_sc=max_sc, float_range=float_range,
-                             safe_scale=safe_scale, n_cpus=n_cpus)
+                             setup_path, output_path=output_path, factor=factor, min_sc=min_sc, max_sc=max_sc,
+                             float_range=float_range, safe_scale=safe_scale, n_cpus=n_cpus)
