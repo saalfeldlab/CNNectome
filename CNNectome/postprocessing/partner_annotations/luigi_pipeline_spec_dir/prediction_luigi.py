@@ -1,10 +1,8 @@
 import sys
-
-sys.path.append("/groups/saalfeld/home/heinrichl/Projects/simpleference")
 import luigi
 import os
 import re
-import z5py
+import zarr
 import json
 from concurrent.futures import ProcessPoolExecutor
 import subprocess
