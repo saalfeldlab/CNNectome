@@ -32,14 +32,12 @@ class Label(object):
         scale_key=None,
         add_constant=None,
         separate_labelset=False,
-        frac_pos = 0.5,
-        frac_neg = 0.5
-        # data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
-        # data_sources=None,
+        frac_pos=0.5,
+        frac_neg=0.5
     ):
 
         self.labelname = labelname
-        if not isinstance(labelid, collections.Iterable):
+        if not isinstance(labelid, collections.Iterable) and labelid is not None:
             labelid = (labelid,)
         self.labelid = labelid
         if generic_label is not None and not isinstance(generic_label, collections.Iterable):
@@ -48,10 +46,12 @@ class Label(object):
         self.targetid = targetid
         self.thr = thr
         self.separate_labelset = separate_labelset
-        if self.separate_labelset:
+        if self.separate_labelset and self.separate_labelset is not None:
             self.gt_key = ArrayKey("GT_" + self.labelname.upper())
-        else:
+        elif not self.separate_labelset and self.separate_labelset is not None:
             self.gt_key = ArrayKey("GT_LABELS")
+        else:
+            self.gt_key = None
         self.gt_dist_key = ArrayKey("GT_DIST_" + self.labelname.upper())
         self.pred_dist_key = ArrayKey("PRED_DIST_" + self.labelname.upper())
         self.mask_key = ArrayKey("MASK_" + self.labelname.upper())
