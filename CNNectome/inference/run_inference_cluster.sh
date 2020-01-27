@@ -12,8 +12,7 @@ singularity exec \
             -B /groups/saalfeld,/nrs/saalfeld,/groups/turaga,/groups/cosem/cosem,/nrs/cosem \
             --pwd $WD \
             /groups/saalfeld/home/heinrichl/singularity-builds/cnnectome.sif \
-            /bin/bash --norc -c "export OMP_NUM_THREADS=1; umask 0002; python -u unet_inference_template.py prepare
-            $RUNSCRIPT"
+            /bin/bash --norc -c "export OMP_NUM_THREADS=1; umask 0002; python -u unet_inference_template.py prepare $RUNSCRIPT"
 echo "Running inference split over $1 jobs"
 
 for i in $(seq 0 `expr $1 - 1`);
@@ -26,6 +25,5 @@ do
                 -B /groups/saalfeld,/nrs/saalfeld,/groups/turaga,/groups/cosem/cosem,/nrs/cosem \
                 --pwd $WD \
                 /groups/saalfeld/home/heinrichl/singularity-builds/cnnectome.sif \
-                /bin/bash --norc -c "export OMP_NUM_THREADS=1; umask 0002; python -u unet_inference_template.py
-                inference $i ${*:2} ";
+                /bin/bash --norc -c "export OMP_NUM_THREADS=1; umask 0002;python -u unet_inference_template.py inference $i ${*:2} ";
 done;
