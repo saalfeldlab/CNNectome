@@ -64,7 +64,7 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
             tf.summary.scalar("lb_" + label.labelname, lb_it)
             tf.summary.scalar("lub_" + label.labelname, lub_it)
             names["lb_" + label.labelname] = lb_it.name
-            names["lb_" + label.labelname] = lub_it.name
+            names["lub_" + label.labelname] = lub_it.name
 
         loss_total = tf.add_n(lb)
         loss_total_unbalanced = tf.add_n(lub)
@@ -106,7 +106,7 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
     elif (
         mode.lower() == "inference"
         or mode.lower() == "prediction"
-        or mode.lower == "pred"
+        or mode.lower() == "pred"
     ):
         pass
     else:
