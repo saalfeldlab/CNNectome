@@ -1,6 +1,6 @@
 import logging
 from CNNectome.utils.label import *
-from CNNectome.networks.isotropic.mk_cell_unet_generic import make_net, make_net_upsample
+from CNNectome.networks.mk_dist_unet_with_labels import make_net, make_net_upsample
 from CNNectome.networks import unet_class
 from CNNectome.training.isotropic.train_cell_generic import train_until
 from CNNectome.validation.single_block_inference import single_block_inference
