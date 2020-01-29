@@ -50,7 +50,8 @@ cremi_dir = "/groups/saalfeld/saalfeldlab/projects/fafb-synapses/cremi2019/"
 samples = ["A", "B", "C"]
 n5_filename_format = "sample_{0:}.n5"
 csv_filename_format = "sample_{0:}_clefts_to_seg.csv"
-filter_comments = []
+filter_comments_pre = ["ER", "autapse"]
+filter_comments_post = ["apposition", "ER", "autapse"]
 
 # training parameters
 loss_name="loss_total"

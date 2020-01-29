@@ -17,7 +17,7 @@ import numpy as np
 import time
 
 
-def make_cleft_to_prepostsyn_neuron_id_dict(csv_files, filter_comments):
+def make_cleft_to_prepostsyn_neuron_id_dict(csv_files, filter_comments_pre, filter_comments_post):
     cleft_to_pre = dict()
     cleft_to_post = dict()
     for csv_f in csv_files:
@@ -44,20 +44,21 @@ def make_cleft_to_prepostsyn_neuron_id_dict(csv_files, filter_comments):
         next(reader)
         for row in reader:
             if int(row["cleft"]) > 0:
-                if (
-                    row["pre_comment"] not in filter_comments
-                    and row["post_comment"] not in filter_comments
-                ):
-                    if int(row["pre_label"]) > 0:
-                        try:
-                            cleft_to_pre[int(row["cleft"])].add(int(row["pre_label"]))
-                        except KeyError:
-                            cleft_to_pre[int(row["cleft"])] = {int(row["pre_label"])}
-                    if int(row["post_label"]) > 0:
-                        try:
-                            cleft_to_post[int(row["cleft"])].add(int(row["post_label"]))
-                        except KeyError:
-                            cleft_to_post[int(row["cleft"])] = {int(row["post_label"])}
+                for fc in filter_comments_pre:
+                    if fc not in row["pre_comment"] and fc not in row["post_comment"]:
+                        if int(row["pre_label"]) > 0:
+                            try:
+                                cleft_to_pre[int(row["cleft"])].add(int(row["pre_label"]))
+                            except KeyError:
+                                cleft_to_pre[int(row["cleft"])] = {int(row["pre_label"])}
+                for fc in filter_comments_post:
+                    if fc not in row["pre_comment"] and fc not in row["post_comment"]:
+                        if int(row["post_label"]) > 0:
+                            try:
+                                cleft_to_post[int(row["cleft"])].add(int(row["post_label"]))
+                            except KeyError:
+                                cleft_to_post[int(row["cleft"])] = {int(row["post_label"])}
+
     return cleft_to_pre, cleft_to_post
 
 
@@ -67,7 +68,8 @@ def train_until(
     samples,
     n5_filename_format,
     csv_filename_format,
-    filter_comments,
+    filter_comments_pre,
+    filter_comments_post,
     labels,
     net_name,
     input_shape,
@@ -179,7 +181,7 @@ def train_until(
     ]
 
     cleft_to_pre, cleft_to_post = make_cleft_to_prepostsyn_neuron_id_dict(
-        csv_files, filter_comments
+        csv_files, filter_comments_pre, filter_comments_post
     )
 
     data_providers = []
