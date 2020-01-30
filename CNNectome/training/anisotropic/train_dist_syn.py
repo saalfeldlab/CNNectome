@@ -246,7 +246,7 @@ def train_until(
     if aug_mode == "deluxe":
         slip_ignore = [ak_clefts, ak_training, ak_neurons, ak_integral]
         for l in labels:
-            slip_ignore += l.mask_key
+            slip_ignore.append(l.mask_key)
         train_pipeline = (
             train_pipeline
             + fuse.ElasticAugment(
