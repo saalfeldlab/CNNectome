@@ -114,7 +114,7 @@ def train_until(
         inputs[net_io_names["mask"]] = ak_training
         for label in labels:
             inputs[net_io_names["mask_" + label.labelname]] = label.mask_key
-            inputs[net_io_names["gt_dist_" + label.labelname]] = label.gt_dist_key
+            inputs[net_io_names["gt_" + label.labelname]] = label.gt_dist_key
             if label.scale_loss or label.scale_key is not None:
                 inputs[net_io_names["w_" + label.labelname]] = label.scale_key
 

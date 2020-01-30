@@ -37,7 +37,7 @@ kernel_sizes_down = [
 kernel_sizes_up = [
     [(1, 3, 3), (1, 3, 3)],
     [(1, 3, 3), (1, 3, 3)],
-    [(3, 3, 3), (3, 3, 3) ]
+    [(3, 3, 3), (3, 3, 3)]
 ]
 
 # additional network parameters for upsampling network
@@ -46,7 +46,7 @@ kernel_sizes_up = [
 #final_feature_width = 12 * 6
 
 # groundtruth source parameters
-cremi_dir = "/groups/saalfeld/saalfeldlab/projects/fafb-synapses/cremi2019/"
+cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2019/"
 samples = ["A", "B", "C"]
 n5_filename_format = "sample_{0:}.n5"
 csv_filename_format = "sample_{0:}_clefts_to_seg.csv"
@@ -54,8 +54,8 @@ filter_comments_pre = ["ER", "autapse"]
 filter_comments_post = ["apposition", "ER", "autapse"]
 
 # training parameters
-loss_name="loss_total"
-aug_mode="deluxe"
+loss_name = "loss_total"
+aug_mode = "deluxe"
 
 # groundtruth construction parameters
 min_masked_voxels = 17561.
@@ -136,7 +136,8 @@ def train(steps=steps_train):
         samples,
         n5_filename_format,
         csv_filename_format,
-        filter_comments,
+        filter_comments_pre,
+        filter_comments_post,
         labels,
         net_name,
         input_shape,
@@ -155,7 +156,7 @@ def inference(steps=steps_inference):
     net_name, input_shape, output_shape = build_net(steps=steps, mode="inference")
     outputs = [l.labelname for l in labels]
     single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, coordinate=coordinate,
-                           output_file=output_file, voxel_size_input=voxel_size_input, voxel_size_output=voxel_size)
+                           output_file=output_file, voxel_size_input=voxel_size, voxel_size_output=voxel_size)
 
 
 if __name__ == "__main__":
@@ -165,8 +166,6 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
                                                "training network", choices=["training", "inference"],
                         )
-    parser.add_argument("--db_username", type=str, help="username for the database")
-    parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
     parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
     parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
@@ -174,8 +173,6 @@ if __name__ == "__main__":
                         default=(0, 0, 0), nargs='+')
     args = parser.parse_args()
     mode = args.mode
-    db_username = args.db_username
-    db_password = args.db_password
     ckpt = args.ckpt
     input_file = args.input_file
     output_file = args.output_file
@@ -186,8 +183,6 @@ if __name__ == "__main__":
             raise ValueError("script train should not be run with mode inference")
         else:
             mode = "training"
-        assert db_username is not None and db_password is not None, \
-            "db_username and db_password need to be given to run training"
 
     elif args.script == "inference":
         if mode == "training":
