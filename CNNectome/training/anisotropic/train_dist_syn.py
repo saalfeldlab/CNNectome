@@ -356,7 +356,7 @@ def train_until(
                       + Train(net_name, optimizer=net_io_names["optimizer"], loss=net_io_names[loss_name],
                               inputs=inputs, summary=net_io_names["summary"], log_dir="log", save_every=500,
                               log_every=5, outputs=outputs,
-                              gradients={net_io_names["cleft_dist"]: ArrayKeys.LOSS_GRADIENT},
+                              gradients={net_io_names[labels[0].labelname]: ArrayKeys.LOSS_GRADIENT},
                               )
                       + Snapshot(snapshot_data, every=500, output_filename="batch_{iteration}.hdf",
                                  output_dir="snapshots/", additional_request=snapshot_request
