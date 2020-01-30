@@ -44,6 +44,4 @@ ENV CNNECTOME_REPOSITORY=https://github.com/saalfeldlab/CNNectome.git
 RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}@${CNNECTOME_BRANCH}
 
 
-RUN conda init
-
 WORKDIR /run
