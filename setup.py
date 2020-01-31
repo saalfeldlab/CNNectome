@@ -13,6 +13,7 @@ VERSION = "2.0.dev14"
 
 REQUIRED = [
     "tensorflow_gpu<1.15",
+    "absl-py>=0.9",
     "numpy",
     "scipy",
     "cython",
