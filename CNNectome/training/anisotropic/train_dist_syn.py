@@ -108,6 +108,7 @@ def train_until(
     output_shape,
     loss_name,
     aug_mode,
+    include_cleft=False,
     dt_scaling_factor=50,
     cache_size=5,
     num_workers=10,
@@ -134,6 +135,8 @@ def train_until(
         output_shape(:obj:`tuple` of int): The shape of output arrays of the network.
         loss_name (str): The name of the loss function as saved in the net_io_names.
         aug_mode (str): The augmentation mode ("deluxe", "classic" or "lite").
+        include_cleft (boolean, optional): whether to include the whole cleft as part of the label when calculating
+            the masked distance transform for pre-and postsynaptic sites
         dt_scaling_factor (int, optional): The factor for scaling the signed distance transform before applying tanh
             using formula tanh(distance_transform/dt_scaling_factor), default:50.
         cache_size (int, optional): The size of the cache for pulling batches, default: 5.
@@ -405,7 +408,7 @@ def train_until(
             cleft_to_pre,
             cleft_to_post,
             bg_value=(0, 18446744073709551613),
-            include_cleft=False,
+            include_cleft=include_cleft,
             max_distance=2.76 * dt_scaling_factor,
         )
     for l in labels:

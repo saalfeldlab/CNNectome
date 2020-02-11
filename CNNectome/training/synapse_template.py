@@ -52,6 +52,7 @@ n5_filename_format = "sample_{0:}.n5"
 csv_filename_format = "sample_{0:}_clefts_to_seg.csv"
 filter_comments_pre = ["ER", "autapse"]
 filter_comments_post = ["apposition", "ER", "autapse"]
+include_cleft = False
 
 # training parameters
 loss_name = "loss_total"
