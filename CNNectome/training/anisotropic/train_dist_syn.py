@@ -389,29 +389,24 @@ def train_until(
     train_pipeline += IntensityScaleShift(ak_raw, 2, -1)
     train_pipeline += ZeroOutConstSections(ak_raw)
     clefts = get_label("clefts")
-    if clefts is not None:
-        train_pipeline += AddDistance(
-            label_array_key=clefts.gt_key,
-            distance_array_key=clefts.gt_dist_key,
-            mask_array_key=clefts.mask_key,
-            max_distance=2.76 * dt_scaling_factor,
-            bg_value=(0, 18446744073709551613)
-        )
     pre = get_label("pre")
     post = get_label("post")
-    if pre is not None or post is not None:
+
+    if clefts is not None or pre is not None or post is not None:
         train_pipeline += AddPrePostCleftDistance(
             ak_clefts,
             ak_neurons,
+            clefts.gt_dist_key if clefts is not None else None,
             pre.gt_dist_key if pre is not None else None,
             post.gt_dist_key if post is not None else None,
+            clefts.mask_key if post is not None else None,
             pre.mask_key if pre is not None else None,
             post.mask_key if post is not None else None,
             cleft_to_pre,
             cleft_to_post,
+            bg_value=(0, 18446744073709551613),
             include_cleft=False,
             max_distance=2.76 * dt_scaling_factor,
-
         )
     for l in labels:
         train_pipeline += TanhSaturate(l.gt_dist_key, dt_scaling_factor)
