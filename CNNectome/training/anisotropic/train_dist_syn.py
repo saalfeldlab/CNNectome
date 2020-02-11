@@ -203,7 +203,7 @@ def train_until(
 
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
-    pad_width = input_size - output_size + voxel_size * Coordinate(20, 20, 20)
+    pad_width = input_size - output_size + voxel_size * Coordinate((20, 20, 20))
     net_io_names, start_iteration, inputs, outputs = network_setup()
 
     # specifiy which Arrays should be requested for each batch
@@ -290,6 +290,7 @@ def train_until(
         )
         provider += Reject(ak_training, min_masked=0.999)
         provider += Reject(ak_clefts, min_masked=0.0, reject_probability=0.95)
+        data_sources.append(provider)
 
     artifact_source = (
         Hdf5Source(
