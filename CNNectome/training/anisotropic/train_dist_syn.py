@@ -261,7 +261,7 @@ def train_until(
         logging.info("Adding sample {0:}".format(sample))
         datasets = {
             ak_raw: "volumes/raw",
-            ak_training: "volumes/masks/training",
+            ak_training: "volumes/masks/validation",
             ak_integral: "volumes/masks/groundtruth_integral",
             ak_clefts: "volumes/labels/clefts",
             ak_neurons: "volumes/labels/neuron_ids",
@@ -288,6 +288,7 @@ def train_until(
         provider += Pad(ak_neurons, pad_width)
         for l in labels:
             provider += Pad(l.mask_key, pad_width)
+        provider += IntensityScaleShift(ak_training, -1, 1)
         provider += RandomLocationWithIntegralMask(
             integral_mask=ak_integral, min_masked=keep_thr
         )
