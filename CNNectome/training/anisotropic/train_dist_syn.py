@@ -2,7 +2,7 @@ from gunpowder import *
 from gunpowder.tensorflow import *
 from gunpowder.contrib import (
     ZeroOutConstSections,
-    AddDistance,
+    CropArray,
     AddPrePostCleftDistance,
     TanhSaturate,
 )
@@ -207,6 +207,13 @@ def train_until(
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
     pad_width = input_size - output_size + voxel_size * Coordinate((20, 20, 20))
+    crop_width = Coordinate((max_distance,) * len(voxel_size))
+    crop_width = crop_width//voxel_size
+    if crop_width ==0:
+        crop_width *= voxel_size
+    else:
+        crop_width = (crop_width+(1,)*len(crop_width)) * voxel_size
+
     net_io_names, start_iteration, inputs, outputs = network_setup()
 
     # specifiy which Arrays should be requested for each batch
@@ -220,6 +227,12 @@ def train_until(
         request.add(l.mask_key, output_size, voxel_size=voxel_size)
         request.add(l.scale_key, output_size, voxel_size=voxel_size)
         request.add(l.gt_dist_key, output_size, voxel_size=voxel_size)
+    arrays_that_need_to_be_cropped = []
+    arrays_that_need_to_be_cropped.append(ak_neurons)
+    arrays_that_need_to_be_cropped.append(ak_clefts)
+    for l in labels:
+        arrays_that_need_to_be_cropped.append(l.mask_key)
+        arrays_that_need_to_be_cropped.append(l.gt_dist_key)
 
     # specify specs for output
     array_specs_pred = dict()
@@ -414,6 +427,9 @@ def train_until(
             include_cleft=include_cleft,
             max_distance=2.76 * dt_scaling_factor,
         )
+
+    for ak in arrays_that_need_to_be_cropped:
+        train_pipeline += CropArray(ak, crop_width, crop_width)
     for l in labels:
         train_pipeline += TanhSaturate(l.gt_dist_key, dt_scaling_factor)
     for l in labels:
