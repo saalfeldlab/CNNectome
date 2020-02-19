@@ -43,5 +43,4 @@ ENV CNNECTOME_BRANCH=v2.0
 ENV CNNECTOME_REPOSITORY=https://github.com/saalfeldlab/CNNectome.git
 RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}@${CNNECTOME_BRANCH}
 
-
 WORKDIR /run
