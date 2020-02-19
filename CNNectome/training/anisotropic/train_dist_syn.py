@@ -231,7 +231,9 @@ def train_until(
     snapshot_data = {
         ak_raw: "volumes/raw",
         ak_training: "volumes/masks/training",
-        ak_clefts: "volumes/masks/gt_clefts",
+        ak_clefts: "volumes/labels/gt_clefts",
+        ak_neurons: "volumes/labels/gt_neurons",
+        ak_integral: "volumes/masks/gt_integral"
     }
 
     # specify snapshot data layout
