@@ -40,10 +40,13 @@ def make_cleft_to_prepostsyn_neuron_id_dict(
             from the mapping of cleft ids to postsynaptic neuron ids.
 
     Returns:
-        Two dicts mapping cleft ids to ids o pre-and postsynaptic neurons, respectively.
+        Two dicts mapping cleft ids to ids of pre- and postsynaptic neurons, respectively and tow dicts mapping cleft
+        ids to ids of pre- and postynaptic neurons that have been filtered out
     '''
     cleft_to_pre = dict()
     cleft_to_post = dict()
+    cleft_to_pre_filtered = dict()
+    cleft_to_post_filtered = dict()
     for csv_f in csv_files:
         logging.info("Reading csv file {0:}".format(csv_f))
         f = open(csv_f, "r")
@@ -83,13 +86,24 @@ def make_cleft_to_prepostsyn_neuron_id_dict(
                         cleft_to_pre[int(row["cleft"])].add(int(row["pre_label"]))
                     except KeyError:
                         cleft_to_pre[int(row["cleft"])] = {int(row["pre_label"])}
+                else:
+                    try:
+                        cleft_to_pre_filtered[int(row["cleft"])].add(int(row["pre_label"]))
+                    except KeyError:
+                        cleft_to_pre_filtered[int(row["cleft"])] = {int(row["pre_label"])}
+
                 if add_post and int(row["post_label"]) > 0:
                     try:
                         cleft_to_post[int(row["cleft"])].add(int(row["post_label"]))
                     except KeyError:
                         cleft_to_post[int(row["cleft"])] = {int(row["post_label"])}
+                else:
+                    try:
+                        cleft_to_post_filtered[int(row["cleft"])].add(int(row["post_label"]))
+                    except KeyError:
+                        cleft_to_post_filtered[int(row["cleft"])] = {int(row["post_label"])}
 
-    return cleft_to_pre, cleft_to_post
+    return cleft_to_pre, cleft_to_post, cleft_to_pre_filtered, cleft_to_post_filtered
 
 
 def train_until(
@@ -264,9 +278,8 @@ def train_until(
         for sample in samples
     ]
 
-    cleft_to_pre, cleft_to_post = make_cleft_to_prepostsyn_neuron_id_dict(
-        csv_files, filter_comments_pre, filter_comments_post
-    )
+    cleft_to_pre, cleft_to_post, cleft_to_pre_filtered, cleft_to_post_filtered = \
+        make_cleft_to_prepostsyn_neuron_id_dict(csv_files, filter_comments_pre, filter_comments_post)
 
     data_providers = []
 
@@ -421,6 +434,8 @@ def train_until(
             post.mask_key if post is not None else None,
             cleft_to_pre,
             cleft_to_post,
+            cleft_to_presyn_neuron_id_filtered=cleft_to_pre_filtered,
+            cleft_to_postsyn_neuron_id_filtered=cleft_to_post_filtered,
             bg_value=(0, 18446744073709551613),
             include_cleft=include_cleft,
             max_distance=2.76 * dt_scaling_factor,
