@@ -68,28 +68,26 @@ def make_cleft_to_prepostsyn_neuron_id_dict(
         next(reader)
         for row in reader:
             if int(row["cleft"]) > 0:
-                for fc in filter_comments_pre:
-                    if fc not in row["pre_comment"] and fc not in row["post_comment"]:
-                        if int(row["pre_label"]) > 0:
-                            try:
-                                cleft_to_pre[int(row["cleft"])].add(
-                                    int(row["pre_label"])
-                                )
-                            except KeyError:
-                                cleft_to_pre[int(row["cleft"])] = {
-                                    int(row["pre_label"])
-                                }
-                for fc in filter_comments_post:
-                    if fc not in row["pre_comment"] and fc not in row["post_comment"]:
-                        if int(row["post_label"]) > 0:
-                            try:
-                                cleft_to_post[int(row["cleft"])].add(
-                                    int(row["post_label"])
-                                )
-                            except KeyError:
-                                cleft_to_post[int(row["cleft"])] = {
-                                    int(row["post_label"])
-                                }
+                add_pre = True
+                add_post = True
+                if filter_comments_pre is not None:
+                    for fc in filter_comments_pre:
+                        if fc in row["pre_comment"] or fc in row["post_comment"]:
+                            add_pre = False
+                if filter_comments_post is not None:
+                    for fc in filter_comments_post:
+                        if fc in row["pre_comment"] or fc in row["post_comment"]:
+                            add_post = False
+                if add_pre and int(row["pre_label"]) > 0:
+                    try:
+                        cleft_to_pre[int(row["cleft"])].add(int(row["pre_label"]))
+                    except KeyError:
+                        cleft_to_pre[int(row["cleft"])] = {int(row["pre_label"])}
+                if add_post and int(row["post_label"]) > 0:
+                    try:
+                        cleft_to_post[int(row["cleft"])].add(int(row["post_label"]))
+                    except KeyError:
+                        cleft_to_post[int(row["cleft"])] = {int(row["post_label"])}
 
     return cleft_to_pre, cleft_to_post
 
