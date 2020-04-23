@@ -6,12 +6,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
         git \
-	libmlpack-dev \
-	python3.6 \
-	python3-numpy \
-	python3-setuptools \
+	    libmlpack-dev \
+	    python3.6 \
+	    python3-numpy \
+	    python3-setuptools \
         python3-pip \
-	libboost-all-dev \
+	    libboost-all-dev \
         wget && \
 	rm -rf /var/lib/apt/lists/*
 
