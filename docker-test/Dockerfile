@@ -6,13 +6,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
         git \
+	    libboost-all-dev \
 	    libmlpack-dev \
 	    python3.6 \
 	    python3-numpy \
 	    python3-setuptools \
         python3-pip \
-	    libboost-all-dev \
-        wget && \
+        strace \
+	    wget && \
 	rm -rf /var/lib/apt/lists/*
 
 ENV PIP=pip
