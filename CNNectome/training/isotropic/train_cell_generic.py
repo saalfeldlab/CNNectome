@@ -33,6 +33,24 @@ def get_all_labelids(labels):
     return all_labelids
 
 
+def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
+    crop_sizes_np = np.array(crop_sizes)
+    indicator_np = np.array(indicator)
+    prob_present = (
+        prob_prioritized
+        * crop_sizes_np
+        * indicator_np
+        / np.sum(crop_sizes_np[indicator_np])
+    )
+    prob_absent = (
+        (1 - prob_prioritized)
+        * crop_sizes_np
+        * np.logical_not(indicator_np)
+        / np.sum(crop_sizes_np[np.logical_not(indicator_np)])
+    )
+    return list(prob_present + prob_absent)
+
+
 def train_until(
     max_iteration,
     gt_version,
@@ -44,6 +62,8 @@ def train_until(
     db_username,
     db_password,
     balance_global=False,
+    prioritized_label=None,
+    prob_prioritized=0.5,
     db_name="crops",
     completion_min=6,
     dt_scaling_factor=50,
@@ -289,6 +309,9 @@ def train_until(
 
     crop_srcs = []
     crop_sizes = []
+    if prioritized_label is not None:
+        crop_prioritized_label_indicator = []
+        prioritized_label_nos = set(prioritized_label.labelid)
     for crop in collection.find(filter, skip):
         if len(set(get_all_annotated_label_ids(crop)).intersection(set(get_all_labelids(labels)))) > 0:
             logging.info("Adding crop number {0:}".format(crop["number"]))
@@ -299,9 +322,20 @@ def train_until(
             else:
                 crop_srcs.append(make_crop_source(crop))
                 crop_sizes.append(get_crop_size(crop))
-
+            if prioritized_label is not None:
+                present = set(get_label_ids_by_category(crop, "present_annotated"))
+                crop_prioritized_label_indicator.append(
+                    prioritized_label_nos.issubset(present)
+                )
+    if prioritized_label is not None:
+        sampling_probs = prioritized_sampling_probabilities(
+            crop_sizes, crop_prioritized_label_indicator, prob_prioritized
+        )
+    else:
+        sampling_probs = crop_sizes
+    print(sampling_probs)
     pipeline = (tuple(crop_srcs)
-                + RandomProvider(crop_sizes)
+                + RandomProvider(sampling_probs)
                 )
 
     pipeline += Normalize(ak_raw, 1.0/255)
