@@ -17,6 +17,6 @@ for i in {0..15}; do
        exit 0
     else
 echo "Submitting job"
-       bsub -J "$3-$4-$WDTL-prep" -P cosem -n 2 -gpu "num=1" -q gpu_any  -o "$DP-$4-$WDTL-output.log" -e "$DP-$4-$WDTL-error.log" -We 100 ./run_inference_cluster.sh ${@}
+       bsub -J "$3-$4-$WDTL-prep" -P cosem -n 2 -gpu "num=1" -q gpu_short  -o "$DP-$4-$WDTL-output.log" -e "$DP-$4-$WDTL-error.log" -W 100 ./run_inference_cluster.sh ${@}
     fi
 done
