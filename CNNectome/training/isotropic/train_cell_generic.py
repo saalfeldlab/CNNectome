@@ -319,14 +319,19 @@ def train_until(
                 for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
                     crop_srcs.append(make_crop_source(crop, subsample_variant))
                     crop_sizes.append(get_crop_size(crop))
+                if prioritized_label is not None:
+                    present = set(get_label_ids_by_category(crop, "present_annotated"))
+                    crop_prioritized_label_indicator.extend(
+                        [prioritized_label_nos.issubset(present)] * int(np.prod(voxel_size_input/voxel_size))
+                    )
             else:
                 crop_srcs.append(make_crop_source(crop))
                 crop_sizes.append(get_crop_size(crop))
-            if prioritized_label is not None:
-                present = set(get_label_ids_by_category(crop, "present_annotated"))
-                crop_prioritized_label_indicator.append(
-                    prioritized_label_nos.issubset(present)
-                )
+                if prioritized_label is not None:
+                    present = set(get_label_ids_by_category(crop, "present_annotated"))
+                    crop_prioritized_label_indicator.append(
+                        prioritized_label_nos.issubset(present)
+                    )
     if prioritized_label is not None:
         sampling_probs = prioritized_sampling_probabilities(
             crop_sizes, crop_prioritized_label_indicator, prob_prioritized
