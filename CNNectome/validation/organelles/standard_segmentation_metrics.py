@@ -3,7 +3,7 @@ import pymongo
 import zarr
 import scipy.spatial.distance
 from CNNectome.utils.label import Label
-from CNNectome.validation import cremi_scores
+from CNNectome.validation.organelles import cremi_scores
 import numcodecs
 import SimpleITK as sitk
 import sklearn.metrics

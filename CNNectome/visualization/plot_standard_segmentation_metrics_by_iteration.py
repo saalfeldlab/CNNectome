@@ -1,7 +1,7 @@
 import sys
 sys.path = ["/groups/saalfeld/home/heinrichl/dev/CNNectome"] + sys.path
 import zarr
-from CNNectome.validation.standard_segmentation_metrics import EvaluationMetrics
+from CNNectome.validation.organelles.standard_segmentation_metrics import EvaluationMetrics
 import matplotlib.pyplot as plt
 import numpy as np
 from CNNectome.utils.label import Label
