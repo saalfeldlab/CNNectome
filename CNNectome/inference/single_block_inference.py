@@ -8,7 +8,7 @@ import numpy as np
 
 
 def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, input_ds_name="volumes/raw",
-                           coordinate=(0,0,0), output_file='prediction.n5', voxel_size_input = (4, 4, 4),
+                           coordinate=(0, 0, 0), output_file='prediction.n5', voxel_size_input=(4, 4, 4),
                            voxel_size_output=(4, 4, 4), input="raw", factor=None):
 
     logging.info("Preparing output file {0:}".format(output_file))
