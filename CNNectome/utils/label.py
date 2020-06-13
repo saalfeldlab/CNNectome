@@ -2,6 +2,7 @@ import collections
 import zarr
 from gunpowder import ArrayKey
 
+
 class N5Dataset(object):
     def __init__(
         self,
