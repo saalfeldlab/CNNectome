@@ -112,14 +112,17 @@ def get_data_path(crop):
     basename, n5_filename = os.path.split(crop['parent'])
     _, cell_identifier = os.path.split(basename)
     base_n5_filename, n5 = os.path.splitext(n5_filename)
-    output_filename = base_n5_filename + '_it{0:}' + n5
+    if s1:
+        output_filename = base_n5_filename + '_s1_it{0:}' + n5
+    else:
+        output_filename = base_n5_filename + '_it{0:}' + n5
     return os.path.join(cell_identifier, output_filename)
 
 
-def construct_pred_path(setup, iteration, crop):
+def construct_pred_path(setup, iteration, crop, s1):
     default_pred_path = '/nrs/cosem/cosem/training/v0003.2/'
     setup_path = os.path.join(default_pred_path, setup)
-    pred_path = os.path.join(setup_path, get_data_path(crop).format(iteration))
+    pred_path = os.path.join(setup_path, get_data_path(crop, s1).format(iteration))
 
     return pred_path
 
@@ -213,6 +216,7 @@ def main():
                         help="save to database and csv file")
     parser.add_argument("--overwrite", action='store_true',
                         help="overwrite existing entries in database and csv")
+    parser.add_argument("--s1", action='store_true', help="use s1 standard directory")
     parser.add_argument("--db_username", type=str, help="username for the database")
     parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--dry-run", action='store_true',
@@ -267,7 +271,7 @@ def main():
         if pred_path is None:
             if iteration is None:
                 raise ValueError("Either pred_path or iteration must be specified")
-            pred_path = construct_pred_path(setup, iteration, crop)
+            pred_path = construct_pred_path(setup, iteration, crop, args.s1)
         if not os.path.exists(pred_path):
             raise ValueError("{0:} not found".format(pred_path))
         if not os.path.exists(os.path.join(pred_path, 'attributes.json')):
@@ -303,7 +307,7 @@ def main():
                             "Please sepcify iteration, it is not contained in the prediction metadata."
                         )
 
-                if pred_path != construct_pred_path(setup, iteration, crop):
+                if pred_path != construct_pred_path(setup, iteration, crop, args.s1):
                     warnings.warn(
                             "You specified pred_path as well as setup and the pred_path does not match the standard location."
                         )

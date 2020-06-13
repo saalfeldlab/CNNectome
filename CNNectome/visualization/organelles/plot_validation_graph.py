@@ -105,6 +105,7 @@ def main():
                         help="Parameter used for counting false negatives/positives with a tolerance. Only false "
                              "predictions that are farther than this value from the closest pixel where they would be "
                              "correct are counted.")
+    parser.add_argument("--s1", action='store_true', help="use s1 standard directory")
     parser.add_argument("--db_username", type=str, help="username for the database")
     parser.add_argument("--db_password", type=str, help="password for the database")
 
@@ -153,7 +154,7 @@ def main():
         if pred_path is None:
             if iteration is None:
                 raise ValueError("Either pred_path or iteration must be specified")
-            pred_path = construct_pred_path(setup, iteration, crop)
+            pred_path = construct_pred_path(setup, iteration, crop, args.s1)
         if not os.path.exists(pred_path):
             raise ValueError("{0:} not found".format(pred_path))
         if not os.path.exists(os.path.join(pred_path, 'attributes.json')):
@@ -189,7 +190,7 @@ def main():
                             "Please sepcify iteration, it is not contained in the prediction metadata."
                         )
 
-                if pred_path != construct_pred_path(setup, iteration, crop):
+                if pred_path != construct_pred_path(setup, iteration, crop, args.s1):
                     warnings.warn(
                             "You specified pred_path as well as setup and the pred_path does not match the standard location."
                         )
