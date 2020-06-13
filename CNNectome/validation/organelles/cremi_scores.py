@@ -1,86 +1,111 @@
 import numpy as np
-from scipy import ndimage
+import scipy.ndimage
+import lazy_property
 BG = 0
 
 
-class CREMIEvaluator:
-    def __init__(self, truth, test, sampling=(1, 1, 1), sat_thr=200):
+class CremiEvaluator(object):
+    def __init__(self, truth, test, sampling=(1, 1, 1), clip_distance=200, tol_distance=40):
         self.test = test
         self.truth = truth
-        self.test_mask = None
-        self.truth_mask = None
-        self.test_edt = None
-        self.truth_edt = None
-        self.false_positive_distances = None
-        self.false_negative_distances = None
-        self.mean_false_positive_distance = None
-        self.mean_false_negative_distance = None
-        self.mean_false_positive_distance_saturated = None
-        self.mean_false_negative_distance_saturated = None
-        self.cremi_score = None
-        self.cremi_score_saturated = None
         self.sampling = sampling
-        self.sat_thr = sat_thr
+        self.clip_distance = clip_distance
+        self.tol_distance = tol_distance
 
-    def get_test_mask(self):
+    @lazy_property.LazyProperty
+    def test_mask(self):
         # todo: more involved masking
-        if self.test_mask is None:
-            self.test_mask = self.test == BG
-        return self.test_mask
+        test_mask = self.test == BG
+        return test_mask
 
-    def get_truth_mask(self):
-        if self.truth_mask is None:
-            self.truth_mask = self.truth == BG
-        return self.truth_mask
+    @lazy_property.LazyProperty
+    def truth_mask(self):
+        truth_mask = self.truth == BG
+        return truth_mask
 
-    def get_test_edt(self):
-        if self.test_edt is None:
-            self.test_edt = scipy.ndimage.distance_transform_edt(self.get_test_mask(), self.sampling)
-        return self.test_edt
+    @lazy_property.LazyProperty
+    def test_edt(self):
+        test_edt = scipy.ndimage.distance_transform_edt(self.test_mask, self.sampling)
+        return test_edt
 
-    def get_truth_edt(self):
-        if self.truth_edt is None:
-            self.truth_edt = scipy.ndimage.distance_transform_edt(self.get_truth_mask(), self.sampling)
-        return self.truth_edt
+    @lazy_property.LazyProperty
+    def truth_edt(self):
+        truth_edt = scipy.ndimage.distance_transform_edt(self.truth_mask, self.sampling)
+        return truth_edt
 
-    def get_false_positive_distances(self):
-        if self.false_positive_distances is None:
-            mask = np.invert(self.get_test_mask())
-            self.false_positive_distances = self.get_truth_edt()[mask]
-        return self.false_positive_distances
+    @lazy_property.LazyProperty
+    def false_positive_distances(self):
+        test_bin = np.invert(self.test_mask)
+        false_positive_distances = self.truth_edt[test_bin]
+        return false_positive_distances
 
-    def get_mean_false_positive_distances_saturated(self):
-        if self.mean_false_positive_distance_saturated is None:
-            self.mean_false_positive_distance_saturated = np.mean(np.clip(self.get_false_positive_distances(), None, self.sat_thr))
-        return self.mean_false_positive_distance_saturated
+    @lazy_property.LazyProperty
+    def false_positives_with_tolerance(self):
+        return np.sum(self.false_positive_distances > self.tol_distance)
 
-    def get_mean_false_negative_distances_saturated(self):
-        if self.mean_false_negative_distance_saturated is None:
-            self.mean_false_negative_distance_saturated = np.mean(np.clip(self.get_false_negative_distances(), None, self.sat_thr))
-        return self.mean_false_negative_distance_saturated
+    @lazy_property.LazyProperty
+    def false_positive_rate_with_tolerance(self):
+        condition_negative = np.sum(self.truth_mask)
+        return float(self.false_positives_with_tolerance) / float(condition_negative)
 
-    def get_mean_false_positive_distance(self):
-        if self.mean_false_positive_distance is None:
-            self.mean_false_positive_distance = np.mean(self.get_false_positive_distances())
-        return self.mean_false_positive_distance
+    @lazy_property.LazyProperty
+    def false_negatives_with_tolerance(self):
+        return np.sum(self.false_negative_distances > self.tol_distance)
 
-    def get_false_negative_distances(self):
-        if self.false_negative_distances is None:
-            mask = np.invert(self.get_truth_mask())
-            self.false_negative_distances = self.get_test_edt()[mask]
-        return self.false_negative_distances
+    @lazy_property.LazyProperty
+    def false_negative_rate_with_tolerance(self):
+        condition_positive = len(self.false_negative_distances)
+        return float(self.false_negatives_with_tolerance)/float(condition_positive)
 
-    def get_mean_false_negative_distance(self):
-        if self.mean_false_negative_distance is None:
-            self.mean_false_negative_distance = np.mean(self.get_false_negative_distances())
-        return self.mean_false_negative_distance
+    @lazy_property.LazyProperty
+    def true_positives_with_tolerance(self):
+        all_pos = np.sum(np.invert(self.test_mask & self.truth_mask))
+        return all_pos - self.false_negatives_with_tolerance - self.false_positives_with_tolerance
 
-    def get_cremi_score(self):
-        if self.cremi_score is None:
-            self.cremi_score = 0.5 * (self.get_mean_false_positive_distance() + self.get_mean_false_negative_distance())
-        return self.cremi_score
+    @lazy_property.LazyProperty
+    def precision_with_tolerance(self):
+        return float(self.true_positives_with_tolerance)/float(self.true_positives_with_tolerance + self.false_positives_with_tolerance)
 
-    def get_cremi_score_saturated(self):
-        if self.cremi_score_saturated is None:
-            self.cremi_score_saturated = 0.5 * (self.get_mean_false_positive_distances_saturated() + self.get_mean_false_negative_distances_saturated())
-        return self.cremi_score_saturated
+    @lazy_property.LazyProperty
+    def recall_with_tolerance(self):
+        return float(self.true_positives_with_tolerance)/float(self.true_positives_with_tolerance + self.false_negatives_with_tolerance)
+
+    @lazy_property.LazyProperty
+    def f1_score_with_tolerance(self):
+        return 2 * (self.recall_with_tolerance * self.precision_with_tolerance) / (self.recall_with_tolerance + self.precision_with_tolerance)
+
+    @lazy_property.LazyProperty
+    def mean_false_positive_distances_clipped(self):
+        mean_false_positive_distance_clipped = np.mean(np.clip(self.false_positive_distances, None, self.clip_distance))
+        return mean_false_positive_distance_clipped
+
+    @lazy_property.LazyProperty
+    def mean_false_negative_distances_clipped(self):
+        mean_false_negative_distance_clipped = np.mean(np.clip(self.false_negative_distances, None, self.clip_distance))
+        return mean_false_negative_distance_clipped
+
+    @lazy_property.LazyProperty
+    def mean_false_positive_distance(self):
+        mean_false_positive_distance = np.mean(self.false_positive_distances)
+        return mean_false_positive_distance
+
+    @lazy_property.LazyProperty
+    def false_negative_distances(self):
+        truth_bin = np.invert(self.truth_mask)
+        false_negative_distances = self.test_edt[truth_bin]
+        return false_negative_distances
+
+    @lazy_property.LazyProperty
+    def mean_false_negative_distance(self):
+        mean_false_negative_distance = np.mean(self.false_negative_distances)
+        return mean_false_negative_distance
+
+    @lazy_property.LazyProperty
+    def mean_false_distance(self):
+        mean_false_distance = 0.5 * (self.mean_false_positive_distance + self.mean_false_negative_distance)
+        return mean_false_distance
+
+    @lazy_property.LazyProperty
+    def mean_false_distance_clipped(self):
+        mean_false_distance_clipped = 0.5 * (self.mean_false_positive_distances_clipped + self.mean_false_negative_distances_clipped)
+        return mean_false_distance_clipped

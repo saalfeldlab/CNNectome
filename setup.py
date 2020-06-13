@@ -20,10 +20,15 @@ REQUIRED = [
     "h5py",
     "zarr>=2.4.0",
     "joblib",
+    "lazy-property",
     "scikit-image",
     "matplotlib",
     "memory_profiler",
+    "more-itertools",
     "pymongo",
+    'scikit-learn',
+    'SimpleITK',
+    'tabulate',
     "cremi @ git+https://github.com/cremi/cremi_python@python3",
     "gunpowder @ git+https://github.com/neptunes5thmoon/gunpowder@dist_transform_py3",
     "fuse @ git+https://github.com/neptunes5thmoon/fuse@my_pipinstallable_version",
@@ -61,6 +66,11 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+             'add_missing_n5_attributes = CNNectome.utils.add_missing_n5_attributes:main'
+        ],
+    },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     dependency_links=DEPENDENCY_LINKS,
