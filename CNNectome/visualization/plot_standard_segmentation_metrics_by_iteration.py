@@ -1,7 +1,7 @@
 import sys
 sys.path = ["/groups/saalfeld/home/heinrichl/dev/CNNectome"] + sys.path
 import zarr
-from CNNectome.validation.organelles.standard_segmentation_metrics import EvaluationMetrics
+from CNNectome.validation.organelles.segmentation_metrics import EvaluationMetrics
 import matplotlib.pyplot as plt
 import numpy as np
 from CNNectome.utils.label import Label
@@ -28,8 +28,8 @@ def best(argument):
         EvaluationMetrics.dice:                np.nanargmax,
         EvaluationMetrics.jaccard:             np.nanargmax,
         EvaluationMetrics.hausdorff:           np.nanargmin,
-        EvaluationMetrics.false_negatives:     np.nanargmin,
-        EvaluationMetrics.false_positives:     np.nanargmin,
+        EvaluationMetrics.false_negative_rate:     np.nanargmin,
+        EvaluationMetrics.false_discovery_rate:     np.nanargmin,
         EvaluationMetrics.adjusted_rand_index: np.nanargmax,
         EvaluationMetrics.voi:                 np.nanargmin
     }
