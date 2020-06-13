@@ -44,6 +44,7 @@ DEPENDENCY_LINKS = [
     "git+https://github.com/neptunes5thmoon/fuse.git@my_pipinstallable_version#egg=fuse",
     "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
     "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=simpleference[zarr]"
+    "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=neptunes5thmoon-simpleference"
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))
