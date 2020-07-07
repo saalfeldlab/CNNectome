@@ -18,7 +18,7 @@ REQUIRED = [
     "scipy",
     "cython",
     "h5py",
-    "zarr @ git+https://github.com/zarr-developers/zarr@master",
+    "zarr>=2.4.0",
     "joblib",
     "scikit-image",
     "matplotlib",
@@ -43,7 +43,6 @@ DEPENDENCY_LINKS = [
     "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
     "git+https://github.com/neptunes5thmoon/fuse.git@my_pipinstallable_version#egg=fuse",
     "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
-    "git+https://github.com/zarr-developers/zarr.git@master#egg=zarr",
     "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=simpleference[zarr]"
 ]
 
