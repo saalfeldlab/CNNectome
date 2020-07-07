@@ -72,7 +72,10 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def f1_score_with_tolerance(self):
-        return 2 * (self.recall_with_tolerance * self.precision_with_tolerance) / (self.recall_with_tolerance + self.precision_with_tolerance)
+        if self.recall_with_tolerance == 0 and self.precision_with_tolerance == 0:
+            return np.nan
+        else:
+            return 2 * (self.recall_with_tolerance * self.precision_with_tolerance) / (self.recall_with_tolerance + self.precision_with_tolerance)
 
     @lazy_property.LazyProperty
     def mean_false_positive_distances_clipped(self):

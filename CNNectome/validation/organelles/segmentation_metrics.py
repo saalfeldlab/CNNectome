@@ -84,6 +84,33 @@ def best(argument):
     return switcher.get(argument)
 
 
+def limits(argument):
+    switcher = {
+        EvaluationMetrics.dice:                                 (0,1),
+        EvaluationMetrics.jaccard:                              (0,1),
+        EvaluationMetrics.hausdorff:                            (0, None),
+        EvaluationMetrics.false_negative_rate:                  (0, 1),
+        EvaluationMetrics.false_negative_rate_with_tolerance:   (0, 1),
+        EvaluationMetrics.false_positive_rate:                  (0, 1),
+        EvaluationMetrics.false_discovery_rate:                 (0, 1),
+        EvaluationMetrics.false_positive_rate_with_tolerance:   (0, 1),
+        EvaluationMetrics.voi:                                  (0, 1),
+        EvaluationMetrics.mean_false_distance:                  (0, None),
+        EvaluationMetrics.mean_false_positive_distance:         (0, None),
+        EvaluationMetrics.mean_false_negative_distance:         (0, None),
+        EvaluationMetrics.mean_false_distance_clipped:          (0, None),
+        EvaluationMetrics.mean_false_negative_distance_clipped: (0, None),
+        EvaluationMetrics.mean_false_positive_distance_clipped: (0, None),
+        EvaluationMetrics.precision_with_tolerance:             (0, 1),
+        EvaluationMetrics.recall_with_tolerance:                (0, 1),
+        EvaluationMetrics.f1_score_with_tolerance:              (0, 1),
+        EvaluationMetrics.precision:                            (0, 1),
+        EvaluationMetrics.recall:                               (0, 1),
+        EvaluationMetrics.f1_score:                             (0, 1)
+    }
+    return switcher.get(argument)
+
+
 class Evaluator(object):
     def __init__(self, truth_binary, test_binary, truth_empty, test_empty, metric_params, resolution):
         self.truth = truth_binary.astype(np.uint8)
@@ -118,13 +145,13 @@ class Evaluator(object):
         if (not self.truth_empty) or (not self.test_empty):
             return self.overlap_measures_filter.GetDiceCoefficient()
         else:
-            return None
+            return np.nan
 
     def jaccard(self):
         if (not self.truth_empty) or (not self.test_empty):
             return self.overlap_measures_filter.GetJaccardCoefficient()
         else:
-            return None
+            return np.nan
 
     def hausdorff(self):
         if self.truth_empty and self.test_empty:
@@ -134,78 +161,125 @@ class Evaluator(object):
             hausdorff_distance_filter.Execute(self.test_itk, self.truth_itk)
             return hausdorff_distance_filter.GetHausdorffDistance()
         else:
-            return np.Inf
+            return np.nan
 
     def false_negative_rate(self):
-        if self.truth_empty and self.pred_emtpy:
-            return 0
-        if (not self.truth_empty) or (not self.test_empty):
-            return self.overlap_measures_filter.GetFalseNegativeError()
+        if self.truth_empty or self.test_empty:
+            return np.nan
         else:
-            return None
+            return self.overlap_measures_filter.GetFalseNegativeError()
 
     def false_positive_rate(self):
-        return (self.false_discovery_rate() * np.sum(self.test != 0)) / np.sum(self.truth == 0)
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return (self.false_discovery_rate() * np.sum(self.test != 0)) / np.sum(self.truth == 0)
 
     def false_discovery_rate(self):
-        if self.test_empty:
-            return 0
         if (not self.truth_empty) or (not self.test_empty):
             return self.overlap_measures_filter.GetFalsePositiveError()
         else:
-            return None
+            return np.nan
 
     def precision(self):
-        pred_pos = np.sum(self.test != 0)
-        tp = pred_pos - (self.false_discovery_rate() * pred_pos)
-        return float(tp)/float(pred_pos)
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            pred_pos = np.sum(self.test != 0)
+            tp = pred_pos - (self.false_discovery_rate() * pred_pos)
+            return float(tp)/float(pred_pos)
 
     def recall(self):
-        cond_pos = np.sum(self.truth != 0)
-        tp = cond_pos - (self.false_negative_rate() * cond_pos)
-        return float(tp)/float(cond_pos)
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            cond_pos = np.sum(self.truth != 0)
+            tp = cond_pos - (self.false_negative_rate() * cond_pos)
+            return float(tp)/float(cond_pos)
 
     def f1_score(self):
-        prec = self.precision()
-        rec = self.recall()
-        return 2 * (rec * prec) / (rec + prec)
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            prec = self.precision()
+            rec = self.recall()
+            if prec == 0 and rec == 0:
+                return np.nan
+            else:
+                return 2 * (rec * prec) / (rec + prec)
 
     def voi(self):
-        voi_split, voi_merge = cremi.evaluation.voi(self.test + 1, self.truth + 1, ignore_groundtruth=[])
-        return voi_split + voi_merge
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            voi_split, voi_merge = cremi.evaluation.voi(self.test + 1, self.truth + 1, ignore_groundtruth=[])
+            return voi_split + voi_merge
 
     def mean_false_distance(self):
-        return self.cremieval.mean_false_distance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_distance
 
     def mean_false_negative_distance(self):
-        return self.cremieval.mean_false_negative_distance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_negative_distance
 
     def mean_false_positive_distance(self):
-        return self.cremieval.mean_false_positive_distance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_positive_distance
 
     def mean_false_distance_clipped(self):
-        return self.cremieval.mean_false_distance_clipped
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_distance_clipped
 
     def mean_false_negative_distance_clipped(self):
-        return self.cremieval.mean_false_negative_distances_clipped
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_negative_distances_clipped
 
     def mean_false_positive_distance_clipped(self):
-        return self.cremieval.mean_false_positive_distances_clipped
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_positive_distances_clipped
 
     def false_positive_rate_with_tolerance(self):
-        return self.cremieval.false_positive_rate_with_tolerance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.false_positive_rate_with_tolerance
 
     def false_negative_rate_with_tolerance(self):
-        return self.cremieval.false_negative_rate_with_tolerance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.false_negative_rate_with_tolerance
 
     def precision_with_tolerance(self):
-        return self.cremieval.precision_with_tolerance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.precision_with_tolerance
 
     def recall_with_tolerance(self):
-        return self.cremieval.recall_with_tolerance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.recall_with_tolerance
 
     def f1_score_with_tolerance(self):
-        return self.cremieval.f1_score_with_tolerance
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.f1_score_with_tolerance
 
     def compute_score(self, argument):
         switcher = {
