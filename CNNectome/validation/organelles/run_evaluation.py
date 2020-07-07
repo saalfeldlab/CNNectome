@@ -91,8 +91,8 @@ def extract_binary_class(gt_seg, label):
     return np.in1d(gt_seg.ravel(), label.labelid).reshape(gt_seg.shape)
 
 
-def apply_threshold(prediction, thr=128):
-    return (prediction > thr).astype(np.bool)
+def apply_threshold(prediction, thr=127):
+    return (prediction >= thr).astype(np.bool)
 
 
 def read_prediction(prediction_path, pred_ds, offset, shape):
@@ -185,7 +185,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
         gt_binary = extract_binary_class(gt_seg, label)
         test_binary = apply_threshold(prediction, thr=threshold)
         pred_empty = np.sum(test_binary) == 0
-        evaluator = Evaluator(gt_binary, test_binary, pred_empty, gt_empty, metric_params, resolution)
+        evaluator = Evaluator(gt_binary, test_binary, gt_empty, pred_empty, metric_params, resolution)
         remaining_metrics = list(set(metrics) - set(results.keys()))
         for metric in remaining_metrics:
             metric_specific_params = filter_params(metric_params, metric)
@@ -213,14 +213,14 @@ def main():
                         help="label for which to evaluate prediction, choices: " + ", ".join(list(hierarchy.keys())))
     parser.add_argument("--crop", type=int, nargs='+', default=None,
                         help="number of crop with annotated groundtruth, e.g. 110")
-    parser.add_argument("--threshold", type=int, default=128, nargs='+',
+    parser.add_argument("--threshold", type=int, default=127, nargs='+',
                         help="threshold to apply on distances")
     parser.add_argument("--pred_path", type=str, default=None, nargs='+',
                         help="path of n5 file containing predictions")
     parser.add_argument("--pred_ds", type=str, default=None, nargs='+',
                         help="dataset of the n5 file containing predictions")
     parser.add_argument("--metric", type=str, default=None, help="metric to evaluate",
-                        choices=list(em.value for em in EvaluationMetrics))
+                        choices=list(em.value for em in EvaluationMetrics), nargs="+")
     parser.add_argument("--clip_distance", type=int, default=200,
                         help="Parameter used for clipped false distances. False distances larger than the value of "
                              "this parameter are reduced to this value.")
@@ -313,7 +313,8 @@ def main():
                     if auto_it is not None:
                         if iteration != autodetect_iteration(pred_path, ds):
                             raise ValueError(
-                                "You specified pred_path as well as iteration. The iteration does not match the iteration in the attributes of the prediction."
+                                "You specified pred_path as well as iteration. The iteration does not match the "
+                                "iteration in the attributes of the prediction."
                             )
                 else:
                     iteration = autodetect_iteration(pred_path, ds)
@@ -324,23 +325,28 @@ def main():
 
                 if pred_path != construct_pred_path(setup, iteration, crop, args.s1):
                     warnings.warn(
-                            "You specified pred_path as well as setup and the pred_path does not match the standard location."
+                            "You specified pred_path as well as setup and the pred_path does not match the standard "
+                            "location."
                         )
             if not os.path.exists(os.path.join(pred_path, ds)):
                 raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
             validations.append([pred_path, ds, setup, iteration, hierarchy[ll], crop, thr])
 
-    tabs = [(pp, d, s, i, ll.labelname, c['number'], t, m, filter_params(metric_params, m)) for (pp, d, s, i, ll, c, t), m in itertools.product(validations, metric)]
-    print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Threshold", "Metric", "Metric Params"]))
+    tabs = [(pp, d, s, i, ll.labelname, c['number'], t, m, filter_params(metric_params, m)) for
+            (pp, d, s, i, ll, c, t), m in itertools.product(validations, metric)]
+    print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Threshold", "Metric",
+                                   "Metric Params"]))
+
     if not args.dry_run:
         print("\nRunning Evaluations:")
-
         for val_params in validations:
             results = run_validation(*(val_params + [metric, metric_params, db, csvhandler, args.save, args.overwrite]))
             val_params.append(results)
         print("\nResults Summary:")
-        tabs = [(pp, d, s, i, ll.labelname, c['number'], t, m, filter_params(metric_params, m), v) for (pp, d, s, i, ll, c, t, r) in validations for m, v in r.items()]
-        print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Threshold", "Metric", "Metric Params", "Value"]))
+        tabs = [(pp, d, s, i, ll.labelname, c['number'], t, m, filter_params(metric_params, m), v) for
+                (pp, d, s, i, ll, c, t, r) in validations for m, v in r.items()]
+        print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Threshold", "Metric",
+                                       "Metric Params", "Value"]))
 
 
 if __name__ == "__main__":
