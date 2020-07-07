@@ -138,6 +138,7 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
             ds.attrs["raw_normalize_factor"] = factor
             ds.attrs["float_range"] = float_range
             ds.attrs["safe_scale"] = safe_scale
+            ds.attrs["mask_ds"] = mask_ds
 
         if not os.path.exists(offset_file):
             if mask_ds is not None:
