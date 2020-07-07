@@ -63,6 +63,7 @@ def train_until(
     db_password,
     balance_global=False,
     prioritized_label=None,
+    dataset=None,
     prob_prioritized=0.5,
     db_name="crops",
     completion_min=6,
@@ -99,7 +100,6 @@ def train_until(
 
         # add sources for all groundtruth labels
         all_srcs = []
-        #if len(label_filter(lambda l: not l.separate_labelset)) > 0:
         # We should really only be adding this with the above if statement, but need it for now because we need to
         # construct masks from it as separate labelsets contain zeros
         logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
@@ -121,10 +121,8 @@ def train_until(
                 ds = label_ds.format(label="all")
             logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
                 cropno=crop["number"], file=crop["parent"], ds=ds, ak=label.gt_key))
-            all_srcs.append(ZarrSource(crop["parent"],
-                                         {label.gt_key: ds}
-                                         )
-                              + Pad(label.gt_key, Coordinate(output_size) + crop_width))
+            all_srcs.append(ZarrSource(crop["parent"], {label.gt_key: ds}) +
+                            Pad(label.gt_key, Coordinate(output_size) + crop_width))
 
         # add mask source per label
         labelmask_srcs = []
@@ -265,13 +263,14 @@ def train_until(
     db = client[db_name]  # db_name = "crops"
     collection = db[gt_version]  # gt_version = "v0003"
     filter = {"completion": {"$gte": completion_min}}
+    if dataset is not None:
+        filter['parent'] = dataset
     skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1}
 
     net_io_names, start_iteration, inputs, outputs = network_setup()
 
     # construct batch request
     request = BatchRequest()
-    #if len(label_filter(lambda l: not l.separate_labelset)) > 0:
     request.add(ak_labels, output_size, voxel_size=voxel_size_labels)
     request.add(ak_labels_downsampled, output_size, voxel_size=voxel_size)
     request.add(ak_mask, output_size, voxel_size=voxel_size)
