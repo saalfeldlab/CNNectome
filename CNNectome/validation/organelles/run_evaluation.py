@@ -150,14 +150,17 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
         metric_specific_params = filter_params(metric_params, metric)
         # check db
         if save:
-            db_entry = db.read_evaluation_result(pred_path, pred_ds, setup, iteration, label.labelname, crop["number"],
-                                                 threshold, metric, metric_specific_params)
+            query = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
+                     "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
+                     "metric_params": metric_specific_params}
+            db_entry = db.read_evaluation_result(query)
             if db_entry is not None:
                 if overwrite:
-                    db.delete_evaluation_result(pred_path, pred_ds, setup, iteration, label.labelname, crop["number"],
-                                                threshold, metric, metric_specific_params)
-                    csvh.delete_evaluation_result(pred_path, pred_ds, setup, iteration, label.labelname, crop["number"],
-                                                  threshold, metric, metric_specific_params)
+                    query = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
+                             "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
+                             "metric_params": metric_specific_params}
+                    db.delete_evaluation_result(query)
+                    csvh.delete_evaluation_result(query)
                 else:
                     results[metric] = db_entry['value']
                     print('.', end='', flush=True)
@@ -177,10 +180,11 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
             score = evaluator.compute_score(EvaluationMetrics[metric])
 
             if save:
-                db.write_evaluation_result(pred_path, pred_ds, setup, iteration, label.labelname, crop["number"],
-                                           threshold, metric, metric_specific_params, score)
-                csvh.write_evaluation_result(pred_path, pred_ds, setup, iteration, label.labelname, crop["number"],
-                                             threshold, metric, metric_specific_params, score)
+                document = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
+                            "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
+                            "metric_params": metric_specific_params, "value": score}
+                db.write_evaluation_result(document)
+                csvh.write_evaluation_result(document)
 
             results[metric] = score
             print('.', end='', flush=True)
@@ -221,7 +225,6 @@ def main():
     parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--dry-run", action='store_true',
                         help="show list of evaluations that would be run with given arguments without compute anything")
-
 
     args = parser.parse_args()
     db = cosem_db.MongoCosemDB(args.db_username, args.db_password, host=db_host, gt_version=gt_version,

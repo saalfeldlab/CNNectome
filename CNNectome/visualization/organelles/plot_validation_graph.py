@@ -54,13 +54,12 @@ def plot_validation(x_axis, validations, metrics, metric_params, db):
         y_axis_values = []
         for val in validations:
             specific_metric_params = filter_params(metric_params, metric)
-            eval_res = db.read_evaluation_result(val["path"], val["dataset"], val["setup"], val["iteration"],
-                                                 val["label"].labelname, val["crop"]["number"], val["threshold"], metric,
-                                                 specific_metric_params)
+            query = {"path": val["path"], "dataset": val["dataset"], "setup": val["setup"],
+                     "iteration": val["iteration"], "label": val["label"].labelname, "crop": val["crop"]["number"],
+                     "threshold":  val["threshold"], "metric": metric, "metric_params": specific_metric_params}
+            eval_res = db.read_evaluation_result(query)
             if eval_res is None:
-                raise ValueError("Did not find {0:} in database".format((val["path"], val["dataset"], val["setup"], val["iteration"],
-                                                 val["label"].labelname, val["crop"]["number"], val["threshold"], metric,
-                                                 specific_metric_params)))
+                raise ValueError("Did not find {0:} in database".format(query))
             eval_res.update(specific_metric_params)
             x_axis_values.append(eval_res[x_axis])
             y_axis_values.append(eval_res["value"])
@@ -68,9 +67,9 @@ def plot_validation(x_axis, validations, metrics, metric_params, db):
         if ax is None:
             axs[y_scale_group(metric)] = axs[ref_ax].twinx()
             ax = axs[y_scale_group(metric)]
-        line, = ax.plot(x_axis_values, y_axis_values, label=metric, c = cycle[i])
+        line, = ax.plot(x_axis_values, y_axis_values, label=metric, c=cycle[i])
         opt = best(metric)(y_axis_values)
-        ax.plot(x_axis_values[opt], y_axis_values[opt], c = line.get_color(), alpha = 0.5, marker = 'o')
+        ax.plot(x_axis_values[opt], y_axis_values[opt], c=line.get_color(), alpha=0.5, marker='o')
         x_ticks.union(set(x_axis_values))
     for ax in axs:
         if ax is not None:
@@ -90,7 +89,7 @@ def main():
                         help="label for which to evaluate prediction, choices: " + ", ".join(list(hierarchy.keys())))
     parser.add_argument("--crop", type=int, nargs='+', default=None,
                         help="number of crop with annotated groundtruth, e.g. 110")
-    parser.add_argument("--threshold", type=int, default=128, nargs='+',
+    parser.add_argument("--threshold", type=int, default=127, nargs='+',
                         help="threshold to apply on distances")
     parser.add_argument("--pred_path", type=str, default=None, nargs='+',
                         help="path of n5 file containing predictions")

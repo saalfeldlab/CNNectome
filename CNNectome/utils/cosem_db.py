@@ -2,6 +2,7 @@ import pymongo
 import lazy_property
 import os
 import csv
+import json
 
 
 class CosemDB(object):
@@ -25,25 +26,22 @@ class CosemDB(object):
     def get_crop_by_number(self, number):
         raise NotImplementedError
 
-    def read_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                               metric_params):
+    def find(self, query):
         raise NotImplementedError
 
-    def delete_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                 metric_params):
+    def read_evaluation_result(self, query):
         raise NotImplementedError
 
-    def write_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                metric_params, value):
-
+    def delete_evaluation_result(self, query):
         raise NotImplementedError
 
-    def update_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                 metric_params, value):
-        self.delete_evaluation_result(path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                      metric_params)
-        self.write_evaluation_result(path,dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                     metric_params, value)
+    def write_evaluation_result(self, document):
+        raise NotImplementedError
+
+    def update_evaluation_result(self, query, value):
+        self.delete_evaluation_result(query)
+        query["value"] = value
+        self.write_evaluation_result(query)
 
 
 class MongoCosemDB(CosemDB):
@@ -73,40 +71,41 @@ class MongoCosemDB(CosemDB):
             crops = output_type(crops)
         return crops
 
-    def read_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                               metric_params):
+    def find(self, query):
+        eval_db = self.access("evaluation", self.training_version)
+        result = []
+        for qu in eval_db.find(query):
+            result.append(qu)
+        return result
+
+    def read_evaluation_result(self, query):
         eval_db = self.access('evaluation', self.training_version)
-        filter = {'path': path, 'dataset': dataset, 'setup': setup, 'iteration': iteration, 'label': labelname,
-                  'crop': cropno, 'threshold': threshold, 'metric': metric, 'metric_params': metric_params}
-        skip = {'_id': 0}
-        eval = eval_db.find_one(filter, skip)
+        num = eval_db.count_documents(query)
+        if num > 1:
+            raise ValueError("Query for reading evaluation results matched more than one database entry, consider "
+                             "using find instead. Used query was {0:}".format(query))
+        skip = {"_id": 0}
+        eval = eval_db.find_one(query, skip)
         return eval
 
-    def delete_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                 metric_params):
+    def delete_evaluation_result(self, query):
         eval_db = self.access('evaluation', self.training_version)
-        filter = {'path': path, 'dataset': dataset, 'setup': setup, 'iteration': iteration, 'label': labelname,
-                  'crop': cropno, 'threshold': threshold, 'metric': metric, 'metric_params': metric_params}
-        eval = eval_db.delete_one(filter)
+        eval = eval_db.delete_many(query)
 
-    def write_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                metric_params, value):
+    def write_evaluation_result(self, document):
         eval_db = self.access('evaluation', self.training_version)
-        document = {'path': path, 'dataset': dataset, 'setup': setup, 'iteration': iteration, 'label': labelname,
-                    'crop': cropno, 'threshold': threshold, 'metric': metric, 'metric_params': metric_params,
-                    'value': value}
-        id = eval_db.insert_one(document)
+        id = eval_db.insert_one(document.copy())
         return id
 
-    def update_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                 metric_params, value):
+    def update_evaluation_result(self, query, value):
         eval_db = self.access('evaluation', self.training_version)
-        query_doc = {'path': path, 'dataset': dataset, 'setup': setup, 'iteration': iteration, 'label': labelname,
-                    'crop': cropno, 'threshold': threshold, 'metric': metric, 'metric_params': metric_params}
-        document = {'path': path, 'dataset': dataset, 'setup': setup, 'iteration': iteration, 'label': labelname,
-                    'crop': cropno, 'threshold': threshold, 'metric': metric, 'metric_params': metric_params,
-                    'value': value}
-        eval_db.update_one(query_doc, document)
+        document = query.copy()
+        document["value"] = value
+        num = eval_db.count_documents(query)
+        if num > 1:
+            raise ValueError("Query for updating evaluation results matched more than one database entry. Used query "
+                             "was {0:}".format(query))
+        eval_db.update_one(query, document)
 
 
 class CosemCSV(object):
@@ -115,23 +114,18 @@ class CosemCSV(object):
         self.fieldnames = ["path", "dataset", "setup", "iteration", "label", "crop", "threshold", "metric",
                            "metric_params", "value"]
 
-    def read_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                               metric_params):
-        query_element = {"path": path, "dataset": dataset, "setup": setup, "iteration": iteration, "label": labelname,
-                         "crop": cropno, "threshold": threshold, "metric": metric, "metric_params": metric_params}
+    def read_evaluation_result(self, query):
         with open(os.path.join(self.folder, labelname + '.csv', "r")) as f:
             reader = csv.DictReader(f, self.fieldnames)
             for row in reader:
-                for k, v in query_element.items():
+                for k, v in query.items():
                     if row[k] != json.dumps(v):
                         break
                 else:
-                    query_element['value'] = json.loads(row["value"])
-                    return query_element
+                    query['value'] = json.loads(row["value"])
+                    return query
 
-    def delete_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric, metric_params):
-        query_element = {"path": path, "dataset": dataset, "setup": setup, "iteration": iteration, "label": labelname,
-                         "crop": cropno, "threshold": threshold, "metric": metric, "metric_params": metric_params}
+    def delete_evaluation_result(self, query):
         with open(os.path.join(self.folder, labelname+'.csv'), "r") as f:
             reader = csv.DictReader(f, self.fieldnames)
             all_rows = []
@@ -146,10 +140,9 @@ class CosemCSV(object):
             writer.writeheader()
             writer.writerows(all_rows)
 
-    def write_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric, metric_params,
-                                value):
-        open(os.path.join(self.folder, labelname + '.csv'), "a").close()
-        with open(os.path.join(self.folder, labelname + '.csv'), "r+") as f:
+    def write_evaluation_result(self, document):
+        open(os.path.join(self.folder, document['label'] + '.csv'), "a").close()
+        with open(os.path.join(self.folder, document['label'] + '.csv'), "r+") as f:
             reader = csv.DictReader(f, self.fieldnames)
             try:
                 next(reader)
@@ -157,19 +150,9 @@ class CosemCSV(object):
                 writer = csv.DictWriter(f, self.fieldnames)
                 writer.writeheader()
 
-        with open(os.path.join(self.folder, labelname + '.csv'), "a+") as f:
+        with open(os.path.join(self.folder, document['label'] + '.csv'), "a+") as f:
             writer = csv.DictWriter(f, self.fieldnames)
-            document = {'path': path, 'dataset': dataset, 'setup': setup, 'iteration': iteration, 'label': labelname,
-                        'crop': cropno, 'threshold': threshold, 'metric': metric, 'metric_params': metric_params,
-                        'value': value}
             writer.writerow(document)
-
-    def update_evaluation_result(self, path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                 metric_params, value):
-        self.delete_evaluation_result(path, dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                      metric_params)
-        self.write_evaluation_result(path,dataset, setup, iteration, labelname, cropno, threshold, metric,
-                                     metric_params, value)
 
     def erase(self, labelname):
         if os.path.exists(os.path.join(self.folder, labelname + '.csv')):
