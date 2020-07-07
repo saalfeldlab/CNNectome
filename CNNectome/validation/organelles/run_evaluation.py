@@ -10,6 +10,7 @@ from more_itertools import repeat_last, always_iterable
 import tabulate
 import warnings
 import itertools
+import scipy.ndimage
 
 db_host = "cosem.int.janelia.org:27017"
 gt_version = "v0003"
@@ -44,7 +45,16 @@ def get_all_annotated_labelnames(crop):
     return annotated_labelnames
 
 
-def read_gt(crop, label, gt_version ="v0003"):
+def add_constant(seg, resolution, label):
+    inner_distance = scipy.ndimage.distance_transform_edt(scipy.ndimage.morphology.binary_erosion(seg, border_value=1,
+                                                                                                  structure=scipy.ndimage.generate_binary_structure(seg.ndim, seg.ndim)), sampling=resolution)
+    outer_distance = scipy.ndimage.distance_transform_edt(np.logical_not(seg), sampling=resolution)
+    signed_distance = inner_distance - outer_distance + label.add_constant
+    gt_seg = apply_threshold(signed_distance, thr=0)
+    return gt_seg
+
+
+def read_gt(crop, label, resolution, gt_version="v0003"):
     n5file = zarr.open(crop["parent"], mode="r")
     blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
@@ -53,6 +63,8 @@ def read_gt(crop, label, gt_version ="v0003"):
     else:
         label_ds_name = "all"
     gt_seg = n5file[label_ds.format(label=label_ds_name)]
+    if label.add_constant is not None and label.add_constant != 0:
+        gt_seg = add_constant(gt_seg, resolution, label)
     gt_seg = downsample(gt_seg)
 
     blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
@@ -166,11 +178,11 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
                     print('.', end='', flush=True)
 
     if set(results.keys()) != set(metrics):
-        gt_empty = not any( l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
-        gt_seg, mask = read_gt(crop, label, gt_version)
-        gt_binary = extract_binary_class(gt_seg, label)
+        gt_empty = not any(l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
         offset, shape = get_offset_and_shape_from_crop(crop)
         prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
+        gt_seg, mask = read_gt(crop, label, resolution, gt_version)
+        gt_binary = extract_binary_class(gt_seg, label)
         test_binary = apply_threshold(prediction, thr=threshold)
         pred_empty = np.sum(test_binary) == 0
         evaluator = Evaluator(gt_binary, test_binary, pred_empty, gt_empty, metric_params, resolution)
