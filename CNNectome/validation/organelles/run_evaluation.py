@@ -119,7 +119,7 @@ def get_parent(prediction_path, label):
     return pred.attrs["raw_data_path"]
 
 
-def get_data_path(crop):
+def get_data_path(crop, s1):
     # todo: consolidate this with get_output_paths from inference template in a utils function
     basename, n5_filename = os.path.split(crop['parent'])
     _, cell_identifier = os.path.split(basename)
@@ -129,6 +129,13 @@ def get_data_path(crop):
     else:
         output_filename = base_n5_filename + '_it{0:}' + n5
     return os.path.join(cell_identifier, output_filename)
+
+
+def pred_path_without_iteration(setup, crop, s1):
+    default_pred_path = "/nrs/cosem/cosem/training/{0:}/".format(training_version)
+    setup_path = os.path.join(default_pred_path, setup)
+    pred_path = os.path.join(setup_path, get_data_path(crop, s1))
+    return pred_path.split("it{0:}.n5")[0]+"it"
 
 
 def construct_pred_path(setup, iteration, crop, s1):

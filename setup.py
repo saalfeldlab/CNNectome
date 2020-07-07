@@ -26,6 +26,7 @@ REQUIRED = [
     "memory_profiler",
     "more-itertools",
     "pymongo",
+    "seaborn",
     'scikit-learn',
     'SimpleITK',
     'tabulate',
