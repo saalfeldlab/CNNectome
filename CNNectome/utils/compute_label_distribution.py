@@ -21,8 +21,10 @@ def count_with_add(labelfield, labelid, add_constant):
     distances = distance(binary_labelfield, sampling=(2, 2, 2)) + add_constant
     return np.sum(distances>0)
 
+
 def get_label_ids_by_category(crop, category):
     return [l[0] for l in crop['labels'][category]]
+
 
 def label_filter(cond_f):
     return [ll for ll in labels if cond_f(ll)]
@@ -97,11 +99,11 @@ def one_crop(crop, gt_version, labels):
     return pos, neg
 
 
-def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", completion_min=5):
+def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", completion_min=6):
     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
     db = client[db_name]
     collection = db[gt_version]
-    filter = {"completion":{"$gte": completion_min}}
+    filter = {"completion": {"$gte": completion_min}}
     skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1}
     positives = dict()
     negatives = dict()
@@ -109,11 +111,12 @@ def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", 
         positives[int(l.labelid[0])] = 0
         negatives[int(l.labelid[0])] = 0
     for crop in collection.find(filter, skip):
-        if int(crop["number"]) in [54,55,56,57,58,59,94,95,96,60,61,62,63,64,65,85,86,87,25,26,81,82,83,84,97,98,99,
-                                   72,73,74,75,76,77,88,89,90,66,67,68,69,70,71,91,92,93]:
-            print("Skipping {0:}".format(int(crop["number"])))
-            continue
         print(crop)
+        # if int(crop["number"]) in [54,55,56,57,58,59,94,95,96,60,61,62,63,64,65,85,86,87,25,26,81,82,83,84,97,98,99,
+        #                            72,73,74,75,76,77,88,89,90,66,67,68,69,70,71,91,92,93]:
+        #     print("Skipping {0:}".format(int(crop["number"])))
+        #     continue
+        # print(crop)
         pos, neg = one_crop(crop, gt_version, labels)
         for l, c in pos.items():
             positives[l] += int(c)
@@ -130,7 +133,7 @@ def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", 
     stats["positives"] = positives
     stats["negatives"] = negatives
     stats["sums"] = sums
-    with open("stats_noecs+nucleus.json", "w") as f:
+    with open("stats_new.json", "w") as f:
         json.dump(stats, f)
 
 
@@ -158,7 +161,6 @@ if __name__ == "__main__":
     labels.append(Label("er_membrane", 16))
     labels.append(Label("ERES_lumen", 19))
     labels.append(Label("ERES_membrane", 18))
-    #labels.append(Label("nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37))
     labels.append(Label("nucleolus", 29, separate_labelset=True))
     labels.append(Label("nucleoplasm", 28))
     labels.append(Label("NE_lumen", 21))
