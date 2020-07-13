@@ -126,16 +126,16 @@ class CosemCSV(object):
                     return query
 
     def delete_evaluation_result(self, query):
-        with open(os.path.join(self.folder, labelname+'.csv'), "r") as f:
+        with open(os.path.join(self.folder, query['label']+'.csv'), 'r') as f:
             reader = csv.DictReader(f, self.fieldnames)
             all_rows = []
             for row in reader:
-                for k, v in query_element.items():
+                for k, v in query.items():
                     if row[k] != v:
                         all_rows.append(row)
                         break
-        self.erase(labelname)
-        with open(os.path.join(self.folder, labelname+'.csv'), "w") as f:
+        self.erase(query["label"])
+        with open(os.path.join(self.folder, query['label']+'.csv'), 'w') as f:
             writer = csv.DictWriter(f, self.fieldnames)
             writer.writeheader()
             writer.writerows(all_rows)
