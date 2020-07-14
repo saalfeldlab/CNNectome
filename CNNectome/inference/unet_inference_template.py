@@ -1,5 +1,4 @@
 import sys
-sys.path = ["/groups/saalfeld/home/heinrichl/dev/simpleference"] + sys.path
 from simpleference.inference.inference import run_inference_zarr_multi_crop
 from simpleference.inference.util import *
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict
@@ -15,6 +14,7 @@ import logging
 import numcodecs
 from gunpowder import Coordinate
 
+logging.basicConfig(level=logging.INFO)
 
 def get_output_paths(raw_data_path, setup_path, output_path):
     if output_path is None:
@@ -219,10 +219,10 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, o
         output_keys=network_output_keys
     )
 
-    t_predict = time.time()
+
 
     factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
-
+    t_predict = time.time()
     run_inference_zarr_multi_crop(
         prediction,
         functools.partial(preprocess, factor=1./factor, scale=scale, shift=shift),
@@ -244,6 +244,7 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, o
     )
 
     t_predict = time.time() - t_predict
+    logging.info("completed {0:} blocks in {1:}s.".format(len(offset_list), t_predict))
 
 
 # def submit_jobs(n_job, input_shape_vc, output_shape_vc, chunk_shape_vc, raw_data_path, iteration, raw_ds, setup_path,
