@@ -50,6 +50,18 @@ def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
     )
     return list(prob_present + prob_absent)
 
+def is_prioritized(crop, prioritized_label):
+    present = set(get_label_ids_by_category(crop, "present_annotated"))
+    if prioritized_label.generic_label is not None:
+        specific_labels_prioritized = set(prioritized_label.labelid) - set(prioritized_label.generic_label)
+        if specific_labels_prioritized.issubset(present) or set(prioritized_label.generic_label).issubset(present):
+            prioritized_crop = True
+        else:
+            prioritized_crop = False
+    else:
+        prioritized_crop = set(prioritized_label.labelid).issubset(present)
+    return prioritized_crop
+
 
 def train_until(
     max_iteration,
@@ -310,7 +322,7 @@ def train_until(
     crop_sizes = []
     if prioritized_label is not None:
         crop_prioritized_label_indicator = []
-        prioritized_label_nos = set(prioritized_label.labelid)
+
     for crop in collection.find(filter, skip):
         if len(set(get_all_annotated_label_ids(crop)).intersection(set(get_all_labelids(labels)))) > 0:
             logging.info("Adding crop number {0:}".format(crop["number"]))
@@ -319,18 +331,19 @@ def train_until(
                     crop_srcs.append(make_crop_source(crop, subsample_variant))
                     crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
-                    present = set(get_label_ids_by_category(crop, "present_annotated"))
+                    crop_prioritized = is_prioritized(crop, prioritized_label)
+                    logging.info(f"Crop {crop['number']} is {'not ' if not crop_prioritized else ''}prioritized")
                     crop_prioritized_label_indicator.extend(
-                        [prioritized_label_nos.issubset(present)] * int(np.prod(voxel_size_input/voxel_size))
+                        [crop_prioritized] * int(np.prod(voxel_size_input/voxel_size))
                     )
             else:
                 crop_srcs.append(make_crop_source(crop))
                 crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
-                    present = set(get_label_ids_by_category(crop, "present_annotated"))
-                    crop_prioritized_label_indicator.append(
-                        prioritized_label_nos.issubset(present)
-                    )
+                    crop_prioritized = is_prioritized(crop, prioritized_label)
+                    logging.info(f"Crop {crop['number']} is {'not ' if not crop_prioritized else ''}prioritized")
+                    crop_prioritized_label_indicator.append(crop_prioritized)
+
     if prioritized_label is not None:
         sampling_probs = prioritized_sampling_probabilities(
             crop_sizes, crop_prioritized_label_indicator, prob_prioritized
