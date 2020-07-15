@@ -50,16 +50,25 @@ def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
     )
     return list(prob_present + prob_absent)
 
+
 def is_prioritized(crop, prioritized_label):
     present = set(get_label_ids_by_category(crop, "present_annotated"))
+    annotated = set(get_all_annotated_label_ids(crop))
+    # treating generic_label as separate case might not be necessary?
     if prioritized_label.generic_label is not None:
         specific_labels_prioritized = set(prioritized_label.labelid) - set(prioritized_label.generic_label)
-        if specific_labels_prioritized.issubset(present) or set(prioritized_label.generic_label).issubset(present):
+        if not specific_labels_prioritized.isdisjoint(present) and specific_labels_prioritized.issubset(annotated):
+            prioritized_crop = True
+        elif not set(prioritized_label.generic_label).isdisjoint(present) and set(
+            prioritized_label.generic_label
+        ).issubset(annotated):
             prioritized_crop = True
         else:
             prioritized_crop = False
     else:
-        prioritized_crop = set(prioritized_label.labelid).issubset(present)
+        prioritized_crop = not set(prioritized_label.labelid).isdisjoint(present) and set(
+            prioritized_label.labelid
+        ).issubset(annotated)
     return prioritized_crop
 
 
