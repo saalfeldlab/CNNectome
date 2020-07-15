@@ -52,6 +52,23 @@ def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
 
 
 def is_prioritized(crop, prioritized_label):
+    """
+    Determines whether a crop should be prioritized for training depending on whether it contains examples of the
+    specified label.
+
+    Parameters
+    ----------
+    crop : `dict`
+        Dictionary with attributes describing the crop, as defined in database (see `CNNectome.utils.cosem_db`)
+
+    prioritized_label: `CNNectome.utils.label.Label`
+        Other label that should be present in the crop for it to be considered priortized.
+
+    Returns
+    -------
+    prioritized_crop : `bool`
+        True if crop contains examples of specified label, false otherwise.
+    """
     present = set(get_label_ids_by_category(crop, "present_annotated"))
     annotated = set(get_all_annotated_label_ids(crop))
     # treating generic_label as separate case might not be necessary?
