@@ -58,15 +58,15 @@ def is_prioritized(crop, prioritized_label):
 
     Parameters
     ----------
-    crop : `dict`
-        Dictionary with attributes describing the crop, as defined in database (see `CNNectome.utils.cosem_db`)
+    crop : dict
+        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
 
-    prioritized_label: `CNNectome.utils.label.Label`
+    prioritized_label: CNNectome.utils.label.Label
         Other label that should be present in the crop for it to be considered priortized.
 
     Returns
     -------
-    prioritized_crop : `bool`
+    prioritized_crop : bool
         True if crop contains examples of specified label, false otherwise.
     """
     present = set(get_label_ids_by_category(crop, "present_annotated"))
