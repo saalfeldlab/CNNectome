@@ -165,19 +165,19 @@ def autodetect_iteration(path, ds):
 def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold, metrics, metric_params, db=None,
                    csvh=None, save=False, overwrite=False):
     results = dict()
+    n5 = zarr.open(pred_path, mode="r")
+    raw_dataset = n5[pred_ds].attrs["raw_ds"]
+    parent_path = n5[pred_ds].attrs["raw_data_path"]
     for metric in metrics:
         metric_specific_params = filter_params(metric_params, metric)
         # check db
         if save:
             query = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                      "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
-                     "metric_params": metric_specific_params}
+                     "metric_params": metric_specific_params, "raw_dataset": raw_dataset, "parent_path": parent_path}
             db_entry = db.read_evaluation_result(query)
             if db_entry is not None:
                 if overwrite:
-                    query = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
-                             "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
-                             "metric_params": metric_specific_params}
                     db.delete_evaluation_result(query)
                     csvh.delete_evaluation_result(query)
                 else:
@@ -201,7 +201,8 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
             if save:
                 document = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                             "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
-                            "metric_params": metric_specific_params, "value": score}
+                            "metric_params": metric_specific_params, "value": score, "raw_dataset": raw_dataset, "parent_path":
+                            parent_path}
                 db.write_evaluation_result(document)
                 csvh.write_evaluation_result(document)
 
@@ -337,22 +338,28 @@ def main():
                         )
             if not os.path.exists(os.path.join(pred_path, ds)):
                 raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
-            validations.append([pred_path, ds, setup, iteration, hierarchy[ll], crop, thr])
+            n5 = zarr.open(pred_path, mode="r")
+            raw_ds = n5[ds].attrs["raw_ds"]
+            parent_path = n5[ds].attrs["raw_data_path"]
+            validations.append([pred_path, ds, setup, iteration, hierarchy[ll], crop, raw_ds, parent_path, thr])
 
-    tabs = [(pp, d, s, i, ll.labelname, c['number'], t, m, filter_params(metric_params, m)) for
-            (pp, d, s, i, ll, c, t), m in itertools.product(validations, metric)]
-    print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Threshold", "Metric",
-                                   "Metric Params"]))
+    tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m)) for
+            (pp, d, s, i, ll, c, r_ds, parent, t), m in itertools.product(validations, metric)]
+    print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Raw Dataset",
+                                   "Parent Path", "Threshold", "Metric", "Metric Params"]))
 
     if not args.dry_run:
         print("\nRunning Evaluations:")
         for val_params in validations:
-            results = run_validation(*(val_params + [metric, metric_params, db, csvhandler, args.save, args.overwrite]))
+            pp, d, s, i, ll, c , r_ds, parent, t = val_params
+            results = run_validation(pp, d, s, i, ll, c, t, metric, metric_params, db, csvhandler, args.save,
+                                     args.overwrite)
             val_params.append(results)
         print("\nResults Summary:")
-        tabs = [(pp, d, s, i, ll.labelname, c['number'], t, m, filter_params(metric_params, m), v) for
-                (pp, d, s, i, ll, c, t, r) in validations for m, v in r.items()]
-        print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Threshold", "Metric",
+        tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m), v) for
+                (pp, d, s, i, ll, c, r_ds, parent, t, r) in validations for m, v in r.items()]
+        print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop",
+                                       "Raw Dataset", "Parent Path", "Threshold", "Metric",
                                        "Metric Params", "Value"]))
 
 
