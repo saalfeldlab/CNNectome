@@ -15,9 +15,7 @@ def transfer(db_username, db_password):
     for l in hierarchy.keys():
         csv_d.erase(l)
     for db_entry in eval_col.find():
-        csv_d.write_evaluation_result(db_entry["path"], db_entry["dataset"], db_entry["setup"], db_entry["iteration"],
-                                      db_entry["label"], db_entry["crop"], db_entry["threshold"], db_entry["metric"],
-                                      db_entry["metric_params"], db_entry["value"])
+        csv_d.write_evaluation_result(db_entry)
 
 
 def main():

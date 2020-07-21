@@ -3,6 +3,7 @@ import lazy_property
 import os
 import csv
 import json
+import logging
 
 
 class CosemDB(object):
@@ -119,8 +120,11 @@ class CosemCSV(object):
             reader = csv.DictReader(f, self.fieldnames)
             for row in reader:
                 for k, v in query.items():
-                    if row[k] != json.dumps(v):
-                        break
+                    if k in self.fieldnames:
+                        if row[k] != json.dumps(v):
+                            break
+                    else:
+                        logging.debug("Ignoring key {0:} for querying from csv".format(k))
                 else:
                     query['value'] = json.loads(row["value"])
                     return query
@@ -131,9 +135,12 @@ class CosemCSV(object):
             all_rows = []
             for row in reader:
                 for k, v in query.items():
-                    if row[k] != v:
-                        all_rows.append(row)
-                        break
+                    if k in self.fieldnames:
+                        if row[k] != v:
+                            all_rows.append(row)
+                            break
+                    else:
+                        logging.debug("Ignoring key {0:} for querying from csv".format(k))
         self.erase(query["label"])
         with open(os.path.join(self.folder, query['label']+'.csv'), 'w') as f:
             writer = csv.DictWriter(f, self.fieldnames)
@@ -141,6 +148,7 @@ class CosemCSV(object):
             writer.writerows(all_rows)
 
     def write_evaluation_result(self, document):
+        docid = document.pop("_id", None)
         open(os.path.join(self.folder, document['label'] + '.csv'), "a").close()
         with open(os.path.join(self.folder, document['label'] + '.csv'), "r+") as f:
             reader = csv.DictReader(f, self.fieldnames)
@@ -153,6 +161,9 @@ class CosemCSV(object):
         with open(os.path.join(self.folder, document['label'] + '.csv'), "a+") as f:
             writer = csv.DictWriter(f, self.fieldnames)
             writer.writerow(document)
+
+        if docid is not None:
+            document["_id"] = docid
 
     def erase(self, labelname):
         if os.path.exists(os.path.join(self.folder, labelname + '.csv')):
