@@ -9,12 +9,6 @@ training_version = "v0003.2"
 csv_folder = "/groups/cosem/cosem/computational_evaluation/{0:}/manual/".format(training_version)
 
 
-def get_cell_identifier(crop):
-    basename, n5_filename = os.path.split(crop["parent"])
-    _, cell_identifier = os.path.split(basename)
-    return cell_identifier
-
-
 def get_best_manual(dataset, labelname, setup=None, s1=False):
     if setup is None:
         csv_file = os.path.join(csv_folder, dataset+"_setup.csv")

@@ -1,3 +1,4 @@
+from CNNectome.utils import crop_utils
 from CNNectome.validation.organelles.segmentation_metrics import *
 from CNNectome.utils import cosem_db
 from CNNectome.utils.hierarchy import hierarchy
@@ -22,27 +23,10 @@ def downsample(arr, factor=2):
     return arr[(slice(None, None, factor),) * arr.ndim]
 
 
-def get_label_ids_by_category(crop, category):
-    return [l[0] for l in crop['labels'][category]]
-
-
-def get_all_annotated_label_ids(crop):
-    return get_label_ids_by_category(crop, "present_annotated") + get_label_ids_by_category(crop, "absent_annotated")
-
-
-def get_all_annotated_labelnames(crop):
-    annotated_labelnames = []
-    annotated_label_ids = get_all_annotated_label_ids(crop)
-    for labelname, label in hierarchy.items():
-        if label.generic_label is not None:
-            specific_labels = list(set(label.labelid) - set(label.generic_label))
-            generic_condition = (all(l in annotated_label_ids for l in label.generic_label) or
-                                 all(l in annotated_label_ids for l in specific_labels))
-        else:
-            generic_condition = False
-        if all(l in annotated_label_ids for l in label.labelid) or generic_condition:
-            annotated_labelnames.append(labelname)
-    return annotated_labelnames
+def get_parent(prediction_path, label):
+    n5file = zarr.open(prediction_path, mode="r")
+    pred = n5file[label.labelname]
+    return pred.attrs["raw_data_path"]
 
 
 def add_constant(seg, resolution, label):
@@ -104,44 +88,17 @@ def read_prediction(prediction_path, pred_ds, offset, shape):
     return pred[sl], resolution
 
 
-def get_offset_and_shape_from_crop(crop):
-    n5file = zarr.open(crop["parent"], mode="r")
-    label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/all".format(version=gt_version.lstrip("v"), cropno=crop["number"])
-    offset_wc = n5file[label_ds].attrs["offset"][::-1]
-    offset = tuple(np.array(offset_wc)/4.)
-    shape = tuple(np.array(n5file[label_ds].shape)/2.)
-    return offset, shape
-
-
-def get_parent(prediction_path, label):
-    n5file = zarr.open(prediction_path, mode="r")
-    pred = n5file[label.labelname]
-    return pred.attrs["raw_data_path"]
-
-
-def get_data_path(crop, s1):
-    # todo: consolidate this with get_output_paths from inference template in a utils function
-    basename, n5_filename = os.path.split(crop['parent'])
-    _, cell_identifier = os.path.split(basename)
-    base_n5_filename, n5 = os.path.splitext(n5_filename)
-    if s1:
-        output_filename = base_n5_filename + '_s1_it{0:}' + n5
-    else:
-        output_filename = base_n5_filename + '_it{0:}' + n5
-    return os.path.join(cell_identifier, output_filename)
-
-
 def pred_path_without_iteration(setup, crop, s1):
     default_pred_path = "/nrs/cosem/cosem/training/{0:}/".format(training_version)
     setup_path = os.path.join(default_pred_path, setup)
-    pred_path = os.path.join(setup_path, get_data_path(crop, s1))
+    pred_path = os.path.join(setup_path, crop_utils.get_data_path(crop, s1))
     return pred_path.split("it{0:}.n5")[0]+"it"
 
 
 def construct_pred_path(setup, iteration, crop, s1):
     default_pred_path = '/nrs/cosem/cosem/training/v0003.2/'
     setup_path = os.path.join(default_pred_path, setup)
-    pred_path = os.path.join(setup_path, get_data_path(crop, s1).format(iteration))
+    pred_path = os.path.join(setup_path, crop_utils.get_data_path(crop, s1).format(iteration))
 
     return pred_path
 
@@ -149,7 +106,7 @@ def construct_pred_path(setup, iteration, crop, s1):
 def autodetect_labelnames(path, crop):
     n5 = zarr.open(zarr.N5Store(path), 'r')
     labels_predicted = set(n5.array_keys())
-    labels_in_crop = set(get_all_annotated_labelnames(crop))
+    labels_in_crop = set(crop_utils.get_all_annotated_labelnames(crop))
     labels_eval = list(labels_predicted.intersection(labels_in_crop))
     return labels_eval
 
@@ -185,8 +142,8 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
                     print('.', end='', flush=True)
 
     if set(results.keys()) != set(metrics):
-        gt_empty = not any(l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
-        offset, shape = get_offset_and_shape_from_crop(crop)
+        gt_empty = not any(l in crop_utils.get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
+        offset, shape = crop_utils.get_offset_and_shape_from_crop(crop)
         prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
         gt_seg, mask = read_gt(crop, label, resolution, gt_version)
         gt_binary = extract_binary_class(gt_seg, label)
@@ -305,7 +262,7 @@ def main():
         else:
             labels = list(always_iterable(label))
             for ll in labels:
-                if ll not in get_all_annotated_labelnames(crop):
+                if ll not in crop_utils.get_all_annotated_labelnames(crop):
                     raise ValueError("Label {0:} not annotated in crop {1:}".format(ll, crop['number']))
 
         for ll in labels:

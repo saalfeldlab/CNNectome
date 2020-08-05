@@ -1,5 +1,6 @@
 from CNNectome.validation.organelles.segmentation_metrics import *
-from CNNectome.validation.organelles.run_evaluation import construct_pred_path, autodetect_labelnames, autodetect_iteration, get_all_annotated_labelnames
+from CNNectome.validation.organelles.run_evaluation import construct_pred_path, autodetect_labelnames, autodetect_iteration
+from CNNectome.utils.crop_utils import get_all_annotated_labelnames
 from CNNectome.utils import cosem_db
 from CNNectome.utils.hierarchy import hierarchy
 import matplotlib.pyplot as plt
