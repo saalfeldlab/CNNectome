@@ -27,6 +27,9 @@ class CosemDB(object):
     def get_crop_by_number(self, number):
         raise NotImplementedError
 
+    def get_validation_crop_by_cell_id(self, cell_id):
+        raise NotImplementedError
+
     def find(self, query):
         raise NotImplementedError
 
@@ -63,9 +66,15 @@ class MongoCosemDB(CosemDB):
         crop = crop_db.find_one({"number": str(number)})
         return crop
 
+    def get_validation_crop_by_cell_id(self, cell_id):
+        crop_db = self.access('crops', self.gt_version)
+        filter = {"completion": -1, "parent": {"$regex": cell_id}, "alias": {"$regex": "Validation"}}
+        crop = crop_db.find_one(filter)
+        return crop
+
     def get_all_validation_crops(self, output_type=list):
         crop_db = self.access('crops', self.gt_version)
-        filter = {'completion': -1}
+        filter = {'completion': -1, "alias": {"$regex": "Validation"}}
         skip = {'_id': 0}
         crops = crop_db.find(filter, skip)
         if output_type is not None:
