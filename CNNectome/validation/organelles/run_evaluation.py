@@ -228,13 +228,16 @@ def main():
     metric_params['clip_distance'] = args.clip_distance
     metric_params['tol_distance'] = args.tol_distance
 
-    num_validations = max(len(crops), len(list(always_iterable(args.setup))), len(list(always_iterable(args.iteration))),
-                          len(list(always_iterable(args.label))), len(list(always_iterable(args.pred_path))),
-                          len(list(always_iterable(args.pred_ds))), len(list(always_iterable(args.threshold))))
+    num_validations = max(len(list(always_iterable(args.setup))),
+                          len(list(always_iterable(args.iteration))),  len(list(always_iterable(args.label))),
+                          len(list(always_iterable(args.pred_path))), len(list(always_iterable(args.pred_ds))),
+                          len(list(always_iterable(args.threshold))))
+    #num_validations *= len(crops)
     print("\nWill run the following validations:\n")
     validations = []
-    for valno, crop, setup, iteration, label, pred_path, pred_ds, thr in zip(range(num_validations),
-                                                                             repeat_last(always_iterable(crops)),
+    for (valno, setup, iteration, label, pred_path, pred_ds, thr), crop in itertools.product(
+            zip(range(
+            num_validations),
                                                                              repeat_last(always_iterable(args.setup)),
                                                                              repeat_last(
                                                                                  always_iterable(args.iteration)),
@@ -243,7 +246,8 @@ def main():
                                                                                  always_iterable(args.pred_path)),
                                                                              repeat_last(always_iterable(args.pred_ds)),
                                                                              repeat_last(
-                                                                                 always_iterable(args.threshold))):
+                                                                                 always_iterable(args.threshold))),
+            always_iterable(crops)):
 
         if pred_ds is not None:
             if label is None:
