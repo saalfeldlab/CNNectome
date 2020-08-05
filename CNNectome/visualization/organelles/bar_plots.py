@@ -7,9 +7,9 @@ import numpy as np
 import seaborn as sns
 import os
 
-host="cosem.int.janelia.org:27017"
-gt_version='v0003'
-training_version='v0003.2'
+host = "cosem.int.janelia.org:27017"
+gt_version = 'v0003'
+training_version = 'v0003.2'
 colors = [(45/255., 169/255., 72/255.), "magenta", "orange"]
 
 
@@ -199,10 +199,7 @@ def s1_vs_sub(db_username, db_password, metric, cropno, cropnames, tol_distance=
     setups = ["setup26.1", "setup28", "setup32", "setup46"]
     labels = [("mito", "mito_membrane"), ("er", "er_membrane"), ("microtubules", "microtubules_out"),
               ("ecs", "plasma_membrane")]
-    metric_params = dict()
-    metric_params["clip_distance"] = clip_distance
-    metric_params["tol_distance"] = tol_distance
-    specific_params = filter_params(metric_params, metric)
+
     db = cosem_db.MongoCosemDB(db_username, db_password, host=host, gt_version=gt_version,
                                training_version=training_version)
     values = {}
@@ -210,20 +207,14 @@ def s1_vs_sub(db_username, db_password, metric, cropno, cropnames, tol_distance=
     for cno in cropno:
         values[cno] = []
         for setup, label in zip(setups, labels):
-            for l in label:
-                path_s1 = pred_path_without_iteration(setup, db.get_crop_by_number(str(cno)), True)
-                path_sub = pred_path_without_iteration(setup, db.get_crop_by_number(str(cno)), False)
-                query_s1 = {"label": l, "threshold": threshold, "crop": str(cno), "metric": metric, "dataset": l,
-                        "metric_params": specific_params, "setup": setup, "path": {"$regex": path_s1}}
-                query_sub = {"label": l, "threshold": threshold, "crop": str(cno), "metric": metric, "dataset": l,
-                         "metric_params": specific_params, "setup": setup, "path": {"$regex": path_sub}}
-            # print([r["path"] for r in db.find(query_s1)])
-            # print([r["path"] for r in db.find(query_sub)])
-                values_s1 = [r["value"] for r in db.find(query_s1)]
-                values_sub = [r["value"] for r in db.find(query_sub)]
-                best_s1 = values_s1[best(metric)(values_s1)]
-                best_sub = values_sub[best(metric)(values_sub)]
-                values[cno].append((setup, l, best_s1, best_sub))
+            for lbl in label:
+                best_s1 = analyze_evals.best_result(db, lbl, [setup], cno, metric, raw_ds="volumes/raw/s1",
+                                                    tol_distance=tol_distance, clip_distance=clip_distance,
+                                                    threshold=threshold)
+                best_sub = analyze_evals.best_result(db, lbl, [setup], cno, metric, raw_ds="volumes/subsampled/raw/0",
+                                                     tol_distance=tol_distance, clip_distance=clip_distance,
+                                                     threshold=threshold)
+                values[cno].append((setup, l, best_s1["value"], best_sub["value"]))
 
     labels = {}
     sub = {}
@@ -242,8 +233,8 @@ def plot_4nm_vs_8nm(db_username, db_password, metric, cropno, cropnames, tol_dis
                     threshold=127):
     setups_4nm = ["setup25", "setup27.1", "setup31", "setup45"]
     setups_8nm = ["setup26.1", "setup28", "setup32", "setup46"]
-    labels = [("mito", "mito_membrane"), ("er", ), ("microtubules", "microtubules_out"),
-              ("ecs", "plasma_membrane")]
+    labels = ["mito", "mito_membrane", "er", "microtubules", "microtubules_out",
+              "ecs", "plasma_membrane"]
     metric_params = dict()
     metric_params["clip_distance"] = clip_distance
     metric_params["tol_distance"] = tol_distance
@@ -253,24 +244,13 @@ def plot_4nm_vs_8nm(db_username, db_password, metric, cropno, cropnames, tol_dis
     values = {}
     for cno in cropno:
         values[cno] = []
-        for setup_4nm, setup_8nm, label in zip(setups_4nm, setups_8nm, labels):
-            for l in label:
-                path_4nm = pred_path_without_iteration(setup_4nm, db.get_crop_by_number(cropno), False)
-                path_8nm = pred_path_without_iteration(setup_8nm, db.get_crop_by_number(cropno), False)
-                path_8nm_s1 = pred_path_without_iteration(setup_8nm, db.get_crop_by_number(cropno), True)
-                query_4nm = {"label": l, "threshold": threshold, "crop": str(cropno), "metric": metric, "dataset": l,
-                            "metric_params": specific_params, "setup": setup_4nm }
-                query_8nm = {"label": l, "threshold": threshold, "crop": str(cropno), "metric": metric, "dataset": l,
-                            "metric_params": specific_params, "setup": setup_8nm}
-                print("qu4", query_4nm)
-                print("qu8", query_8nm)
-                values_4nm = [r["value"] for r in db.find(query_4nm)]
-                values_8nm = [r["value"] for r in db.find(query_8nm)]
-                print("4", values_4nm)
-                print("8", values_8nm)
-                best_4nm = values_4nm[best(metric)(values_4nm)]
-                best_8nm = values_8nm[best(metric)(values_8nm)]
-                values.append((l, best_4nm, best_8nm))
+
+        for lbl in labels:
+            best_4nm = best_result(db, lbl, setups_4nm, cropno, metric, tol_distance=tol_distance,
+                                       clip_distance=clip_distance, threshold=threshold)
+            best_8nm = best_result(db, lbl, setups_8nm, cropno, metric, raw_ds="volumes/subsampled/raw/0",
+                                       tol_distance=tol_distance, clip_distance=clip_distance, threshold=threshold)
+            values[cno].append((lbl, best_4nm["value"], best_8nm["value"]))
     labels = {}
     v_4nm = {}
     v_8nm = {}
@@ -285,52 +265,34 @@ def plot_4nm_vs_8nm(db_username, db_password, metric, cropno, cropnames, tol_dis
     plot_double_bars(labels, v_4nm, v_8nm, metric, "4nm input", "8nm input", names)
 
 
-def plot_all_vs_common_vs_single(db_username, db_password, metric, cropno, cropnames, tol_distance=40, clip_distance=200, threshold=127):
+def plot_all_vs_common_vs_single(db_username, db_password, metric, cropno, cropnames, tol_distance=40,
+                                 clip_distance=200, threshold=127):
     setups_all = ["setup01", "setup01", "setup01", "setup01", "setup01"]
     setups_common = ["setup03", "setup03", "setup03", "setup03", "setup03"]
     setups_single = ["setup25", "setup27.1", "setup31", "setup35", "setup45"]
-    labels = [("mito", "mito_membrane"), ("er",  "er_membrane"), ("microtubules", ),
-              ("nucleus",), ("ecs", "plasma_membrane")]
-    metric_params = dict()
-    metric_params["clip_distance"] = clip_distance
-    metric_params["tol_distance"] = tol_distance
-    specific_params = filter_params(metric_params, metric)
+    labels = ["mito", "mito_membrane", "er",  "er_membrane", "microtubules", "nucleus", "ecs", "plasma_membrane"]
     db = cosem_db.MongoCosemDB(db_username, db_password, host=host, gt_version=gt_version,
                                training_version=training_version)
-    values = {}
-    for cno in cropno:
-        values[cno] = []
-        for setup_all, setup_common, setup_single, label in zip(setups_all, setups_common, setups_single, labels):
-            for l in label:
-                path_all = pred_path_without_iteration(setup_all, db.get_crop_by_number(str(cno)), False)
-                path_common = pred_path_without_iteration(setup_common, db.get_crop_by_number(str(cno)), False)
-                path_single = pred_path_without_iteration(setup_single, db.get_crop_by_number(str(cno)), False)
-                query_all = {"label": l, "threshold": threshold, "crop": str(cno), "metric": metric, "dataset": l,
-                            "metric_params": specific_params, "setup": setup_all}
-                query_common = {"label": l, "threshold": threshold, "crop": str(cno), "metric": metric, "dataset": l,
-                            "metric_params": specific_params, "setup": setup_common}
-                query_single = {"label": l, "threshold": threshold, "crop": str(cno), "metric": metric, "dataset": l,
-                            "metric_params": specific_params, "setup": setup_single}
-                print("qc", query_common)
-                print("qs", query_single)
-                values_all = [r["value"] for r in db.find(query_all)]
-                values_common = [r["value"] for r in db.find(query_common)]
-                values_single = [r["value"] for r in db.find(query_single)]
-
-                best_all = values_all[best(metric)(values_all)]
-                best_common = values_common[best(metric)(values_common)]
-                best_single = values_single[best(metric)(values_single)]
-                values[cno].append((l, best_all, best_common, best_single))
     labels = {}
     v_all = {}
     v_common = {}
     v_single = {}
-    names = dict((k,v) for k, v in zip(cropno, cropnames))
     for cno in cropno:
-        labels[cno] = [v[0] for v in values[cno]]
-        v_all[cno] = [v[1] for v in values[cno]]
-        v_common[cno] = [v[2] for v in values[cno]]
-        v_single[cno] = [v[3] for v in values[cno]]
+        v_all[cno] = []
+        v_common[cno] = []
+        v_single[cno] = []
+        labels[cno] = []
+        for lbl in labels:
+            best_all = analyze_evals.best_result(db, lbl, setups_all, cno, metric, tol_distance=tol_distance,
+                                                 clip_distance=clip_distance, threshold=threshold)
+            best_common = analyze_evals.best_result(db, lbl, setups_common, cno, metric, tol_distance=tol_distance,
+                                                 clip_distance=clip_distance, threshold=threshold)
+            best_single = analyze_evals.best_result(db, lbl, setups_single, cno, metric, tol_distance=tol_distance,
+                                                 clip_distance=clip_distance, threshold=threshold)
+            v_all[cno].append(best_all["value"])
+            v_common[cno].append(best_common["value"])
+            v_single[cno].append(best_single["value"])
+            labels[cno].append(lbl)
 
     plot_triple_bars(labels, v_all, v_common, v_single, metric, "all classes", "common classes", "single/few classes",
                      names, name="all_vs_common_vs_single")
@@ -349,13 +311,10 @@ def best_per_label(db_username, db_password, metric, cropno, cropnames, tol_dist
     for cno, cropname in zip(cropno, cropnames):
         bests[cropname] = []
     for cno, cropname in zip(cropno, cropnames):
-        for l in labels:
-            query = {"label": l, "crop": str(cno), "metric": metric, "dataset": l, "setup": {"$in": setups}}
-            values = [(r["value"], r["iteration"], r["setup"]) for r in db.find(query)]
-            best_score_arg = best(metric)([v[0] for v in values])
-            best_value = values[best_score_arg]
-            print(cno, l, best_value)
-            bests[cropname].append(best_value[0])
+        for lbl in labels:
+            best_setup = analyze_evals.best_result(db, lbl, setups, cropno, metric, tol_distance=tol_distance,
+                                                   clip_distance=clip_distance)
+            bests[cropname].append(best_setup["value"])
     plot_single_bars(labels, bests, metric)
 
 

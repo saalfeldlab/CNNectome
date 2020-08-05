@@ -143,4 +143,14 @@ def get_differences(db_username, db_password, cropno, metrics, domain="setup", t
 
 
 if __name__ == "__main__":
-    print(get_differences("root", "root", 111, "f1_score", domain="iteration"))
+    import CNNectome.utils.cosem_db
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("label", type=str)
+    parser.add_argument("crop", type=int)
+    parser.add_argument("metric", type=str)
+    parser.add_argument("--setup", type=str, default=None)
+    args = parser.parse_args()
+
+    db = CNNectome.utils.cosem_db.MongoCosemDB("root", "root")
+    print(get_best_automatic(db, args.crop, args.label, args.metric, {}, setup=args.setup))

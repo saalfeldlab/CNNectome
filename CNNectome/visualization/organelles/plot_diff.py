@@ -8,6 +8,7 @@ import os
 
 colors = ["green", "magenta", "orange"]
 
+
 def plot_hist(db_username, db_password, metric, domain, cropno):
     results = get_differences(db_username, db_password, cropno, metric, domain=domain)
     differences = [abs(r["manual_best"] - r["auto_best"]) for r in results]
@@ -69,6 +70,7 @@ def plot_stem(db_username, db_password, compare_metric, eval_metric, domain, cro
     for cno in cropno:
         for d in domain:
             results[cno].extend(get_differences(db_username, db_password, cno, metrics, domain=d))
+    get_manual_comparisons()
     sns.set_style('darkgrid')
     fs = 20
     plt.rcParams["font.family"] = "Nimbus Sans L"
@@ -91,10 +93,15 @@ def plot_stem(db_username, db_password, compare_metric, eval_metric, domain, cro
     ax.tick_params(axis="x", which="major", labelsize=fs)
 
     for cno, col, name in zip(cropno, colors, cropnames):
+        best_setup = best_result(db, label, setups, cropno, metric_compare, raw_ds=raw_ds, tol_distance=tol_distance,
+                                 clip_distance=clip_distance, threshold=threshold)
+        compare_setup = get_diff(db, label, setups, cropno, metric_best, metric_compare, raw_ds=raw_ds,
+                                 tol_distance=tol_distance, clip_distance=clip_distance, threshold=threshold)
+
         same = [r["{eval_metric:}_by_{eval_metric:}".format(eval_metric=eval_metric)] for r in results[cno]]
         compare = [r["{eval_metric:}_by_{compare_metric:}".format(eval_metric=eval_metric, compare_metric=compare_metric)] for r in results[cno]]
 
-        diffs = [c-s for s,c in zip(same, compare)]
+        diffs = [c-s for s, c in zip(same, compare)]
         print([(d, r["setup"], r["labelname"], r["s1"]) for d, r in zip(diffs, results[cno])])
         if np.sum(diffs) < 0 and not ax.yaxis_inverted():
             ax.invert_yaxis()
