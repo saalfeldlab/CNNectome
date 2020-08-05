@@ -38,7 +38,7 @@ def add_constant(seg, resolution, label):
     return gt_seg
 
 
-def read_gt(crop, label, resolution, gt_version="v0003"):
+def read_gt(crop, label, gt_version="v0003"):
     n5file = zarr.open(crop["parent"], mode="r")
     blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
@@ -47,32 +47,33 @@ def read_gt(crop, label, resolution, gt_version="v0003"):
     else:
         label_ds_name = "all"
     gt_seg = n5file[label_ds.format(label=label_ds_name)]
+    resolution = gt_seg.attrs["resolution"]
+    # blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
+    # labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
+    # labelmask_ds.format(label=label_ds_name)
+    # if labelmask_ds in n5file:
+    #     mask = n5file[labelmask_ds]
+    # else:
+    #     if label.generic_label is not None:
+    #         specific_labels = list(set(label.labelid) - set(label.generic_label))
+    #         generic_condition = (all(l in get_all_annotated_label_ids(crop) for l in label.generic_label) or
+    #                              all(l in get_all_annotated_label_ids(crop) for l in specific_labels))
+    #     else:
+    #         generic_condition = False
+    #     if all(l in get_all_annotated_label_ids(crop) for l in label.labelid) or generic_condition:
+    #         mask = ((gt_seg > 0) * 1).astype(np.bool)
+    #     else:
+    #         mask = ((gt_seg > 0) * 0).astype(np.bool)
+
+    return np.array(gt_seg), resolution
+
+
+def extract_binary_class(gt_seg, resolution, label):
+    seg = np.in1d(gt_seg.ravel(), label.labelid).reshape(gt_seg.shape)
     if label.add_constant is not None and label.add_constant != 0:
-        gt_seg = add_constant(gt_seg, resolution, label)
-    gt_seg = downsample(gt_seg)
-
-    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
-    labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
-    labelmask_ds.format(label=label_ds_name)
-    if labelmask_ds in n5file:
-        mask = n5file[labelmask_ds]
-    else:
-        if label.generic_label is not None:
-            specific_labels = list(set(label.labelid) - set(label.generic_label))
-            generic_condition = (all(l in get_all_annotated_label_ids(crop) for l in label.generic_label) or
-                                 all(l in get_all_annotated_label_ids(crop) for l in specific_labels))
-        else:
-            generic_condition=False
-        if all(l in get_all_annotated_label_ids(crop) for l in label.labelid) or generic_condition:
-            mask = ((gt_seg > 0) * 1).astype(np.bool)
-        else:
-            mask = ((gt_seg > 0) * 0).astype(np.bool)
-
-    return gt_seg, mask
-
-
-def extract_binary_class(gt_seg, label):
-    return np.in1d(gt_seg.ravel(), label.labelid).reshape(gt_seg.shape)
+        seg = add_constant(seg, resolution, label)
+    seg = downsample(seg)
+    return seg
 
 
 def apply_threshold(prediction, thr=127):
@@ -145,8 +146,8 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
         gt_empty = not any(l in crop_utils.get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
         offset, shape = crop_utils.get_offset_and_shape_from_crop(crop)
         prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
-        gt_seg, mask = read_gt(crop, label, resolution, gt_version)
-        gt_binary = extract_binary_class(gt_seg, label)
+        gt_seg, label_resolution = read_gt(crop, label, gt_version)
+        gt_binary = extract_binary_class(gt_seg, label_resolution, label)
         test_binary = apply_threshold(prediction, thr=threshold)
         pred_empty = np.sum(test_binary) == 0
         evaluator = Evaluator(gt_binary, test_binary, gt_empty, pred_empty, metric_params, resolution)
@@ -158,8 +159,8 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
             if save:
                 document = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                             "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
-                            "metric_params": metric_specific_params, "value": score, "raw_dataset": raw_dataset, "parent_path":
-                            parent_path}
+                            "metric_params": metric_specific_params, "value": score, "raw_dataset": raw_dataset,
+                            "parent_path": parent_path}
                 db.write_evaluation_result(document)
                 csvh.write_evaluation_result(document)
 
