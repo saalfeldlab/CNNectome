@@ -57,37 +57,45 @@ def filter_params(params, metric):
     return dict((k, v) for k, v in params.items() if k in params_by_metric.get(metric))
 
 
-def best(argument):
+def sort(argument):
     switcher = {
-        EvaluationMetrics.dice:                                 np.nanargmax,
-        EvaluationMetrics.jaccard:                              np.nanargmax,
-        EvaluationMetrics.hausdorff:                            np.nanargmin,
-        EvaluationMetrics.false_negative_rate:                  np.nanargmin,
-        EvaluationMetrics.false_negative_rate_with_tolerance:   np.nanargmin,
-        EvaluationMetrics.false_positive_rate:                  np.nanargmin,
-        EvaluationMetrics.false_discovery_rate:                 np.nanargmin,
-        EvaluationMetrics.false_positive_rate_with_tolerance:   np.nanargmin,
-        EvaluationMetrics.voi:                                  np.nanargmin,
-        EvaluationMetrics.mean_false_distance:                  np.nanargmin,
-        EvaluationMetrics.mean_false_positive_distance:         np.nanargmin,
-        EvaluationMetrics.mean_false_negative_distance:         np.nanargmin,
-        EvaluationMetrics.mean_false_distance_clipped:          np.nanargmin,
-        EvaluationMetrics.mean_false_negative_distance_clipped: np.nanargmin,
-        EvaluationMetrics.mean_false_positive_distance_clipped: np.nanargmin,
-        EvaluationMetrics.precision_with_tolerance:             np.nanargmax,
-        EvaluationMetrics.recall_with_tolerance:                np.nanargmax,
-        EvaluationMetrics.f1_score_with_tolerance:              np.nanargmax,
-        EvaluationMetrics.precision:                            np.nanargmax,
-        EvaluationMetrics.recall:                               np.nanargmax,
-        EvaluationMetrics.f1_score:                             np.nanargmax
+        EvaluationMetrics.dice:                                 -1,
+        EvaluationMetrics.jaccard:                              -1,
+        EvaluationMetrics.hausdorff:                            1,
+        EvaluationMetrics.false_negative_rate:                  1,
+        EvaluationMetrics.false_negative_rate_with_tolerance:   1,
+        EvaluationMetrics.false_positive_rate:                  1,
+        EvaluationMetrics.false_discovery_rate:                 1,
+        EvaluationMetrics.false_positive_rate_with_tolerance:   1,
+        EvaluationMetrics.voi:                                  1,
+        EvaluationMetrics.mean_false_distance:                  1,
+        EvaluationMetrics.mean_false_positive_distance:         1,
+        EvaluationMetrics.mean_false_negative_distance:         1,
+        EvaluationMetrics.mean_false_distance_clipped:          1,
+        EvaluationMetrics.mean_false_negative_distance_clipped: 1,
+        EvaluationMetrics.mean_false_positive_distance_clipped: 1,
+        EvaluationMetrics.precision_with_tolerance:             -1,
+        EvaluationMetrics.recall_with_tolerance:                -1,
+        EvaluationMetrics.f1_score_with_tolerance:              -1,
+        EvaluationMetrics.precision:                            -1,
+        EvaluationMetrics.recall:                               -1,
+        EvaluationMetrics.f1_score:                             -1
     }
     return switcher.get(argument)
 
 
+def best(argument):
+    switcher = {
+        1: np.nanargmax,
+        -1: np.nanargmin
+    }
+    return switcher.get(sort(argument))
+
+
 def limits(argument):
     switcher = {
-        EvaluationMetrics.dice:                                 (0,1),
-        EvaluationMetrics.jaccard:                              (0,1),
+        EvaluationMetrics.dice:                                 (0, 1),
+        EvaluationMetrics.jaccard:                              (0, 1),
         EvaluationMetrics.hausdorff:                            (0, None),
         EvaluationMetrics.false_negative_rate:                  (0, 1),
         EvaluationMetrics.false_negative_rate_with_tolerance:   (0, 1),
