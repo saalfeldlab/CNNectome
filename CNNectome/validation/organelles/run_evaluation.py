@@ -109,7 +109,7 @@ def construct_pred_path(setup, iteration, crop, s1):
 def autodetect_labelnames(path, crop):
     n5 = zarr.open(zarr.N5Store(path), 'r')
     labels_predicted = set(n5.array_keys())
-    labels_in_crop = set(crop_utils.get_all_annotated_labelnames(crop))
+    labels_in_crop = set(crop_utils.get_all_present_labelnames(crop))
     labels_eval = list(labels_predicted.intersection(labels_in_crop))
     return labels_eval
 
