@@ -34,7 +34,7 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
         metric_params = dict()
         metric_params["clip_distance"] = clip_distance
         metric_params["tol_distance"] = tol_distance
-        filtered_parms = filter_params(metric_params, metric)
+        filtered_params = filter_params(metric_params, metric)
         query = {"label": label, "crop": str(cropno), "metric": metric, "setup": {"$in": setups}, "metric_params":
                  filtered_parms, "threshold": threshold}
         if raw_ds is not None:
@@ -65,10 +65,10 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
         best_manuals = []
         for row in reader:
             if row["labelname"] == label and row["setup"] in setups:
-                if raw_ds is None or row["raw_dataset"]in raw_ds:
-                    manual_result = {"setup": row["setup"], "labelname": row["labelname"],
-                                     "iteration": row["iteration"], "raw_dataset": row["raw_dataset"],
-                                     "crop": str(cropno)}
+                if raw_ds is None or row["raw_dataset"] in raw_ds:
+                    manual_result = {"setup": row["setup"], "label": row["labelname"],
+                                     "iteration": int(row["iteration"]), "raw_dataset": row["raw_dataset"],
+                                     "crop": str(cropno), "metric": "manual"}
                     best_manuals.append(manual_result)
 
         if len(best_manuals) == 0:  # no manual evaluations with the given constraints
@@ -81,8 +81,8 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
             for row in reader:
                 if row["labelname"] == label and row["setup"] in setups:
                     if raw_ds is None or row["raw_dataset"] == raw_ds:
-                        manual_result_best = {"setup": row["setup"], "labelname": row["labelname"],
-                                              "iteration": row["iteration"], "raw_dataset": row["raw_dataset"],
+                        manual_result_best = {"setup": row["setup"], "label": row["labelname"],
+                                              "iteration": int(row["iteration"]), "raw_dataset": row["raw_dataset"],
                                               "crop": str(cropno)}
                         return manual_result_best
             return None

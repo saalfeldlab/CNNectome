@@ -1,9 +1,9 @@
 from CNNectome.utils.hierarchy import hierarchy
-from CNNectome.validation.organelles.run_evaluation import gt_version
 import os
 import zarr
 import numpy as np
 
+gt_version = "v0003"
 
 def get_label_ids_by_category(crop, category):
     return [l[0] for l in crop['labels'][category]]
