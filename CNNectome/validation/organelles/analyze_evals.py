@@ -111,7 +111,7 @@ def get_diff(db, label, setups, cropno, metric_best, metric_compare, raw_ds=None
     return compare_setup
 
 
-def get_manual_comparisons(db, cropno=None, domain=None):
+def get_manual_comparisons(db, cropno=None, mode="across_setups"):
     def get_csv_files(domain):
         if cropno is None:
             csv_result_files = os.listdir(csv_folder)
@@ -164,15 +164,12 @@ def get_manual_comparisons(db, cropno=None, domain=None):
                     setup_queries.append(query)
         return setup_queries
 
-    if domain is None:
-        domain = ["setup", "iteration"]
-    elif not (isinstance(domain, list) or isinstance(domain, tuple)):
-        domain = [domain]
-    all_queries = []
-    if "setup" in domain:
-        all_queries.extend(get_setup_queries())
-    if "iteration" in domain:
-        all_queries.extend(get_iteration_queries())
+    if mode == "across_setups":
+        all_queries = get_setup_queries()
+    elif mode == "per_setup":
+        all_queries = get_iteration_queries()
+    elif mode == "all":
+        all_queries = get_iteration_queries() + get_setup_queries()
     return all_queries
 
 

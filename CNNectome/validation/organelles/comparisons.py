@@ -69,9 +69,9 @@ def compare_allvscommonvssingle_4nm(db, metric, crops=None, tol_distance=40, cli
     return comparisons
 
 
-def compare_metrics(db, metric_compare, metric_bestby, crops=None, domain=None, tol_distance=40, clip_distance=200,
-                    threshold=127):
-    all_queries = analyze_evals.get_manual_comparisons(db, cropno=cropno, domain=domain)
+def compare_metrics(db, metric_compare, metric_bestby, crops=None, tol_distance=40, clip_distance=200,
+                    threshold=127, mode="across_setups"):
+    all_queries = analyze_evals.get_manual_comparisons(db, cropno=crops, mode=mode)
     comparisons = analyze_evals.compare_evaluation_methods(db, metric_compare, metric_bestby, all_queries,
                                                            tol_distance=tol_distance, clip_distance=clip_distance,
                                                 threshold=threshold)
@@ -182,7 +182,7 @@ def print_comparison(comparison_task, db, metric, crops=None, save=None, tol_dis
         names = ["_all", "_common", "_single"]
     elif comparison_task == "metrics":
         comparisons = compare_metrics(db, metric[0], metric[1], crops=crops, tol_distance=tol_distance,
-                                      clip_distance=clip_distance, threshold=threshold)
+                                      clip_distance=clip_distance, threshold=threshold, mode=mode)
         names = ["_" + metric[0], "_" + metric[1]]
     elif comparison_task == "best_4nm":
         comparisons = best_4nm(db, metric[0], crops=crops, tol_distance=tol_distance, clip_distance=clip_distance,
@@ -229,13 +229,15 @@ def main():
                                                                        "for relevant metrics.")
     parser.add_argument("--tol_distance", type=int, default=40, help="Parameter used for tolerated false distances "
                                                                      "for relevant metrics.")
-    parser.add_argument("--mode", type=str, choices=["across_setups", "per_setup"],
+    parser.add_argument("--mode", type=str, choices=["across_setups", "per_setup", "all"],
                         help="Mode for some of the comparisons on whether to compare across setups ("
                              "`across_setups`) or only between equivalent setups (`per_setup`)",
                         default="across_setups")
     parser.add_argument("--raw_ds", type=str, help="filter for raw dataset", default="volumes/raw")
     parser.add_argument("--csv", type=str, default=None, help="csv file to save comparisons to")
     args = parser.parse_args()
+    if args.mode == "all" and args.comparison != "metrics":
+        raise ValueError("Mode all can only be used for metrics comparison.")
     db = cosem_db.MongoCosemDB(args.db_username, args.db_password)
     print_comparison(args.comparison, db, args.metric, crops=args.crops, save=args.csv,
                      tol_distance=args.tol_distance, clip_distance=args.clip_distance, threshold=args.threshold,
