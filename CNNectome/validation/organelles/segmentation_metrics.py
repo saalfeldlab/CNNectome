@@ -57,7 +57,7 @@ def filter_params(params, metric):
     return dict((k, v) for k, v in params.items() if k in params_by_metric.get(metric))
 
 
-def sort(argument):
+def sorting(argument):
     switcher = {
         EvaluationMetrics.dice:                                 -1,
         EvaluationMetrics.jaccard:                              -1,
@@ -89,7 +89,7 @@ def best(argument):
         1: np.nanargmax,
         -1: np.nanargmin
     }
-    return switcher.get(sort(argument))
+    return switcher.get(sorting(argument))
 
 
 def limits(argument):
