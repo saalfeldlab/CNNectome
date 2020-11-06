@@ -61,9 +61,9 @@ def compare_s1vssub(db, metric, crops=None, tol_distance=40, clip_distance=200, 
 def compare_allvscommonvssingle_4nm(db, metric, crops=None, tol_distance=40, clip_distance=200, threshold=127):
     setups = [("setup01",),
               ("setup03",),
-              ("setup25", "setup27.1", "setup31", "setup45", "setup47")]
-    labels = ["mito", "mito_membrane", "er", "er_membrane", "microtubules", "microtubules_out", "ecs",
-              "plasma_membrane"]
+              ("setup25", "setup27.1", "setup31", "setup35", "setup45", "setup47")]
+    labels = ["mito", "mito_membrane", "er", "er_membrane", "microtubules", "microtubules_out", "nucleus", "ecs",
+              "plasma_membrane", "MVB", "MVB_membrane"]
     comparisons = analyze_evals.compare_setups(db, setups, labels, metric, crops=crops, tol_distance=tol_distance,
                                                clip_distance=clip_distance, threshold=threshold)
     return comparisons
