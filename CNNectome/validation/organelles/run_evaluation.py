@@ -83,9 +83,11 @@ def apply_threshold(prediction, thr=127):
 def read_prediction(prediction_path, pred_ds, offset, shape):
     n5file = zarr.open(prediction_path, mode="r")
     pred = n5file[pred_ds]
-    resolution = pred.attrs["resolution"][::-1]
+    if "resolution" in pred.attrs:
+        resolution = pred.attrs["resolution"][::-1]
+    else:
+        resolution = pred.attrs["pixelResolution"]["dimensions"][::-1]
     sl = tuple(slice(int(o), int(o+s), None) for o, s in zip(offset, shape))
-
     return pred[sl], resolution
 
 
