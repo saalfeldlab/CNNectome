@@ -72,8 +72,8 @@ def compare_allvscommonvssingle_4nm(db, metric, crops=None, tol_distance=40, cli
 def compare_metrics(db, metric_compare, metric_bestby, crops=None, domain=None, tol_distance=40, clip_distance=200,
                     threshold=127):
     all_queries = analyze_evals.get_manual_comparisons(db, cropno=cropno, domain=domain)
-    comparisons = analyze_evals.compare_metrics(db, metric_compare, metric_bestby, all_queries,
-                                                tol_distance=tol_distance, clip_distance=clip_distance,
+    comparisons = analyze_evals.compare_evaluation_methods(db, metric_compare, metric_bestby, all_queries,
+                                                           tol_distance=tol_distance, clip_distance=clip_distance,
                                                 threshold=threshold)
     return comparisons
 

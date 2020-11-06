@@ -54,7 +54,6 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
         return best_res
 
     def best_manual(db, label, setups, cropno, raw_ds=None):
-        print(cropno)
         c = db.get_crop_by_number(str(cropno))
         cell_identifier = get_cell_identifier(c)
         csv_file_iterations = open(os.path.join(csv_folder, cell_identifier + "_iteration.csv"), "r")
@@ -83,7 +82,7 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
                     if raw_ds is None or row["raw_dataset"] == raw_ds:
                         manual_result_best = {"setup": row["setup"], "label": row["labelname"],
                                               "iteration": int(row["iteration"]), "raw_dataset": row["raw_dataset"],
-                                              "crop": str(cropno)}
+                                              "crop": str(cropno), "metric": "manual"}
                         return manual_result_best
             return None
     if isinstance(raw_ds, str):
@@ -105,7 +104,10 @@ def get_diff(db, label, setups, cropno, metric_best, metric_compare, raw_ds=None
     query_metric2["metric"] = metric_compare
     query_metric2["metric_params"] = filter_params({"clip_distance": clip_distance, "tol_distance": tol_distance},
                                                    metric_compare)
-    compare_setup = db.find(query_metric2)
+    if best_setup["metric"] != "manual":
+        query_metric2.pop("value")
+        query_metric2.pop("_id")
+    compare_setup = db.find(query_metric2)[0]
     return compare_setup
 
 
@@ -174,8 +176,10 @@ def get_manual_comparisons(db, cropno=None, domain=None):
     return all_queries
 
 
-def compare_metrics(db, metric_compare, metric_bestby, queries, tol_distance=40,
-                    clip_distance=200, threshold=127):
+
+
+def compare_evaluation_methods(db, metric_compare, metric_bestby, queries, tol_distance=40, clip_distance=200,
+                               threshold=127, test=False):
     comparisons = []
     for qu in queries:
         for setup in qu["setups"]:
