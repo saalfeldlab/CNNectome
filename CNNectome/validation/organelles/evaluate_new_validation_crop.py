@@ -10,37 +10,40 @@ def run_new_crop(cropno, db_username, db_password, db_host, gt_version, training
                                training_version=training_version)
     csvhandler = cosem_db.CosemCSV(eval_results_csv_folder)
     col = db.access("evaluation", training_version)
-    for k, entry in enumerate(col.find()):
-        if int(entry["crop"]) != cropno and entry["label"] != "ribosomes":
-            setup = entry["setup"]
-            iteration = entry["iteration"]
-            s1 = "s1_it" in entry["path"]
-            crop = db.get_crop_by_number(cropno)
-            pred_path = construct_pred_path(setup, iteration, crop, s1)
-            test_query = {"path": pred_path, "dataset": entry["dataset"], "setup": setup, "iteration": iteration,
-                          "label": entry["label"], "crop": str(cropno), "threshold": entry["threshold"],
-                          "metric": entry["metric"], "metric_params": entry["metric_params"]}
-            doc = db.read_evaluation_result(test_query)
-            if doc is not None:
-                continue
+    for k, entry in enumerate(col.find({"crop": {"$ne": str(cropno)}, "label": {"$ne": "ribosomes"}}, batch_size=100)):
+        print(".", end="", flush=True)
+        setup = entry["setup"]
+        iteration = entry["iteration"]
+        s1 = "s1" in entry["raw_dataset"]
+        crop = db.get_crop_by_number(cropno)
+        pred_path = construct_pred_path(setup, iteration, crop, s1)
+        test_query = {"path": pred_path, "dataset": entry["dataset"], "setup": setup, "iteration": iteration,
+                      "label": entry["label"], "crop": str(cropno), "threshold": entry["threshold"],
+                      "metric": entry["metric"], "metric_params": entry["metric_params"]}
+        doc = db.read_evaluation_result(test_query)
 
-            if (entry["metric_params"] == {}) or (entry["metric_params"] == {"tol_distance": tol_distance}) or (entry["metric_params"] == {"clip_distance": clip_distance}):
-                metric_query = {"path": entry["path"], "dataset": entry["dataset"], "setup": setup,
-                                "iteration": iteration, "label": entry["label"], "crop": entry["crop"],
-                                "threshold":  entry["threshold"]}
-                results = db.find(metric_query)
-                metrics = []
-                metric_params = {"tol_distance": tol_distance, "clip_distance": clip_distance}
-                for r in results:
-                    metrics.append(r["metric"])
-                try:
-                    run_validation(pred_path, entry["dataset"], setup, iteration, hierarchy[entry["label"]],
-                                   db.get_crop_by_number(str(cropno)), entry["threshold"], metrics, metric_params, db,
-                                   csvhandler, True, False)
-                except Exception as e:
-                    print(k)
-                    print(entry)
-                    raise e
+        if doc is not None:
+            continue
+
+        # run evaluations for all metrics together (saves computation time)
+        if (entry["metric_params"] == {}) or (entry["metric_params"] == {"tol_distance": tol_distance}) or (entry["metric_params"] == {"clip_distance": clip_distance}):
+            metric_query = {"path": entry["path"], "dataset": entry["dataset"], "setup": setup,
+                            "iteration": iteration, "label": entry["label"], "crop": entry["crop"],
+                            "threshold":  entry["threshold"]}
+            results = db.find(metric_query)
+            metrics = []
+            metric_params = {"tol_distance": tol_distance, "clip_distance": clip_distance}
+            for r in results:
+                metrics.append(r["metric"])
+            try:
+                print("\n" + str(k))
+                run_validation(pred_path, entry["dataset"], setup, iteration, hierarchy[entry["label"]],
+                               db.get_crop_by_number(str(cropno)), entry["threshold"], metrics, metric_params, db,
+                               csvhandler, True, False)
+            except Exception as e:
+                print(k)
+                print(entry)
+                raise e
 
 
 def main():
