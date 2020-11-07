@@ -28,30 +28,79 @@ def check_margins(db, best_res):
         return True
 
 
-def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40, clip_distance=200, threshold=127):
+def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40, clip_distance=200, threshold=127,
+                test=False):
     def best_automatic(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40, clip_distance=200,
-                       threshold=127):
+                       threshold=127, test=False):
+        if isinstance(raw_ds, str):
+            raw_ds = [raw_ds]
+        if isinstance(setups, str):
+            setups = [setups]
+        if isinstance(cropno, str) or isinstance(cropno, int):
+            cropno = [cropno]
         metric_params = dict()
         metric_params["clip_distance"] = clip_distance
         metric_params["tol_distance"] = tol_distance
         filtered_params = filter_params(metric_params, metric)
-        query = {"label": label, "crop": str(cropno), "metric": metric, "setup": {"$in": setups}, "metric_params":
-                 filtered_parms, "threshold": threshold}
+        if test:
+            cropnos_query = [crop["number"] for crop in db.get_all_validation_crops()]
+
+            for cno in cropno:
+                cropnos_query.pop(cropnos_query.index(str(cno)))
+        else:
+            cropnos_query = [str(cno) for cno in cropno]
+
+        match_query = {"label": label, "crop": {"$in": cropnos_query}, "metric": metric, "setup": {"$in": setups},
+                       "metric_params": filtered_params, "threshold": threshold, "value": {"$ne": np.nan},}
+        crossval_group = {"_id": {"setup": "$setup", "iteration": "$iteration"}, "score": {"$avg": "$value"}}
+        projection = {"setup": "$_id.setup", "iteration": "$_id.iteration", "_id": 0}
         if raw_ds is not None:
-            query["raw_dataset"] = {"$in": raw_ds}
-        results = [res for res in db.find(query)]
-        if len(results) == 0:
-            raise ValueError("No results in database matching query {0:}".format(query))
-        scores = [res["value"] for res in results]
-        try:
-            best_score_arg = best(metric)(scores)
-            best_res = results[best_score_arg]
-            if not check_margins(db, best_res):
-                print("{0:} is at the margin of what has been evaluated".format(best_res))
-        except ValueError:
-            best_res = query.copy()
-            best_res.update({"setup": None, "raw_dataset": raw_ds, "value": None, "iteration": None})
-        return best_res
+            match_query["raw_dataset"] = {"$in": raw_ds}
+            crossval_group["_id"]["raw_dataset"] = "$raw_dataset"
+            projection["raw_dataset"] = "$_id.raw_dataset"
+        col = db.access("evaluation", db.training_version)
+
+        best_config = list(col.aggregate([
+            {"$match": match_query},
+            {"$group": crossval_group},
+            {"$sort": {"score": sorting(metric), "_id.iteration": 1}},
+            {"$limit": 1},
+            {"$project": projection}
+        ]))
+        if len(best_config) == 0:
+            final = match_query.copy()
+            if len(cropno) == 1:
+                final["crop"] = cropno[0]
+            else:
+                final["crop"] = {"$in": cropno}
+            final.update({"setup": None, "value": None, "iteration": None})
+            return final
+        else:
+            best_config = best_config[0]
+
+        all_best = []
+        for cno in cropno:
+            query_best = {"label": label, "crop": str(cno), "metric": metric, "setup": best_config["setup"],
+                          "metric_params": filtered_params, "threshold": threshold,
+                          "iteration": best_config["iteration"],}
+            if raw_ds is not None:
+                query_best["raw_dataset"] = best_config["raw_dataset"]
+            best_this = db.find(query_best)
+            if len(best_this) != 1:
+                print("query:", query_best)
+                print("results:", list(best_this))
+            assert len(best_this) == 1
+            if not check_margins(db, best_this[0]):
+                print("{0:} is at the margin of what has been evaluated".format(best_this[0]))
+            all_best.append(best_this[0])
+
+        final = dict()
+        final["value"] = np.mean([ab["value"] for ab in all_best])
+        all_keys = set(all_best[0].keys()).intersection(*(d.keys() for d in all_best)) - {"value"}
+        for k in all_keys:
+            if all([ab[k] == all_best[0][k] for ab in all_best]):
+                final[k] = all_best[0][k]
+        return final
 
     def best_manual(db, label, setups, cropno, raw_ds=None):
         c = db.get_crop_by_number(str(cropno))
@@ -79,7 +128,7 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
             reader = csv.DictReader(csv_file_setups, fieldnames)
             for row in reader:
                 if row["labelname"] == label and row["setup"] in setups:
-                    if raw_ds is None or row["raw_dataset"] == raw_ds:
+                    if raw_ds is None or row["raw_dataset"] in raw_ds:
                         manual_result_best = {"setup": row["setup"], "label": row["labelname"],
                                               "iteration": int(row["iteration"]), "raw_dataset": row["raw_dataset"],
                                               "crop": str(cropno), "metric": "manual"}
@@ -93,13 +142,13 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
         return best_manual(db, label, setups, cropno, raw_ds=raw_ds)
     else:
         return best_automatic(db, label, setups, cropno, metric, raw_ds=raw_ds, tol_distance=tol_distance,
-                              clip_distance=clip_distance, threshold=threshold)
+                              clip_distance=clip_distance, threshold=threshold, test=test)
 
 
 def get_diff(db, label, setups, cropno, metric_best, metric_compare, raw_ds=None, tol_distance=40, clip_distance=200,
-             threshold=127):
+             threshold=127, test=False):
     best_setup = best_result(db, label, setups, cropno, metric_best, raw_ds=raw_ds, tol_distance=tol_distance,
-                             clip_distance=clip_distance, threshold=threshold)
+                             clip_distance=clip_distance, threshold=threshold, test=test)
     query_metric2 = best_setup.copy()
     query_metric2["metric"] = metric_compare
     query_metric2["metric_params"] = filter_params({"clip_distance": clip_distance, "tol_distance": tol_distance},
@@ -185,16 +234,17 @@ def compare_evaluation_methods(db, metric_compare, metric_bestby, queries, tol_d
             if len(db.find(test_query)) == 0:
                 raise RuntimeError("No results found in database for {0:}".format(test_query))
         best_setup = best_result(db, qu["label"], qu["setups"], qu["crop"], metric_compare, raw_ds=qu["raw_dataset"],
-                                 tol_distance=tol_distance, clip_distance=clip_distance, threshold=threshold)
+                                 tol_distance=tol_distance, clip_distance=clip_distance, threshold=threshold,
+                                 test=test)
         compare_setup = get_diff(db, qu["label"], qu["setups"], qu["crop"], metric_bestby, metric_compare,
                                  raw_ds=qu["raw_dataset"], tol_distance=tol_distance, clip_distance=clip_distance,
-                                 threshold=threshold)
+                                 threshold=threshold, test=test)
         comparisons.append((best_setup, compare_setup))
     return comparisons
 
 
 def compare_setups(db, setups_compare, labels, metric, raw_ds=None, crops=None, tol_distance=40,
-                   clip_distance=200, threshold=127, mode="across_setups"):
+                   clip_distance=200, threshold=127, mode="across_setups", test=False):
     comparisons = []
     if crops is None:
         crops = [c["number"] for c in db.get_all_validation_crops()]
@@ -209,7 +259,7 @@ def compare_setups(db, setups_compare, labels, metric, raw_ds=None, crops=None, 
                     else:
                         rd = raw_ds[k]
                     comp.append(best_result(db, lbl, setups, cropno, metric, raw_ds=rd, tol_distance=tol_distance,
-                                clip_distance=clip_distance, threshold=threshold))
+                                clip_distance=clip_distance, threshold=threshold, test=test))
                 comparisons.append(comp)
     elif mode == "per_setup":
         for cropno in crops:
@@ -223,7 +273,7 @@ def compare_setups(db, setups_compare, labels, metric, raw_ds=None, crops=None, 
                     rd = raw_ds[k]
                 for m, (lbl, setup) in enumerate(zip(labels, setups)):
                     comps[m].append(best_result(db, lbl, setup, cropno, metric, raw_ds=rd, tol_distance=tol_distance,
-                                clip_distance=clip_distance, threshold=threshold))
+                                clip_distance=clip_distance, threshold=threshold, test=test))
             comparisons.extend(comps)
     return comparisons
 
