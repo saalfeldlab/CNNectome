@@ -66,6 +66,16 @@ def get_data_path(crop, s1):
     return os.path.join(cell_identifier, output_filename)
 
 
+def short_cell_id(crop):
+    shorts = {
+        '/groups/cosem/cosem/data/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm.n5': "HeLa2",
+        '/groups/cosem/cosem/data/HeLa_Cell3_4x4x4nm/HeLa_Cell3_4x4x4nm.n5': "HeLa3",
+        '/groups/cosem/cosem/data/Macrophage_FS80_Cell2_4x4x4nm/Cryo_FS80_Cell2_4x4x4nm.n5': "Macrophage",
+        '/groups/cosem/cosem/data/Jurkat_Cell1_4x4x4nm/Jurkat_Cell1_FS96-Area1_4x4x4nm.n5': "Jurkat"
+    }
+    return shorts[crop["parent"]]
+
+
 def check_label_in_crop(label, crop):
     return any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in label.labelid)
 

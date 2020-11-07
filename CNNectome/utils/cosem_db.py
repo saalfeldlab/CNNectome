@@ -122,7 +122,7 @@ class CosemCSV(object):
     def __init__(self, csv_folder):
         self.folder = csv_folder
         self.fieldnames = ["path", "dataset", "setup", "iteration", "label", "crop", "raw_dataset",
-                           "parent_path", "threshold", "metric", "metric_params", "value"]
+                           "parent_path", "threshold", "refined", "metric", "metric_params", "value"]
 
     def read_evaluation_result(self, query):
         with open(os.path.join(self.folder, labelname + '.csv', "r")) as f:

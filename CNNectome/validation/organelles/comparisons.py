@@ -82,6 +82,14 @@ def compare_metrics(db, metric_compare, metric_bestby, crops=None, tol_distance=
     return comparisons
 
 
+def compare_rawvsrefined(db, metric, crops=None, tol_distance=40, clip_distance=200, threshold=127):
+    all_queries = analyze_evals.get_refined_comparisons(db, cropno=crops)
+    comparisons = analyze_evals.compare_refined(db, metric, all_queries, tol_distance=tol_distance,
+                                                clip_distance=clip_distance, threshold=threshold)
+    return comparisons
+
+
+
 def best_4nm(db, metric, crops, tol_distance=40, clip_distance=200, threshold=200, mode="across_setups",
              raw_ds="volumes/raw", test=False):
     if mode == "across_setups":
@@ -180,6 +188,10 @@ def print_comparison(comparison_task, db, metric, crops=None, save=None, tol_dis
         comparisons = compare_s1vssub(db, metric[0], crops=crops, tol_distance=tol_distance,
                                       clip_distance=clip_distance, threshold=threshold, mode=mode, test=test)
         names = ["_s1", "_subsampled"]
+    elif comparison_task == "rawvsrefined":
+        comparisons = compare_rawvsrefined(db, metric[0], crops=crops, tol_distance=tol_distance,
+                                           clip_distance=clip_distance, threshold=threshold)
+        names = ["_raw", "_refined"]
     elif comparison_task == "allvscommonvssingle":
         comparisons = compare_allvscommonvssingle_4nm(db, metric[0], crops=crops, tol_distance=tol_distance,
                                                       clip_distance=clip_distance, threshold=threshold,
@@ -221,7 +233,8 @@ def print_comparison(comparison_task, db, metric, crops=None, save=None, tol_dis
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("comparison", type=str, help="Type of comparison to run",
-                        choices=["4vs8", "s1vssub", "allvscommonvssingle", "metrics", "best_4nm", "best_8nm"])
+                        choices=["4vs8", "s1vssub", "rawvsrefined", "allvscommonvssingle", "metrics", "best_4nm",
+                                 "best_8nm"])
     parser.add_argument("--db_username", type=str, help="username for the database")
     parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--metric", nargs="+", type=str,

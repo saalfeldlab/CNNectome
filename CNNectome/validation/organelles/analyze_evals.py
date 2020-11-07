@@ -10,7 +10,8 @@ from CNNectome.utils.hierarchy import hierarchy
 db_host = "cosem.int.janelia.org:27017"
 gt_version = "v0003"
 training_version = "v0003.2"
-csv_folder = "/groups/cosem/cosem/computational_evaluation/{0:}/manual/".format(training_version)
+csv_folder_manual = "/groups/cosem/cosem/computational_evaluation/{0:}/manual/".format(training_version)
+csv_folder_refined = "/groups/cosem/cosem/computational_evaluation/{0:}/refined/".format(training_version)
 
 
 def check_margins(db, best_res):
@@ -51,7 +52,8 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
             cropnos_query = [str(cno) for cno in cropno]
 
         match_query = {"label": label, "crop": {"$in": cropnos_query}, "metric": metric, "setup": {"$in": setups},
-                       "metric_params": filtered_params, "threshold": threshold, "value": {"$ne": np.nan},}
+                       "metric_params": filtered_params, "threshold": threshold, "value": {"$ne": np.nan},
+                       "refined": False}
         crossval_group = {"_id": {"setup": "$setup", "iteration": "$iteration"}, "score": {"$avg": "$value"}}
         projection = {"setup": "$_id.setup", "iteration": "$_id.iteration", "_id": 0}
         if raw_ds is not None:
@@ -82,7 +84,7 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
         for cno in cropno:
             query_best = {"label": label, "crop": str(cno), "metric": metric, "setup": best_config["setup"],
                           "metric_params": filtered_params, "threshold": threshold,
-                          "iteration": best_config["iteration"],}
+                          "iteration": best_config["iteration"], "refined": False}
             if raw_ds is not None:
                 query_best["raw_dataset"] = best_config["raw_dataset"]
             best_this = db.find(query_best)
@@ -105,7 +107,7 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
     def best_manual(db, label, setups, cropno, raw_ds=None):
         c = db.get_crop_by_number(str(cropno))
         cell_identifier = get_cell_identifier(c)
-        csv_file_iterations = open(os.path.join(csv_folder, cell_identifier + "_iteration.csv"), "r")
+        csv_file_iterations = open(os.path.join(csv_folder_manual, cell_identifier + "_iteration.csv"), "r")
         fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
         reader = csv.DictReader(csv_file_iterations, fieldnames)
 
@@ -124,7 +126,7 @@ def best_result(db, label, setups, cropno, metric, raw_ds=None, tol_distance=40,
         elif len(best_manuals) == 1:  # if there's only one match it has to be the best one
             return best_manuals[0]
         else:  # if there's several matches check the setup results for overall best
-            csv_file_setups = open(os.path.join(csv_folder, cell_identifier + "_setup.csv"), "r")
+            csv_file_setups = open(os.path.join(csv_folder_manual, cell_identifier + "_setup.csv"), "r")
             reader = csv.DictReader(csv_file_setups, fieldnames)
             for row in reader:
                 if row["labelname"] == label and row["setup"] in setups:
@@ -163,18 +165,18 @@ def get_diff(db, label, setups, cropno, metric_best, metric_compare, raw_ds=None
 def get_manual_comparisons(db, cropno=None, mode="across_setups"):
     def get_csv_files(domain):
         if cropno is None:
-            csv_result_files = os.listdir(csv_folder)
+            csv_result_files = os.listdir(csv_folder_manual)
             csv_result_files = [fn for fn in csv_result_files if fn.endswith("_{0:}.csv".format(domain))]
         else:
             cell_identifier = get_cell_identifier(db.get_crop_by_number(cropno))
-            csv_result_files = [os.path.join(csv_folder, cell_identifier + "_{0:}.csv".format(domain))]
+            csv_result_files = [os.path.join(csv_folder_manual, cell_identifier + "_{0:}.csv".format(domain))]
         return csv_result_files
 
     def get_iteration_queries():
         csv_result_files = get_csv_files("iteration")
         iteration_queries = []
         for csv_f in csv_result_files:
-            f = open(os.path.join(csv_folder, csv_f), "r")
+            f = open(os.path.join(csv_folder_manual, csv_f), "r")
             fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
             cell_id = re.split("_(setup|iteration).csv", csv_f)[0]
             crop = db.get_validation_crop_by_cell_id(cell_id)
@@ -192,17 +194,19 @@ def get_manual_comparisons(db, cropno=None, mode="across_setups"):
         csv_result_files = get_csv_files("setup")
         setup_queries = []
         for csv_f in csv_result_files:
-            f = open(os.path.join(csv_folder, csv_f), "r")
+            f = open(os.path.join(csv_folder_manual, csv_f), "r")
             fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
             cell_id = re.split("_(setup|iteration).csv", csv_f)[0]
-            print(cell_id)
             crop = db.get_validation_crop_by_cell_id(cell_id)
 
             reader = csv.DictReader(f, fieldnames)
             for row in reader:
                 if any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in
                        hierarchy[row["labelname"]].labelid):
-                    ff = open(os.path.join(csv_folder, "compared_setups.csv"), "r")
+                    if row["raw_dataset"] == "volumes/raw":
+                        ff = open(os.path.join(csv_folder_manual, "compared_4nm_setups.csv"), "r")
+                    elif row["raw_dataset"] == "volumes/subsampled/raw/0" or row["raw_dataset"] == "volumes/raw/s1":
+                        ff = open(os.path.join(csv_folder_manual, "compared_8nm_setups.csv"), "r")
                     compare_reader = csv.reader(ff)
                     for compare_row in compare_reader:
                         if compare_row[0] == row["labelname"]:
@@ -222,6 +226,27 @@ def get_manual_comparisons(db, cropno=None, mode="across_setups"):
     return all_queries
 
 
+def get_refined_comparisons(db, cropno=None):
+    if cropno is None:
+        csv_result_files = os.listdir(csv_folder_refined)
+    else:
+        cell_identifier = get_cell_identifier(db.get_crop_by_number(cropno))
+        csv_result_files = [os.path.join(csv_folder_refined, cell_identifier + "_setup.csv")]
+    queries = []
+    for csv_f in csv_result_files:
+        f = open(os.path.join(csv_folder_refined, csv_f), "r")
+        fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
+        cell_id = re.split("_setup.csv", csv_f)[0]
+        crop = db.get_validation_crop_by_cell_id(cell_id)
+
+        reader = csv.DictReader(f, fieldnames)
+        for row in reader:
+            if any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in
+                   hierarchy[row["labelname"]].labelid):
+                query = {"label": row["labelname"], "raw_dataset": row["raw_dataset"], "setup": row["setup"],
+                         "crop": crop["number"], "iteration": int(row["iteration"])}
+                queries.append(query)
+    return queries
 
 
 def compare_evaluation_methods(db, metric_compare, metric_bestby, queries, tol_distance=40, clip_distance=200,
@@ -240,6 +265,31 @@ def compare_evaluation_methods(db, metric_compare, metric_bestby, queries, tol_d
                                  raw_ds=qu["raw_dataset"], tol_distance=tol_distance, clip_distance=clip_distance,
                                  threshold=threshold, test=test)
         comparisons.append((best_setup, compare_setup))
+    return comparisons
+
+
+def compare_refined(db, metric, queries, tol_distance=40, clip_distance=200, threshold=127):
+    comparisons = []
+    for qu in queries:
+        qu["metric"] = metric
+        qu["metric_params"] = filter_params({"clip_distance": clip_distance, "tol_distance": tol_distance},
+                                            metric)
+        qu["refined"] = True
+        refined = db.find(qu)
+
+        if len(refined) != 1:
+            print([x for x in refined])
+            print(qu)
+        assert len(refined) == 1
+        refined = refined[0]
+        qu["refined"] = False
+        qu["threshold"] = threshold
+        not_refined = db.find(qu)
+        if len(not_refined) != 1:
+            print([x for x in not_refined])
+        assert len(not_refined) == 1
+        not_refined = not_refined[0]
+        comparisons.append((not_refined, refined))
     return comparisons
 
 

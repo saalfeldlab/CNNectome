@@ -79,6 +79,8 @@ def extract_binary_class(gt_seg, resolution, label):
 def apply_threshold(prediction, thr=127):
     return (prediction >= thr).astype(np.bool)
 
+def make_binary(input):
+    return input.astype(np.bool)
 
 def read_prediction(prediction_path, pred_ds, offset, shape):
     n5file = zarr.open(prediction_path, mode="r")
@@ -106,6 +108,13 @@ def construct_pred_path(setup, iteration, crop, s1):
     return pred_path
 
 
+def construct_refined_path(crop):
+    default_refined_path = "/groups/cosem/cosem/ackermand/paperResultsWithFullPaths/collected/"
+    short_cell_id = crop_utils.short_cell_id(crop)
+    refined_path = os.path.join(default_refined_path, short_cell_id+'.n5')
+    return refined_path
+
+
 def autodetect_labelnames(path, crop):
     n5 = zarr.open(zarr.N5Store(path), 'r')
     labels_predicted = set(n5.array_keys())
@@ -122,8 +131,16 @@ def autodetect_iteration(path, ds):
         return None
 
 
+def autodetect_setup(path, ds):
+    n5_ds = zarr.open(zarr.N5Store(path), 'r')[ds]
+    try:
+        return n5_ds.attrs['setup']
+    except KeyError:
+        return None
+
+
 def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold, metrics, metric_params, db=None,
-                   csvh=None, save=False, overwrite=False):
+                   csvh=None, save=False, overwrite=False, refined=False):
     results = dict()
     n5 = zarr.open(pred_path, mode="r")
     raw_dataset = n5[pred_ds].attrs["raw_ds"]
@@ -134,7 +151,8 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
         if save:
             query = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                      "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
-                     "metric_params": metric_specific_params, "raw_dataset": raw_dataset, "parent_path": parent_path}
+                     "metric_params": metric_specific_params, "raw_dataset": raw_dataset, "parent_path": parent_path,
+                     "refined": refined}
             db_entry = db.read_evaluation_result(query)
             if db_entry is not None:
                 if overwrite:
@@ -147,10 +165,15 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
     if set(results.keys()) != set(metrics):
         gt_empty = not any(l in crop_utils.get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
         offset, shape = crop_utils.get_offset_and_shape_from_crop(crop)
-        prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
+        if refined:
+            refined_prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
+            test_binary = make_binary(refined_prediction)
+        else:
+            prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
+            test_binary = apply_threshold(prediction, thr=threshold)
         gt_seg, label_resolution = read_gt(crop, label, gt_version)
         gt_binary = extract_binary_class(gt_seg, label_resolution, label)
-        test_binary = apply_threshold(prediction, thr=threshold)
+
         pred_empty = np.sum(test_binary) == 0
         evaluator = Evaluator(gt_binary, test_binary, gt_empty, pred_empty, metric_params, resolution)
         remaining_metrics = list(set(metrics) - set(results.keys()))
@@ -162,7 +185,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
                 document = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                             "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
                             "metric_params": metric_specific_params, "value": score, "raw_dataset": raw_dataset,
-                            "parent_path": parent_path}
+                            "parent_path": parent_path, "refined": refined}
                 db.write_evaluation_result(document)
                 csvh.write_evaluation_result(document)
 
@@ -173,7 +196,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
 
 def main():
     parser = argparse.ArgumentParser("Evaluate predictions")
-    parser.add_argument("setup", type=str, nargs='+', default=None,
+    parser.add_argument("--setup", type=str, nargs='+', default=None,
                         help="network setup from which to evaluate a prediction, e.g. setup01")
     parser.add_argument("--iteration", type=int, nargs='+', default=None,
                         help="network iteration from which to evaluate prediction, e.g. 725000")
@@ -201,6 +224,7 @@ def main():
     parser.add_argument("--overwrite", action='store_true',
                         help="overwrite existing entries in database and csv")
     parser.add_argument("--s1", action='store_true', help="use s1 standard directory")
+    parser.add_argument("--refined", action='store_true', help="use refined predictions")
     parser.add_argument("--db_username", type=str, help="username for the database")
     parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--dry-run", action='store_true',
@@ -229,36 +253,40 @@ def main():
     metric_params = dict()
     metric_params['clip_distance'] = args.clip_distance
     metric_params['tol_distance'] = args.tol_distance
+    if args.refined:
+        assert args.setup is None
+        assert args.iteration is None
+    else:
+        assert args.setup is not None
+
 
     num_validations = max(len(list(always_iterable(args.setup))),
-                          len(list(always_iterable(args.iteration))),  len(list(always_iterable(args.label))),
-                          len(list(always_iterable(args.pred_path))), len(list(always_iterable(args.pred_ds))),
-                          len(list(always_iterable(args.threshold))))
-    #num_validations *= len(crops)
+                      len(list(always_iterable(args.iteration))),  len(list(always_iterable(args.label))),
+                      len(list(always_iterable(args.pred_path))), len(list(always_iterable(args.pred_ds))),
+                      len(list(always_iterable(args.threshold))), 1)
+    iterator = itertools.product(
+        zip(range(num_validations),
+             repeat_last(always_iterable(args.setup)),
+            repeat_last(always_iterable(args.iteration)),
+            repeat_last(always_iterable(args.label)),
+            repeat_last(always_iterable(args.pred_path)),
+            repeat_last(always_iterable(args.pred_ds)),
+            repeat_last(always_iterable(args.threshold))),
+        always_iterable(crops))
+
     print("\nWill run the following validations:\n")
     validations = []
-    for (valno, setup, iteration, label, pred_path, pred_ds, thr), crop in itertools.product(
-            zip(range(
-            num_validations),
-                                                                             repeat_last(always_iterable(args.setup)),
-                                                                             repeat_last(
-                                                                                 always_iterable(args.iteration)),
-                                                                             repeat_last(always_iterable(args.label)),
-                                                                             repeat_last(
-                                                                                 always_iterable(args.pred_path)),
-                                                                             repeat_last(always_iterable(args.pred_ds)),
-                                                                             repeat_last(
-                                                                                 always_iterable(args.threshold))),
-            always_iterable(crops)):
-
-        if pred_ds is not None:
-            if label is None:
+    for (valno, setup, iteration, label, pred_path, pred_ds, thr), crop in iterator:
+        if pred_ds is not None and label is None:
                 raise ValueError("If pred_ds is specified, label can't be autodetected")
 
         if pred_path is None:
-            if iteration is None:
+            if iteration is None and not args.refined:
                 raise ValueError("Either pred_path or iteration must be specified")
-            pred_path = construct_pred_path(setup, iteration, crop, args.s1)
+            if args.refined:
+                pred_path = construct_refined_path(crop)
+            else:
+                pred_path = construct_pred_path(setup, iteration, crop, args.s1)
         if not os.path.exists(pred_path):
             raise ValueError("{0:} not found".format(pred_path))
         if not os.path.exists(os.path.join(pred_path, 'attributes.json')):
@@ -277,35 +305,55 @@ def main():
                 ds = ll
             else:
                 ds = pred_ds
-            if pred_path is not None:  # and (setup is not None or iteration is not None):
-                if not os.path.exists(os.path.join(pred_path, ds)):
-                    raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
-                if iteration is not None:
-                    auto_it = autodetect_iteration(pred_path, ds)
-                    if auto_it is not None:
-                        if iteration != autodetect_iteration(pred_path, ds):
-                            raise ValueError(
-                                "You specified pred_path as well as iteration. The iteration does not match the "
-                                "iteration in the attributes of the prediction."
-                            )
-                else:
-                    iteration = autodetect_iteration(pred_path, ds)
-                    if iteration is None:
-                        raise ValueError(
-                            "Please sepcify iteration, it is not contained in the prediction metadata."
-                        )
 
-                if pred_path != construct_pred_path(setup, iteration, crop, args.s1):
-                    warnings.warn(
-                            "You specified pred_path as well as setup and the pred_path does not match the standard "
-                            "location."
+            if not os.path.exists(os.path.join(pred_path, ds)):
+                raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
+            if iteration is not None:
+                iter = autodetect_iteration(pred_path, ds)
+                if iter is not None:
+                    if iteration != iter:
+                        raise ValueError(
+                            "You specified pred_path as well as iteration. The iteration does not match the "
+                            "iteration in the attributes of the prediction."
                         )
+                else:
+                    iter = iteration
+            else:
+                iter = autodetect_iteration(pred_path, ds)
+                if iter is None:
+                    raise ValueError(
+                        "Please sepcify iteration, it is not contained in the prediction metadata."
+                    )
+            if setup is None:
+                this_setup = autodetect_setup(pred_path, ds)
+                if this_setup is None:
+                    raise ValueError(
+                        "Please specify setup, it is not contained in the prediction metadata."
+                    )
+            else:
+                this_setup = autodetect_setup(pred_path, ds)
+                if this_setup is not None:
+                    if this_setup != setup:
+                        raise ValueError(
+                            "The specified setup does not match the setup in the attributes of the prediction."
+                        )
+                else:
+                    this_setup = setup
+            if not args.refined and pred_path != construct_pred_path(this_setup, iter, crop, args.s1):
+                warnings.warn(
+                    "You specified pred_path as well as setup and the pred_path does not match the standard "
+                    "location."
+                )
+            if args.refined and pred_path != construct_refined_path(crop):
+                warnings.warn(
+                    "You specified pred_path does not match the standard location."
+                )
             if not os.path.exists(os.path.join(pred_path, ds)):
                 raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
             n5 = zarr.open(pred_path, mode="r")
             raw_ds = n5[ds].attrs["raw_ds"]
             parent_path = n5[ds].attrs["raw_data_path"]
-            validations.append([pred_path, ds, setup, iteration, hierarchy[ll], crop, raw_ds, parent_path, thr])
+            validations.append([pred_path, ds, this_setup, iter, hierarchy[ll], crop, raw_ds, parent_path, thr])
 
     tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m)) for
             (pp, d, s, i, ll, c, r_ds, parent, t), m in itertools.product(validations, metric)]
@@ -317,7 +365,7 @@ def main():
         for val_params in validations:
             pp, d, s, i, ll, c , r_ds, parent, t = val_params
             results = run_validation(pp, d, s, i, ll, c, t, metric, metric_params, db, csvhandler, args.save,
-                                     args.overwrite)
+                                     args.overwrite, args.refined)
             val_params.append(results)
         print("\nResults Summary:")
         tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m), v) for
