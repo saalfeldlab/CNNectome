@@ -93,6 +93,18 @@ def read_prediction(prediction_path, pred_ds, offset, shape):
     return pred[sl], resolution
 
 
+def reconstruct_cytosol_prediction(prediction_path, offset, shape, thr=127):
+    cytosol_binary = np.zeros(shape, dtype=np.bool)
+    n5file = zarr.open(prediction_path, mode="r")
+    for labelname, label in hierarchy.items():
+        if labelname != 'cytosol' and labelname != "ribosomes":
+            pred, resolution = read_prediction(n5file, labelname, offset, shape)
+            pred = apply_threshold(pred, thr=thr)
+            cytosol_binary += pred
+    cytosol_binary = np.invert(cytosol_binary)
+    return cytosol_binary, resolution
+
+
 def pred_path_without_iteration(setup, crop, s1):
     default_pred_path = "/nrs/cosem/cosem/training/{0:}/".format(training_version)
     setup_path = os.path.join(default_pred_path, setup)
@@ -128,6 +140,7 @@ def autodetect_iteration(path, ds):
     try:
         return n5_ds.attrs['iteration']
     except KeyError:
+        print(path,ds)
         return None
 
 
@@ -165,6 +178,10 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
     if set(results.keys()) != set(metrics):
         gt_empty = not any(l in crop_utils.get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
         offset, shape = crop_utils.get_offset_and_shape_from_crop(crop)
+        if label == "cytosol":
+            assert setup == "setup01" or setup == "setup02"
+            test_binary, resolution = reconstruct_cytosol_prediction(pred_path, offset, shape, thr=threshold)
+        else:
         if refined:
             refined_prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
             test_binary = make_binary(refined_prediction)
@@ -299,7 +316,7 @@ def main():
             for ll in labels:
                 if ll not in crop_utils.get_all_annotated_labelnames(crop):
                     raise ValueError("Label {0:} not annotated in crop {1:}".format(ll, crop['number']))
-
+        print(labels)
         for ll in labels:
             if pred_ds is None:
                 ds = ll
@@ -308,6 +325,7 @@ def main():
 
             if not os.path.exists(os.path.join(pred_path, ds)):
                 raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
+            print("IT", iteration)
             if iteration is not None:
                 iter = autodetect_iteration(pred_path, ds)
                 if iter is not None:

@@ -34,6 +34,7 @@ hierarchy['centrosome'] = Label('centrosome', 31, add_constant=2, separate_label
 hierarchy['distal_app'] = Label('distal_app', 32)
 hierarchy['subdistal_app'] = Label('subdistal_app', 33)
 hierarchy['ribosomes'] = Label('ribosomes', 34, add_constant=8, separate_labelset=True)
+hierarchy['cytosol'] = Label('cytosol', 35)
 
 
 short_names = dict()
