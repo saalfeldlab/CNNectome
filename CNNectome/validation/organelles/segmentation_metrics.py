@@ -29,6 +29,30 @@ class EvaluationMetrics(str, Enum):
     recall = 'recall'
     f1_score = 'f1_score'
 
+def display_name(metric):
+    switcher = {
+        EvaluationMetrics.dice: "F1 Score",
+        EvaluationMetrics.jaccard: "Jaccard Index",
+        EvaluationMetrics.hausdorff: "Hausdorff Distance",
+        EvaluationMetrics.false_negative_rate: "False Negative Rate",
+        EvaluationMetrics.false_negative_rate_with_tolerance: "False Negative Rate with Tolerance Distance",
+        EvaluationMetrics.false_positive_rate: "False Positive Rate",
+        EvaluationMetrics.false_discovery_rate: "False Discovery Rate",
+        EvaluationMetrics.false_positive_rate_with_tolerance: "False Positive Rate with Tolerance Distance",
+        EvaluationMetrics.voi: "Variation Of Information",
+        EvaluationMetrics.mean_false_distance: "Mean False Distance",
+        EvaluationMetrics.mean_false_positive_distance: "Mean False Positive Distance",
+        EvaluationMetrics.mean_false_negative_distance: "Mean False Negative Distance",
+        EvaluationMetrics.mean_false_positive_distance_clipped: "Mean False Positive Distance (Clipped)",
+        EvaluationMetrics.mean_false_negative_distance_clipped: "Mean False Negative Distance (Clipped)",
+        EvaluationMetrics.precision_with_tolerance: "Precision with Tolerance Distance",
+        EvaluationMetrics.recall_with_tolerance: "Recall with Tolerance Distance",
+        EvaluationMetrics.f1_score_with_tolerance: "F1 Score with Tolerance Distance",
+        EvaluationMetrics.precision: "Precision",
+        EvaluationMetrics.recall: "Recall",
+        EvaluationMetrics.f1_score: "F1 Score"
+    }
+    return switcher.get(metric)
 
 def filter_params(params, metric):
     params_by_metric = {
