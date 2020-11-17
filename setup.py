@@ -20,10 +20,16 @@ REQUIRED = [
     "h5py",
     "zarr>=2.4.0",
     "joblib",
+    "lazy-property",
     "scikit-image",
     "matplotlib",
     "memory_profiler",
+    "more-itertools",
     "pymongo",
+    "seaborn",
+    'scikit-learn',
+    'SimpleITK',
+    'tabulate',
     "cremi @ git+https://github.com/cremi/cremi_python@python3",
     "gunpowder @ git+https://github.com/neptunes5thmoon/gunpowder@dist_transform_py3",
     "fuse @ git+https://github.com/neptunes5thmoon/fuse@my_pipinstallable_version",
@@ -44,6 +50,7 @@ DEPENDENCY_LINKS = [
     "git+https://github.com/neptunes5thmoon/fuse.git@my_pipinstallable_version#egg=fuse",
     "git+https://github.com/neptunes5thmoon/malis.git@fix_setup#egg=malis",
     "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=simpleference[zarr]"
+    "git+https://github.com/neptunes5thmoon/simpleference.git@master#egg=neptunes5thmoon-simpleference"
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -60,6 +67,11 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+             'add_missing_n5_attributes = CNNectome.utils.add_missing_n5_attributes:main'
+        ],
+    },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     dependency_links=DEPENDENCY_LINKS,

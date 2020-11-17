@@ -4,11 +4,13 @@ numpy == 1.17.3
 scipy == 1.3.3
 h5py == 2.10.0
 joblib == 0.14.1
+lazy-property == 0.0.1
 scikit-image == 0.16.2
 matplotlib == 3.1.2
 memory_profiler == 0.55.0
 pymongo == 3.10.0
 zarr == 2.4.0
+seaborn ==
 cremi@git+https://github.com/cremi/cremi_python.git@python3
 gunpowder@git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3
 fuse@git+https://github.com/neptunes5thmoon/fuse.git@intensity_augment
