@@ -15,18 +15,73 @@ import pymongo
 
 
 def get_label_ids_by_category(crop, category):
+    """
+    Get all label ids from a crop that belong to a certain category
+
+    Parameters
+    ----------
+    crop : dict
+        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+    category : str, one of {"present_annotated", "present_unannotated", "absent_annotated",
+               "present_partial_annotation"}
+        Category to filter label ids from the crop by.
+
+    Returns
+    -------
+    list [int]
+        All label ids that belong to the `category` for that crop.
+    """
     return [l[0] for l in crop['labels'][category]]
 
 
 def get_all_annotated_label_ids(crop):
+    """
+    Get all label ids from a crop that are annotated (regardless of whether the labelid is present or absent)
+
+    Parameters
+    ----------
+    crop : dict
+        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+
+    Returns
+    -------
+    list [int]
+        All label ids that are annotated in the crop.
+    """
     return get_label_ids_by_category(crop, "present_annotated") + get_label_ids_by_category(crop, "absent_annotated")
 
 
 def get_crop_size(crop):
+    """
+    Compute the size of a crop in voxels (at annotation resolution).
+
+    Parameters
+    ----------
+    crop : dict
+        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+
+    Returns
+    -------
+    size : int
+        Total number of voxels (at annotation resolution) in the given crop.
+    """
     return np.prod(list(crop["dimensions"].values()))
 
 
 def get_all_labelids(labels):
+    """
+    Generate list of all label ids occuring in the given list of labels.
+
+    Parameters
+    ----------
+    labels : list [CNNectome.utils.label.Label]
+        List of the labels from which to combine the labelids.
+
+    Returns
+    -------
+    all_labelids : list [int]
+        Combined list of all the labelids from the labels in the list.
+    """
     all_labelids = []
     for label in labels:
         all_labelids += list(label.labelid)
@@ -34,6 +89,27 @@ def get_all_labelids(labels):
 
 
 def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
+    """
+    Compute probabilities for sampling from each individual crop when using the prioritized sampling scheme. Crops
+    that are prioritized will be sampled from with probability `prob_prioritized`. All other crops will be sampled
+    from with probability 1 - `prob_prioritized`. Within each collection the sampling probability is proportional to
+    the crop size.
+
+    Parameters
+    ----------
+    crop_sizes : array_like [int]
+        List of total size of each crop.
+    indicator : array_like [bool]
+        List with value indicating for each crop whether it should be prioritized. Crops should follow same ordering
+        as in `crop_sizes`.
+    prob_prioritized : float
+        Probability with which to sample from one of the prioritized crops.
+
+    Returns
+    -------
+    list [float]
+        Probabilities for sampling from each crop, given in same order as `crop_sizes` and `indicator`.
+    """
     crop_sizes_np = np.array(crop_sizes)
     indicator_np = np.array(indicator)
     prob_present = (
@@ -113,17 +189,120 @@ def train_until(
     voxel_size=Coordinate((4, 4, 4)),
     voxel_size_input=Coordinate((4, 4, 4))
 ):
+    """
+    Training a tensorflow network to learn signed distance transforms of specified labels (organelles) using gunpowder.
+    Training data is read from crops whose metadata are organized in a database.
+
+    Parameters
+    ----------
+    max_iteration : int
+        Total number of iterations that network should be trained for.
+    gt_version : str
+        Version of groundtruth annotations, e.g. "v0003".
+    labels : list [CNNectome.utils.label.Label]
+        List of labels that the network needs to be trained for.
+    net_name : str
+        Filename of tensorflow meta graph definition.
+    input_shape : numpy.array or list [int]
+        Input shape of network.
+    output_shape : numpy.array or list [int]
+        Output shape of network.
+    loss_name : str
+        Name of loss used as stored in net io names json file.
+    db_username : str
+        Username for access to database.
+    db_password : str
+        Password for access to database.
+    balance_global : bool, optional
+        If True, use global balancing i.e. weigh loss for each label using its `frac_pos` and `frac_neg` attributes.
+    prioritized_label : CNNectome.utils.label.Label or None, optional
+        Label to use for prioritizing sampling from crops that contain examples of it. If None (default), sample from
+        each crop equally.
+    dataset : str, optional or None
+        Only consider crops that come from the specified dataset. If None (default), use all otherwise eligible crops.
+    prob_prioritized : float, optional
+        If `prioritized_label` is not None, this is the probability with which to sample from the crops containing
+        the label. Default is .5, which implies sampling equally from crops containing the labels and all others.
+    db_name : str, optional
+        Name of database collection with crop information.
+    completion_min : int, optional
+        Minimal completion status for a crop from the database to be added to the training.
+    dt_scaling_factor : int, optional
+        Scaling factor to divide distance transform by before applying nonlinearity.
+    cache_size : int, optional
+        Cache size for queue grabbing batches.
+    num_workers : int, optional
+        Number of workers grabbing batches.
+    min_masked_voxels : int, optional
+        Minimum number of voxels in a batch that need to be part of the groundtruth annotation.
+    voxel_size_labels : gunpowder.Coordinate, optional
+        Voxel size of the annotated labels.
+    voxel_size : gunpowder.Coordinate, optional
+        Voxel size of the desired output.
+    voxel_size_input : gunpowder.Coordinate, optional
+        Voxel size of the input data.
+
+    Returns
+    -------
+    None
+    """
     def label_filter(cond_f):
+        """
+        Filter `labels` according to the given condition.
+
+        Parameters
+        ----------
+        cond_f : function
+            Function that given a label (CNNectome.utils.label.Label) evaluates to True or False. Labels that
+            evaluate to False will be filtered out.
+
+        Returns
+        -------
+        list [CNNectome.utils.label.Label]
+            Copy of `labels` without the elements that evaluated to False with `cond_f`.
+        """
         return [ll for ll in labels if cond_f(ll)]
 
     def get_label(name):
-        filter = label_filter(lambda l: l.labelname == name)
-        if len(filter) > 0:
-            return filter[0]
+        """
+        Finds the (first) element of the `labels` list whose attribute labelname is `name`.
+
+        Parameters
+        ----------
+        name : str
+            The label with this labelname should be extracted from the list .
+
+        Returns
+        -------
+        CNNectome.utils.label.Label or None
+            If label with labelname `name` is found in the list `labels` return it, otherwise None.
+
+        """
+        filtered = label_filter(lambda l: l.labelname == name)
+        if len(filtered) > 0:
+            return filtered[0]
         else:
             return None
 
     def make_crop_source(crop, subsample_variant=None):
+        """
+        Generate a batch provider for a specific crop, including label data, raw data, generating per label mask,
+        rejection based on `min_masked_voxels` and contrast scaling.
+
+        Parameters
+        ----------
+        crop : dict
+            Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+        subsample_variant : int, str or None
+            If using raw data that has been subsampled from its original resolution, `subsample_variant` is the name
+            of the dataset in the group "volumes/subsampled/raw" containing the subsampled raw data. If None,
+            use the raw data at original resolution from "volumes/raw"
+
+        Returns
+        -------
+        crop_src : gunpowder.batch_provider_tree.BatchProviderTree
+            Gunpowder batch provider tree for grabbing batches from the specified crop.
+        """
         n5file = zarr.open(ensure_str(crop["parent"]), mode='r')
         blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
         blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
@@ -241,11 +420,25 @@ def train_until(
                                         scale,
                                         shift
                                         )
-
         return crop_src
 
     def network_setup():
+        """
+        Methods to setup the tensorflow network with its inputs and outputs to be used in the train node.
 
+        Returns
+        -------
+        net_io_names : dict (str -> str)
+            Mapping easily usable names to names of tensors in the tensorflow graph, read from json file that was
+            generated when making the tensorflow graph
+        start_iteration : int
+            Starting iteration of this training. 0 if training this setup for the first time, otherwise read from
+            checkpoint file.
+        inputs: dict (str -> gunpowder.array.ArrayKey)
+            Mapping names of input tensors in tensorflow graph to keys of corresponding arrays in gunpowder batch.
+        outputs: dict (str -> gunpowder.array.ArrayKey)
+            Mapping names of output tensors in tensorflow graph to keys of corresponding arrays in gunpowder batch.
+        """
         # load net_io_names.json
         with open("net_io_names.json", "r") as f:
             net_io_names = json.load(f)
