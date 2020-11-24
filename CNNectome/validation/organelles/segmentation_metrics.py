@@ -110,8 +110,8 @@ def sorting(argument):
 
 def best(argument):
     switcher = {
-        1: np.nanargmax,
-        -1: np.nanargmin
+        -1: np.nanargmax,
+        1: np.nanargmin
     }
     return switcher.get(sorting(argument))
 
