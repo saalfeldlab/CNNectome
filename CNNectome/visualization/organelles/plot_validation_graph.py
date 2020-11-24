@@ -3,6 +3,7 @@ from CNNectome.validation.organelles.run_evaluation import construct_pred_path, 
 from CNNectome.utils.crop_utils import get_all_annotated_labelnames
 from CNNectome.utils import cosem_db
 from CNNectome.utils.hierarchy import hierarchy
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
@@ -15,7 +16,7 @@ import os
 db_host = "cosem.int.janelia.org:27017"
 gt_version = "v0003"
 training_version = "v0003.2"
-
+fs = 10
 
 def y_scale_group(metric):
     switcher = {
@@ -45,6 +46,8 @@ def y_scale_group(metric):
 
 
 def plot_validation(x_axis, validations, metrics, metric_params, db):
+    matplotlib.rcParams['font.sans-serif'] = "Arial"
+    matplotlib.rcParams['font.family'] = "sans-serif"
     axs = [None, ] * 3
     ref_ax = y_scale_group(metrics[0])
     fig, axs[ref_ax] = plt.subplots()
@@ -68,14 +71,27 @@ def plot_validation(x_axis, validations, metrics, metric_params, db):
         if ax is None:
             axs[y_scale_group(metric)] = axs[ref_ax].twinx()
             ax = axs[y_scale_group(metric)]
-        line, = ax.plot(x_axis_values, y_axis_values, label=metric, c=cycle[i])
+        line, = ax.plot(x_axis_values, y_axis_values, label=display_name(metric), c=cycle[i])
         opt = best(metric)(y_axis_values)
         ax.plot(x_axis_values[opt], y_axis_values[opt], c=line.get_color(), alpha=0.5, marker='o')
         x_ticks.union(set(x_axis_values))
+
     for ax in axs:
         if ax is not None:
-            ax.legend()
+            ax.tick_params(axis="both", which="major", labelsize=fs)
+            ax.tick_params(axis="both", which="both", bottom=False, top=False, left=False, right=False)
+            ax.ticklabel_format(axis="both", useOffset=False, style='plain')
+            if len(metrics) == 1:
+                plt.ylabel(display_name(metrics[0]))
+            else:
+                ax.legend(frameon=False, prop={"size": fs}, labelspacing=.1, handletextpad=.025)
+    plt.xlabel(x_axis)
+    plt.grid(axis="both", color="gray", linestyle=(0, (1, 5)), linewidth=.5)
     axs[ref_ax].xticks = sorted(list(x_ticks))
+    axs[ref_ax].spines["top"].set_visible(False)
+    axs[ref_ax].spines["right"].set_visible(False)
+    axs[ref_ax].spines["bottom"].set_visible(False)
+    axs[ref_ax].spines["left"].set_visible(False)
     plt.show()
 
 
