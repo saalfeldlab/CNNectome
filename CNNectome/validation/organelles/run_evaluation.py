@@ -182,12 +182,12 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
             assert setup == "setup01" or setup == "setup02"
             test_binary, resolution = reconstruct_cytosol_prediction(pred_path, offset, shape, thr=threshold)
         else:
-        if refined:
-            refined_prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
-            test_binary = make_binary(refined_prediction)
-        else:
-            prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
-            test_binary = apply_threshold(prediction, thr=threshold)
+            if refined:
+                refined_prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
+                test_binary = make_binary(refined_prediction)
+            else:
+                prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
+                test_binary = apply_threshold(prediction, thr=threshold)
         gt_seg, label_resolution = read_gt(crop, label, gt_version)
         gt_binary = extract_binary_class(gt_seg, label_resolution, label)
 
