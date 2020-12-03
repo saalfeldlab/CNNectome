@@ -9,7 +9,7 @@ URL = "https://github.com/saalfeldlab/CNNectome"
 EMAIL = "heinrichl@janelia.hhmi.org"
 AUTHOR = "Larissa Heinrich"
 REQUIRES_PYTHON = ">=3.6"
-VERSION = "2.0.dev23"
+VERSION = "2.0.dev24"
 
 REQUIRED = [
     "tensorflow_gpu<1.15",
