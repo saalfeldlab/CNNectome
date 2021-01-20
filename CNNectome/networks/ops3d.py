@@ -221,6 +221,59 @@ def upsample(
     return fmaps, voxel_size
 
 
+def gaussian_blur(fmaps_in, sigma):
+    def gauss_kernel(sigma):
+        if sigma < 0:
+            kernel_1d = np.array([0., 1., 0.], dtype=np.float32)
+        else:
+            kernel_size = max(3, 2 * int(3 * sigma + 0.5) + 1)
+            kernel_1d = np.zeros(kernel_size, dtype=np.float32)
+            x = int(kernel_size / 2)
+            while x >= 0:
+                val = np.exp(-x**2/(2*sigma*sigma))
+                kernel_1d[int(kernel_size/2) - x] = val
+                kernel_1d[int(kernel_size/2) + x] = val
+                x -= 1
+        kernel = kernel_1d[:,None,None]* kernel_1d[None,:,None]* kernel_1d[None,None,:]
+        kernel /= np.sum(kernel)
+        return kernel
+    gaussian_kernel = tf.convert_to_tensor(gauss_kernel(sigma))
+    gaussian_kernel = gaussian_kernel[..., tf.newaxis, tf.newaxis]
+    fmaps = tf.nn.conv3d(fmaps_in, gaussian_kernel, padding="SAME", data_format="NCDHW", strides=[1,1,1,1,1], name="gaussian_blur")
+    return fmaps
+
+
+def gaussian_blur_var(fmaps_in, sigma):
+    def gauss_kernel(sigma):
+        def identity():
+            kernel_1d = np.array([0., 1., 0.], dtype=np.float32)
+            return kernel_1d
+        def construct(sigma):
+            kernel_size = tf.math.maximum(3, 2 * tf.cast(3 * sigma + 0.5, tf.int32) + 1)
+            x = tf.cast(tf.cast(kernel_size / 2, tf.int32), tf.float32)
+            kernel_1d = tf.range(-x, x, dtype=np.float32)
+            # def while_cond(x, kernel_1d):
+            #     return tf.math.greater_equal(x, 0)
+            # def while_body(x, kernel_1d):
+            #     val = tf.math.exp(-tf.cast(x, tf.float32)**2/(2*sigma * sigma))
+            #     kernel_1d[tf.cast(kernel_size/2, tf.int32) - x] = val
+            #     kernel_1d[tf.cast(kernel_size/2, tf.int32) + x] = val
+            #     x -= 1
+            #     return y
+
+            # x, kernel_1d = tf.while_loop(while_cond, while_body, (x, kernel_1d), return_same_structure=True)
+            kernel_1d = tf.math.exp(-kernel_1d**2/(2*sigma*sigma))
+            return kernel_1d
+        kernel_1d = tf.cond(tf.math.greater(0., sigma), identity, lambda: construct(sigma))
+        kernel = kernel_1d[:, None, None] * kernel_1d[None, :, None] * kernel_1d[None, None, :]
+        kernel /= np.sum(kernel)
+        return kernel
+    gaussian_kernel = tf.convert_to_tensor(gauss_kernel(sigma))
+    gaussian_kernel = gaussian_kernel[..., tf.newaxis, tf.newaxis]
+    fmaps = tf.nn.conv3d(fmaps_in, gaussian_kernel, padding="SAME", data_format="NCDHW", strides=[1,1,1,1,1], name="gaussian_blur")
+    return fmaps
+
+
 def crop_zyx(fmaps_in, shape):
     """Crop only the spacial dimensions to match shape.
     Args:
