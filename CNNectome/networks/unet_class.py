@@ -53,6 +53,8 @@ class UNet(object):
 
     def compute_minimal_shapes(self):
         # compute minimal shape in the bottom layer (after the convolutions s.t. the upward path can still be evaluated
+        step = np.prod(self.downsample_factors, axis=0)
+
         min_bottom_right = [(1.0, 1.0, 1.0)] * (len(self.downsample_factors) + 1)
         for lv in range(len(self.downsample_factors)):
             kernels = np.copy(self.kernel_size_up[lv])
@@ -104,7 +106,12 @@ class UNet(object):
 
             min_output_shape -= total_pad
 
-        step = np.prod(self.downsample_factors, axis=0)
+        if self.padding == "same":
+            # round up to next multiple of step
+            min_input_shape = min_input_shape + (step -(min_input_shape%step))%step
+            min_output_shape = min_input_shape
+            min_bottom_left = min_bottom_left/step
+
         return min_input_shape, step, min_output_shape, min_bottom_left
 
     def build(
