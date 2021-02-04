@@ -31,15 +31,16 @@ def get_all_present_labelnames(crop):
     present_labelnames = []
     present_label_ids = get_label_ids_by_category(crop, "present_annotated")
     annotated_label_ids = get_all_annotated_label_ids(crop)
-    if label.generic_label is not None:
-        specific_labels = list(set(label.labelid) - set(label.generic_label))
-        generic_condition = (any(l in present_label_ids for l in specific_labels) and
+    for labelname, label in hierarchy.items():
+        if label.generic_label is not None:
+            specific_labels = list(set(label.labelid) - set(label.generic_label))
+            generic_condition = (any(l in present_label_ids for l in specific_labels) and
                              all(l in annotated_label_ids for l in specific_labels)) or \
                             (any(l in present_label_ids for l in label.generic_label) and
                              all(l in annotated_label_ids for l in label.generic_label))
-    else:
-        generic_condition = False
-    for labelname, label in hierarchy.items():
+        else:
+            generic_condition = False
+
         if ((any(l in present_label_ids for l in label.labelid) and
              all(l in annotated_label_ids for l in label.labelid)) or generic_condition):
             present_labelnames.append(labelname)

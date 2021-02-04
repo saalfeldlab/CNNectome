@@ -68,7 +68,8 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-             'add_missing_n5_attributes = CNNectome.utils.add_missing_n5_attributes:main'
+             'add_missing_n5_attributes = CNNectome.utils.add_missing_n5_attributes:main',
+             'auto_evaluation = CNNectome.validation.organelles.auto_evaluation:main'
         ],
     },
     install_requires=REQUIRED,

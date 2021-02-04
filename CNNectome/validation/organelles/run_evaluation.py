@@ -211,7 +211,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
     return results
 
 
-def main():
+def main(alt_args=None):
     parser = argparse.ArgumentParser("Evaluate predictions")
     parser.add_argument("--setup", type=str, nargs='+', default=None,
                         help="network setup from which to evaluate a prediction, e.g. setup01")
@@ -247,7 +247,7 @@ def main():
     parser.add_argument("--dry-run", action='store_true',
                         help="show list of evaluations that would be run with given arguments without compute anything")
 
-    args = parser.parse_args()
+    args = parser.parse_args(alt_args)
     db = cosem_db.MongoCosemDB(args.db_username, args.db_password, host=db_host, gt_version=gt_version,
                                training_version=training_version)
     csvhandler = cosem_db.CosemCSV(eval_results_csv_folder)
@@ -316,7 +316,6 @@ def main():
             for ll in labels:
                 if ll not in crop_utils.get_all_annotated_labelnames(crop):
                     raise ValueError("Label {0:} not annotated in crop {1:}".format(ll, crop['number']))
-        print(labels)
         for ll in labels:
             if pred_ds is None:
                 ds = ll
@@ -325,7 +324,6 @@ def main():
 
             if not os.path.exists(os.path.join(pred_path, ds)):
                 raise ValueError('{0:} not found'.format(os.path.join(pred_path, ds)))
-            print("IT", iteration)
             if iteration is not None:
                 iter = autodetect_iteration(pred_path, ds)
                 if iter is not None:
