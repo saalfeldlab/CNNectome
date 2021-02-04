@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake \
         git \
         libmlpack-dev \
-        python3.7 \
+        python3.6 \
         python3-numpy \
         python3-setuptools \
         python3-pip \
@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 ENV PIP=pip
-ENV PYTHON=python3.7
+ENV PYTHON=python3.6
 
 RUN ${PIP} -V && \
     ${PIP} install pytest dask toolz memory_profiler

@@ -8,14 +8,14 @@ DESCRIPTION = "A collection of scripts for building, training and validating Con
 URL = "https://github.com/saalfeldlab/CNNectome"
 EMAIL = "heinrichl@janelia.hhmi.org"
 AUTHOR = "Larissa Heinrich"
-REQUIRES_PYTHON = ">=3.7"
+REQUIRES_PYTHON = ">=3.6"
 VERSION = "2.0.dev24"
 
 REQUIRED = [
     "tensorflow_gpu<1.15",
     "absl-py>=0.9",
     "numpy",
-    "scipy",
+    "scipy<1.6",
     "cython",
     "h5py",
     "zarr>=2.4.0",
@@ -81,6 +81,7 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
 )
