@@ -29,6 +29,7 @@ REQUIRED = [
     'scikit-learn',
     'SimpleITK',
     'tabulate',
+    "corditea @ git+https://github.com/saalfeldlab/corditea",
     "cremi @ git+https://github.com/cremi/cremi_python@python3",
     "gunpowder @ git+https://github.com/neptunes5thmoon/gunpowder@dist_transform_py3",
     "fuse @ git+https://github.com/neptunes5thmoon/fuse@my_pipinstallable_version",
@@ -44,6 +45,7 @@ EXTRAS = {
 }
 
 DEPENDENCY_LINKS = [
+    "git+https://github.com/saalfeldlab/corditea@main#egg=corditea",
     "git+https://github.com/cremi/cremi_python.git@python3#egg=cremi",
     "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
     "git+https://github.com/neptunes5thmoon/fuse.git@my_pipinstallable_version#egg=fuse",

@@ -46,4 +46,5 @@ RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}
 ENV PYTHONPATH "/groups/saalfeld/home/heinrichl/dev/CNNectome":$PYTHONPATH
 ENV PYTHONPATH "/groups/saalfeld/home/heinrichl/dev/simpleference":$PYTHONPATH
 ENV PYTHONPATH "/groups/saalfeld/home/heinrichl/dev/gunpowder":$PYTHONPATH
+ENV PYTHONPATH :"/groups/saalfeld/home/heinrichl/dev/corditea":$PYTHONPATH
 WORKDIR /run

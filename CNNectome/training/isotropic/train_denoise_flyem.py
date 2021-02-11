@@ -5,6 +5,7 @@ from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
 
 import fuse
+import corditea
 import tensorflow as tf
 import math
 import time
@@ -69,6 +70,7 @@ def batch_generator(
     request.add(ArrayKey("RAW_INPUT"), input_size, voxel_size=voxel_size)
     request.add(ArrayKey("RAW_TARGET"), output_size, voxel_size=voxel_size)
     request.add(ArrayKey("RAW_PREDICTED"), output_size, voxel_size=voxel_size)
+    request.add(ArrayKey("DATA_MASK"), input_size, voxel_size=voxel_size)
 
     # specify specs for output
     array_specs_pred = {ArrayKey("RAW_PREDICTED"): ArraySpec(voxel_size=voxel_size, interpolatable=True)}
@@ -86,10 +88,14 @@ def batch_generator(
 
 
     pipeline = src + RandomLocation()
-    pipeline += Normalize(ArrayKey("RAW_INPUT"), 1.0/255)
-    pipeline += Normalize(ArrayKey("RAW_TARGET"), 1.0/255)
-    pipeline += IntensityCrop(ArrayKey("RAW_INPUT"), 0., 1.)
-    pipeline += IntensityCrop(ArrayKey("RAW_TARGET"), 0., 1.)
+    mask_lambda = lambda val: ((val > 0) * 1).astype(np.bool)
+    pipeline += LambdaFilter(mask_lambda, source_key=ArrayKey("RAW_INPUT"), target_key=ArrayKey("DATA_MASK"),
+                             target_spec=ArraySpec(dtype=np.bool, interpolatable=False))
+    pipeline += Reject(mask=ArrayKey("DATA_MASK"))
+    pipeline += Normalize(ArrayKey("RAW_INPUT"))
+    pipeline += Normalize(ArrayKey("RAW_TARGET"))
+    # pipeline += IntensityCrop(ArrayKey("RAW_INPUT"), 0., 1.)
+    # pipeline += IntensityCrop(ArrayKey("RAW_TARGET"), 0., 1.)
 
     # augmentations
     for aug in augmentations:
@@ -132,7 +138,8 @@ def batch_generator(
             )
         else:
             raise ValueError("")
-
+    pipeline += corditea.Multiply((ArrayKey("RAW_INPUT"), ArrayKey("DATA_MASK")), ArrayKey("RAW_INPUT"), target_spec=
+    ArraySpec(dtype=np.float32, interpolatable=True))
     pipeline += IntensityScaleShift(ArrayKey("RAW_INPUT"), 2, -1)
     pipeline += IntensityScaleShift(ArrayKey("RAW_TARGET"), 2, -1)
     return pipeline, request, array_specs_pred
