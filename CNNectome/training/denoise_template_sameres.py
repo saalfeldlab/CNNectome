@@ -1,5 +1,5 @@
 import logging
-from CNNectome.networks.mk_unet import make_net
+from CNNectome.networks.mk_denoise_unet import make_net
 from CNNectome.networks.mk_blurgraph import make_graph
 from CNNectome.networks import unet_class
 from CNNectome.training.isotropic.train_denoise_flyem import train_until, evaluate_blur
@@ -23,11 +23,10 @@ num_workers=10
 voxel_size = Coordinate((8,) * 3)
 
 # network parameters
-steps_train = 4
-steps_inference = 11
 loss_name = "L2"
 sigma = 0.5
-padding = "valid"
+
+
 constant_upsample = True
 trans_equivariant = True
 feature_widths_down = [12, 12 * 3, 12 * 3 ** 2, 12 * 3 ** 3]
@@ -44,6 +43,13 @@ kernel_sizes_up = [
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3]
 ]
+
+
+add_context_train = 4 * np.prod(downsampling_factors, axis=-1)
+padding_train = "same"
+add_context_inference = 11 * np.prod(downsampling_factors, axis=-1)
+padding_inference = "valid"
+
 n_out = 1
 input_name = "raw_input"
 output_names = ["raw",]
@@ -69,6 +75,10 @@ contrast_scale = 0.1
 
 
 def build_net(steps=steps_inference, mode="inference"):
+    if mode == "inference":
+        padding = padding_inference
+    else:
+        padding = padding_train
     unet = unet_class.UNet(
         feature_widths_down,
         feature_widths_up,

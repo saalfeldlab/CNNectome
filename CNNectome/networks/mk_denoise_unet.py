@@ -8,7 +8,7 @@ import numpy as np
 def make_net(
     unet,
     n_out,
-    added_steps,
+    added_context,
     sigma=1.0,
     lamb=1.0,
     input_name="raw",
@@ -19,9 +19,14 @@ def make_net(
     net_name = "unet_" + mode
     names = dict()
     input_size = unet.min_input_shape
-    input_size_actual = (input_size + added_steps * unet.step_valid_shape).astype(
-        np.int
-    )
+    if unet.padding == "valid":
+        assert np.all(np.array(added_context) % np.array(unet.step_valid_shape) == 0), "input shape not suitable for " \
+                                                                                       "valid padding"
+    else:
+        if not np.all(np.array(added_context) > 0):
+            loggin.warning("Small input shape does not generate any output elements free of influence from padding")
+
+    input_size_actual = (np.array(input_size) + np.array(added_context)).astype(np.int)
 
     input = tf.placeholder(tf.float32, shape=tuple(input_size_actual))
     names[input_name] = input.name
