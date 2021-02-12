@@ -106,12 +106,6 @@ class UNet(object):
 
             min_output_shape -= total_pad
 
-        if self.padding == "same":
-            # round up to next multiple of step
-            min_input_shape = min_input_shape + (step -(min_input_shape%step))%step
-            min_output_shape = min_input_shape
-            min_bottom_left = min_bottom_left/step
-
         return min_input_shape, step, min_output_shape, min_bottom_left
 
     def build(
@@ -223,7 +217,7 @@ class UNet(object):
                 logging.info(prefix + "bottom layer")
                 logging.info(prefix + "f_out: " + str(f_left.shape))
                 return f_left, fov, voxel_size
-
+            logging.info(prefix + "after convs: " + str(f_left.shape))
             # downsample
 
             g_in, fov, voxel_size = ops3d.downsample(
@@ -235,6 +229,7 @@ class UNet(object):
                 voxel_size=voxel_size,
                 prefix=prefix,
             )
+            logging.info(prefix + "after downsample:" + str(g_in.shape))
 
             # recursive U-net
             g_out, fov, voxel_size = self.build(
@@ -267,7 +262,7 @@ class UNet(object):
                 constant_upsample=self.constant_upsample,
             )
 
-            logging.info(prefix + "g_out_upsampled: " + str(g_out_upsampled.shape))
+            logging.info(prefix + "after upsample: " + str(g_out_upsampled.shape))
 
             if padding == "valid":
                 # crop for translation equivariance
@@ -285,19 +280,22 @@ class UNet(object):
                         factor=factor_product,
                         kernel_sizes=kernel_size_up[layer],
                     )
-
+                    logging.info(prefix + "after crop_to_factor: " + str(g_out_upsampled.shape))
                 # copy-crop
-                f_left_cropped = ops3d.crop_zyx(
+                f_left = ops3d.crop_zyx(
                     f_left, g_out_upsampled.get_shape().as_list()
                 )
-                logging.info(prefix + "f_left_cropped: " + str(f_left_cropped.shape))
-
-                # concatenate along channel dimension
-                f_right = tf.concat([f_left_cropped, g_out_upsampled], 1)
+                logging.info(prefix + "f_left_cropped: " + str(f_left.shape))
             else:
-                f_right = tf.concat([f_left, g_out_upsampled], 1)
+                if f_left.get_shape() != g_out_upsampled.get_shape():
+                    g_out_upsampled = ops3d.crop_zyx(
+                        g_out_upsampled, f_left.get_shape().as_list()
+                    )
+                    logging.info(prefix + "g_out_upsampled_cropped: " + str(g_out_upsampled.shape))
 
-            logging.info(prefix + "f_right: " + str(f_right.shape))
+            f_right = tf.concat([f_left, g_out_upsampled], 1)
+
+            logging.info(prefix + "after concat: " + str(f_right.shape))
 
             # convolve
             f_out, fov = ops3d.conv_pass(
@@ -311,6 +309,6 @@ class UNet(object):
                 prefix=prefix,
             )
 
-            logging.info(prefix + "f_out: " + str(f_out.shape))
+            logging.info(prefix + "after conv: " + str(f_out.shape))
 
         return f_out, fov, voxel_size

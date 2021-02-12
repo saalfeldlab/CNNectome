@@ -97,7 +97,8 @@ def downsample(
         data_format="channels_first",
         name=name,
     )
-    assert int(np.sum(np.array(fmaps_in.get_shape()[2:]) % np.array(factors))) == 0
+    if padding == "valid":
+        assert int(np.sum(np.array(fmaps_in.get_shape()[2:]) % np.array(factors))) == 0
     return fmaps, fov, voxel_size
 
 
