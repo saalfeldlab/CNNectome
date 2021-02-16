@@ -35,7 +35,7 @@ def make_graph(
         tf.summary.scalar("loss", l_gauss_total)
         return l_gauss_total
 
-    net_name = "blur_sigma{0:}_{1:}".format(float(sigma), mode)
+    net_name = "blur_sigma{0:}".format(float(sigma))
     n_out = 1
     names = dict()
     input_shape_bc = (1, 1) + tuple(input_shape)
@@ -90,7 +90,7 @@ def make_graph(
     else:
         raise ValueError("unknown mode for network construction {0:}".format(mode))
 
-    tf.train.export_meta_graph(filename=net_name + ".meta")
+    tf.train.export_meta_graph(filename=net_name + "_" + mode + ".meta")
     return net_name, input_shape, output_shape
 
 
@@ -123,7 +123,7 @@ def make_graph_trainable(
         tf.summary.scalar("loss", l_gauss_total)
         return l_gauss_total
 
-    net_name = "blur_{0:}".format(mode)
+    net_name = "blur"
     n_out = 1
     names = dict()
     input_shape_bc = (1, 1) + tuple(input_shape)
@@ -186,5 +186,5 @@ def make_graph_trainable(
     else:
         raise ValueError("unknown mode for network construction {0:}".format(mode))
 
-    tf.train.export_meta_graph(filename=net_name + ".meta")
+    tf.train.export_meta_graph(filename=net_name + "_" + mode +".meta")
     return net_name, input_shape, output_shape

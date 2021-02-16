@@ -6,6 +6,7 @@ import numpy as np
 
 
 def make_net(
+    net_name,
     unet,
     n_out,
     added_context,
@@ -16,7 +17,7 @@ def make_net(
     loss_name="loss_total",
     mode="train",
 ):
-    net_name = "unet_" + mode
+
     names = dict()
     input_size = unet.min_input_shape
     if unet.padding == "valid":
@@ -138,5 +139,5 @@ def make_net(
     else:
         raise ValueError("unknown mode for network construction {0:}".format(mode))
 
-    tf.train.export_meta_graph(filename=net_name + ".meta")
+    tf.train.export_meta_graph(filename=net_name + "_" + mode + ".meta")
     return net_name, input_size_actual, output_shape

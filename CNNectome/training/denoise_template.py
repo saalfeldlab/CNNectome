@@ -23,6 +23,8 @@ num_workers=10
 voxel_size = Coordinate((8,) * 3)
 
 # network parameters
+network_name = "unet"
+
 steps_train = 4
 steps_inference = 11
 loss_name = "L2"

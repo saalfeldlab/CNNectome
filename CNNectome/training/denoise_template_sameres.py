@@ -23,9 +23,10 @@ num_workers=10
 voxel_size = Coordinate((8,) * 3)
 
 # network parameters
+network_name = "unet"
+
 loss_name = "L2"
 sigma = 0.5
-
 
 constant_upsample = True
 trans_equivariant = True
@@ -91,7 +92,7 @@ def build_net(steps=steps_inference, mode="inference"):
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
-    net, input_shape, output_shape = make_net(unet, n_out, steps,  input_name=input_name,
+    net, input_shape, output_shape = make_net(network_name, unet, n_out, steps,  input_name=input_name,
                                               output_names=output_names, loss_name=loss_name, mode=mode)
 
     logging.info(

@@ -65,7 +65,7 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
             logging.warning(
                 "min_sc and max_sc not specified and contrastAdjustment not found in attributes of {0:}, will continue "
                 "with default contrast (min {1:}, max{2:}".format(
-                    os.path.join(rf, raw_ds),min_sc, max_sc
+                    os.path.join(rf.store.path, raw_ds),min_sc, max_sc
                 )
             )
 
@@ -79,15 +79,18 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
                            min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
     assert os.path.exists(setup_path), "Path to experiment directory does not exist"
     sys.path.append(setup_path)
-    import denoise_template
+    import setup_config
 
     if raw_data_path.endswith('/'):
         raw_data_path = raw_data_path[:-1]
     assert os.path.exists(raw_data_path), "Path to N5 dataset with raw data and mask does not exist"
-    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.meta".format(iteration)))
-    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.index".format(iteration)))
-    assert os.path.exists(os.path.join(setup_path, "unet_train_checkpoint_{0:}.data-00000-of-00001".format(iteration)))
-    assert os.path.exists(os.path.join(setup_path, "net_io_names.json"))
+    assert os.path.exists(os.path.join(setup_path, "{0:}_train_checkpoint_{1:}.meta".format(setup_config.network_name,
+                                                                                            iteration)))
+    assert os.path.exists(os.path.join(setup_path, "{0:}_train_checkpoint_{1:}.index".format(setup_config.network_name,
+                                                                                             iteration)))
+    assert os.path.exists(os.path.join(setup_path, "{0:}_train_checkpoint_{1:}.data-00000-of-00001".format(
+        setup_config.network_name, iteration)))
+    assert os.path.exists(os.path.join(setup_path, setup_config.network_name + "_io_names.json"))
     rf = zarr.open(raw_data_path, mode="r")
     assert raw_ds in rf, "Raw data not present in N5 dataset"
     if mask_ds is not None:
@@ -97,10 +100,10 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
     output_dir, out_file = get_output_paths(raw_data_path, setup_path, output_path)
 
     if not finish_interrupted:
-        net_name, input_shape_vc, output_shape_vc = denoise_template.build_net(steps=denoise_template.steps_inference,
+        net_name, input_shape_vc, output_shape_vc = setup_config.build_net(steps=setup_config.steps_inference,
                                                                         mode="inference")
-        voxel_size_input = denoise_template.voxel_size
-        voxel_size_output = denoise_template.voxel_size
+        voxel_size_input = setup_config.voxel_size
+        voxel_size_output = setup_config.voxel_size
 
         output_shape_wc = Coordinate(output_shape_vc) * voxel_size_output
         chunk_shape_vc = output_shape_vc
@@ -122,7 +125,7 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
         factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
 
         f = zarr.open(out_file)
-        for out_name in denoise_template.output_names:
+        for out_name in setup_config.output_names:
             if out_name not in f:
                 ds = f.empty(name=out_name+"_predicted", shape=full_shape_vc_output, compressor=numcodecs.GZip(6),
                              dtype="uint8", chunks=chunk_shape_vc)
@@ -144,7 +147,7 @@ def prepare_cell_inference(n_jobs, raw_data_path, iteration, raw_ds, mask_ds, se
                 generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
             else:
                 generate_full_list(offset_file, output_shape_wc, raw_data_path, raw_ds)
-        shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(denoise_template.steps_inference))
+        shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(setup_config.steps_inference))
         if not os.path.exists(shapes_file):
             shapes = {"input_shape_vc":  tuple(int(isv) for isv in input_shape_vc),
                       "output_shape_vc": tuple(int(osv) for osv in output_shape_vc),
@@ -172,7 +175,7 @@ def preprocess(data, scale=2, shift=-1., factor=None):
 def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, output_path=None, factor=None,
                          min_sc=None, max_sc=None, float_range=(-1, 1), safe_scale=False, n_cpus=5):
     sys.path.append(setup_path)
-    import denoise_template
+    import setup_config
     output_dir, out_file = get_output_paths(raw_data_path, setup_path, output_path)
     offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(job_no))
     if not os.path.exists(offset_file):
@@ -183,29 +186,30 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, o
 
     rf = zarr.open(raw_data_path, mode="r")
     shape_vc = rf[raw_ds].shape
-    weight_meta_graph = os.path.join(setup_path, "unet_train_checkpoint_{0:}".format(iteration))
-    inference_meta_graph = os.path.join(setup_path, "unet_inference")
+    weight_meta_graph = os.path.join(setup_path, "{0:}_train_checkpoint_{1:}".format(setup_config.network_name,
+                                                                                     iteration))
+    inference_meta_graph = os.path.join(setup_path, "{0:}_inference".format(setup_config.network_name))
 
-    net_io_json = os.path.join(setup_path, "net_io_names.json")
+    net_io_json = os.path.join(setup_path, "{0:}_io_names.json".format(setup_config.network_name))
     with open(net_io_json, "r") as f:
         net_io_names = json.load(f)
 
-    shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(denoise_template.steps_inference))
+    shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(setup_config.steps_inference))
     with open(shapes_file, "r") as f:
         shapes = json.load(f)
     input_shape_vc, output_shape_vc, chunk_shape_vc = \
         shapes["input_shape_vc"], shapes["output_shape_vc"], shapes["chunk_shape_vc"]
 
-    input_key = net_io_names[denoise_template.input_name]
+    input_key = net_io_names[setup_config.input_name]
     network_output_keys = []
     dataset_target_keys = []
 
-    for out_name in denoise_template.output_names:
+    for out_name in setup_config.output_names:
         network_output_keys.append(net_io_names[out_name+"_predicted"])
         dataset_target_keys.append(out_name + "_predicted")
 
-    voxel_size_input = denoise_template.voxel_size
-    voxel_size_output = denoise_template.voxel_size
+    voxel_size_input = setup_config.voxel_size
+    voxel_size_output = setup_config.voxel_size
 
     input_shape_wc = Coordinate(input_shape_vc) * voxel_size_input
     output_shape_wc = Coordinate(output_shape_vc) * voxel_size_output
