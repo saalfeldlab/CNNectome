@@ -24,7 +24,7 @@ def make_net(
                                                                                        "valid padding"
     else:
         if not np.all(np.array(added_context) > 0):
-            loggin.warning("Small input shape does not generate any output elements free of influence from padding")
+            logging.warning("Small input shape does not generate any output elements free of influence from padding")
 
     input_size_actual = (np.array(input_size) + np.array(added_context)).astype(np.int)
 
