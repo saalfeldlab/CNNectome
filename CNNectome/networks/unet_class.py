@@ -14,6 +14,7 @@ class UNet(object):
         downsample_factors,
         kernel_size_down,
         kernel_size_up,
+        skip_connections=True,
         activation="relu",
         padding="valid",
         constant_upsample=True,
@@ -41,6 +42,15 @@ class UNet(object):
         self.downsample_factors = downsample_factors
         self.kernel_size_down = kernel_size_down
         self.kernel_size_up = kernel_size_up
+        if not isinstance(skip_connections, (list, tuple)):
+            if skip_connections is True:
+                self.skip_connections  = [True, ] * len(self.downsample_factors)
+            elif skip_connections is False:
+                self.skip_connections = [False, ] * len(self.downsample_factors)
+            else:
+                raise ValueError("Can't handle input for skip connections: {0:}".format(skip_connections))
+        else:
+            self.skip_connections = skip_connections
         self.activation = activation
         self.input_fov = input_fov
         self.padding = padding
@@ -116,6 +126,7 @@ class UNet(object):
         downsample_factors=None,
         kernel_size_down=None,
         kernel_size_up=None,
+        skip_connections=None,
         activation=None,
         padding=None,
         layer=0,
@@ -181,6 +192,8 @@ class UNet(object):
             kernel_size_down = self.kernel_size_down
         if kernel_size_up is None:
             kernel_size_up = self.kernel_size_up
+        if skip_connections is None:
+            skip_connections = self.skip_connections
         if activation is None:
             activation = self.activation
         if padding is None:
@@ -239,6 +252,7 @@ class UNet(object):
                 downsample_factors=downsample_factors,
                 kernel_size_down=kernel_size_down,
                 kernel_size_up=kernel_size_up,
+                skip_connections=skip_connections,
                 padding=padding,
                 activation=activation,
                 layer=layer + 1,
@@ -281,19 +295,22 @@ class UNet(object):
                         kernel_sizes=kernel_size_up[layer],
                     )
                     logging.info(prefix + "after crop_to_factor: " + str(g_out_upsampled.shape))
-                # copy-crop
-                f_left = ops3d.crop_zyx(
-                    f_left, g_out_upsampled.get_shape().as_list()
-                )
-                logging.info(prefix + "f_left_cropped: " + str(f_left.shape))
+                if skip_connections[layer]: # can skip this step if there's no skip conneciton here
+                    # copy-crop
+                    f_left = ops3d.crop_zyx(
+                        f_left, g_out_upsampled.get_shape().as_list()
+                    )
+                    logging.info(prefix + "f_left_cropped: " + str(f_left.shape))
             else:
                 if f_left.get_shape() != g_out_upsampled.get_shape():
                     g_out_upsampled = ops3d.crop_zyx(
                         g_out_upsampled, f_left.get_shape().as_list()
                     )
                     logging.info(prefix + "g_out_upsampled_cropped: " + str(g_out_upsampled.shape))
-
-            f_right = tf.concat([f_left, g_out_upsampled], 1)
+            if skip_connections[layer]:
+                f_right = tf.concat([f_left, g_out_upsampled], 1)
+            else:
+                f_right = g_out_upsampled
 
             logging.info(prefix + "after concat: " + str(f_right.shape))
 

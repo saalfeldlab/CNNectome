@@ -44,6 +44,7 @@ kernel_sizes_up = [
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3]
 ]
+skip_connections = [True, True, True]
 
 
 add_context_train = 4 * np.prod(downsampling_factors, axis=-1)
@@ -90,6 +91,7 @@ def build_net(mode="inference"):
         downsampling_factors,
         kernel_sizes_down,
         kernel_sizes_up,
+        skip_connections=skip_connections,
         padding=padding,
         constant_upsample=constant_upsample,
         trans_equivariant=trans_equivariant,
