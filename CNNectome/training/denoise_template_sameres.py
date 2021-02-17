@@ -60,8 +60,8 @@ final_kernel_size = [(3,) * 3, (3,) * 3]
 final_feature_width = 12 * 6
 
 # groundtruth source parameters
-data_path="/nrs/flyem/tmp/flyem.n5"
-raw_dataset = "render/Z0419_25_Alpha3/v1_acquire_sp_nodyn_t4636___20210113_173025/s0"
+data_path="/groups/cosem/cosem/data/jrc_mb-1a/jrc_mb-1a.n5"
+raw_dataset = "volumes/raw/s0"
 
 # augmentations
 augmentations = ["simple", "elastic", "intensity", "gamma", "poisson", "impulse_noise", "defect"]
