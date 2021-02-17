@@ -75,11 +75,15 @@ prob_low_contrast = 0.05
 contrast_scale = 0.1
 
 
-def build_net(steps=steps_inference, mode="inference"):
+def build_net(mode="inference"):
     if mode == "inference":
         padding = padding_inference
-    else:
+        add_context = add_context_train
+    elif mode == "training":
         padding = padding_train
+        add_context = add_context_inference
+    else:
+        raise ValueError("Unkown mode: {0:}".format(mode))
     unet = unet_class.UNet(
         feature_widths_down,
         feature_widths_up,
@@ -92,7 +96,7 @@ def build_net(steps=steps_inference, mode="inference"):
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
-    net, input_shape, output_shape = make_net(network_name, unet, n_out, steps,  input_name=input_name,
+    net, input_shape, output_shape = make_net(network_name, unet, n_out, add_context,  input_name=input_name,
                                               output_names=output_names, loss_name=loss_name, mode=mode)
 
     logging.info(
@@ -105,10 +109,10 @@ def build_net(steps=steps_inference, mode="inference"):
 
 
 def build_blur_graph(sigma):
-    _, input_shape, output_shape = build_net(steps=steps_train, mode="train")
+    _, input_shape, output_shape = build_net(mode="training")
     tf.reset_default_graph()
     blur_graph, input_shape, output_shape = make_graph(input_shape, output_shape, sigma,
-               input_name=input_name, output_names=output_names, loss_name=loss_name, mode="train")
+               input_name=input_name, output_names=output_names, loss_name=loss_name, mode="training")
     logging.info("Built {0:} with sigma {1:}, input_shape{2:} and output_shape{3:}".format(blur_graph, sigma,
                                                                                            input_shape, output_shape))
     return blur_graph, input_shape, output_shape
@@ -141,10 +145,10 @@ def baseline_eval(sigma):
     return costs
 
 
-def test_memory_consumption(steps=steps_train, mode="train"):
+def test_memory_consumption(mode="training"):
     from CNNectome.utils.test_memory_consumption import Test
 
-    net, input_shape, output_shape = build_net(steps, mode=mode)
+    net, input_shape, output_shape = build_net(mode=mode)
     with open("{0:}_io_names.json".format(net), "r") as f:
         net_io_names = json.load(f)
     input_arrays = dict()
@@ -153,7 +157,7 @@ def test_memory_consumption(steps=steps_train, mode="train"):
         input_shape.astype(np.int)
     ).astype(np.float32)
     for n, out_name in zip(range(n_out), output_names):
-        if mode.lower() == "train" or mode.lower() == "training":
+        if mode.lower() == "training":
             input_arrays[net_io_names[out_name+"_target"]] = np.random.random(output_shape).astype(np.float32)
         requested_outputs[out_name + "_predicted"] = net_io_names[out_name + "_predicted"]
 
@@ -169,8 +173,8 @@ def test_memory_consumption(steps=steps_train, mode="train"):
         t.train_step(input_arrays, iteration=it + 1)
 
 
-def train(steps=steps_train):
-    net_name, input_shape, output_shape = build_net(steps=steps, mode="train")
+def train():
+    net_name, input_shape, output_shape = build_net(mode="training")
     train_until(
         max_iteration,
         net_name,
@@ -192,8 +196,8 @@ def train(steps=steps_train):
     )
 
 
-def inference(steps=steps_inference):
-    net_name, input_shape, output_shape = build_net(steps=steps, mode="inference")
+def inference():
+    net_name, input_shape, output_shape = build_net(mode="inference")
     outputs = [out_name + "_predicted" for out_name in output_names]
     single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, coordinate=coordinate,
                            output_file=output_file, voxel_size_input=voxel_size, voxel_size_output=voxel_size)
@@ -236,23 +240,16 @@ if __name__ == "__main__":
     elif args.script == "baseline" and mode is None:
         mode = "training"
 
-    if mode == "inference":
-        steps = steps_inference
-    elif mode == "training":
-        steps = steps_train
-    else:
-        raise ValueError("mode needs to be given to run script {0:}".format(args.script))
-
     if args.script != "baseline" and (len(sigma_range) > 1 or sigma_range[0] != sigma):
         raise ValueError("sigma should only be set through command line for using the baseline script")
     if args.script == "train":
-        train(steps)
+        train()
     elif args.script == "build":
-        build_net(steps, mode)
+        build_net(mode)
     elif args.script == "test_mem":
-        test_memory_consumption(steps, mode)
+        test_memory_consumption(mode)
     elif args.script == "inference":
-        inference(steps)
+        inference()
     elif args.script == "baseline":
         for s in sigma_range:
             baseline_eval(s)
