@@ -18,6 +18,7 @@ hierarchy['LD_membrane'] = Label('LD_membrane', 14, scale_loss=False, scale_key=
 hierarchy['er'] = Label('er', (16, 17, 18, 19, 20, 21, 22, 23))
 hierarchy['er_membrane'] = Label('er_membrane', (16, 18, 20), scale_loss=False, scale_key=hierarchy['er'].scale_key)
 hierarchy['ERES'] = Label('ERES', (18, 19))
+hierarchy['ERES_membrane'] = Label('ERES_membrane', 18, scale_loss=False, scale_key=hierarchy['ERES'].scale_key)
 hierarchy['nucleus'] = Label('nucleus', (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37)
 hierarchy['nucleolus'] = Label('nucleolus', 29, separate_labelset=True)
 hierarchy['NE'] = Label('NE', (20, 21, 22, 23))
