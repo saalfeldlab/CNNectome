@@ -1,5 +1,4 @@
 import sys
-sys.path = ["/groups/saalfeld/home/heinrichl/dev/simpleference"] + sys.path
 from simpleference.inference.inference import run_inference_zarr_multi_crop
 from simpleference.inference.util import *
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict

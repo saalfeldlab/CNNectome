@@ -191,7 +191,7 @@ def train_until(
     pipeline = (pipeline
                 + PreCache(cache_size=cache_size,
                            num_workers=num_workers)
-                + Train(net_name + "_train",
+                + Train(net_name + "_training",
                         optimizer=net_io_names["optimizer"],
                         loss=net_io_names["loss"],
                         inputs=inputs,
@@ -265,7 +265,7 @@ def evaluate_blur(
     pipeline = (pipeline
                 + PreCache(cache_size=cache_size,
                            num_workers=num_workers)
-                + Run(net_name+'_train.meta',
+                + Run(net_name+'_training.meta',
                       inputs=inputs,
                       outputs=outputs,
                       array_specs=array_specs_pred,

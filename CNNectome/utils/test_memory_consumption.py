@@ -8,7 +8,7 @@ from CNNectome.utils.label import *
 
 class Test:
     def __init__(
-        self, meta_graph_filename, requested_outputs, optimizer, loss, mode="train"
+        self, meta_graph_filename, requested_outputs, optimizer=None, loss=None, mode="training"
     ):
         self.meta_graph_filename = meta_graph_filename
         self.graph = None
@@ -20,16 +20,9 @@ class Test:
         self.optimizer_func = None
         self.optimizer_loss_names = None
         self.loss = None
-        if mode.lower() == "training" or mode.lower() == "train":
-            self.mode = 1
-        elif (
-            mode.lower() == "inference"
-            or mode.lower() == "prediction"
-            or mode.lower == "pred"
-        ):
-            self.mode = 0
-        if self.mode:
-            if isinstance(optimizer, ("".__class__, "".__class__)):
+        self.mode = mode
+        if self.mode == "training":
+            if isinstance(optimizer, "".__class__):
                 self.optimizer_loss_names = (optimizer, loss)
             else:
                 self.optimizer_func = optimizer
@@ -37,7 +30,7 @@ class Test:
     def read_meta_graph(self):
         logging.info("Reading meta-graph...")
         tf.train.import_meta_graph(
-            self.meta_graph_filename + ".meta", clear_devices=True
+            self.meta_graph_filename + "_" + self.mode + ".meta", clear_devices=True
         )
 
         with tf.variable_scope("iterator"):
@@ -57,14 +50,14 @@ class Test:
         self.session = tf.Session(graph=self.graph)
         with self.graph.as_default():
             self.read_meta_graph()
-        if self.optimizer_func is None and self.mode:
+        if self.optimizer_func is None and self.mode == "training":
             self.optimizer = self.graph.get_operation_by_name(
                 self.optimizer_loss_names[0]
             )
             self.loss = self.graph.get_tensor_by_name(self.optimizer_loss_names[1])
 
     def train_step(self, inputs, iteration=None):
-        if self.mode:
+        if self.mode == "training":
             to_compute = {
                 "optimizer": self.optimizer,
                 "loss": self.loss,

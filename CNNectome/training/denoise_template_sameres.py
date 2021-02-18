@@ -130,6 +130,7 @@ def baseline_eval(sigma):
         raw_dataset,
         input_shape,
         output_shape,
+        loss_name,
         baseline_augmentations,
         cache_size=cache_size,
         num_workers=num_workers,
@@ -167,7 +168,7 @@ def test_memory_consumption(mode="training"):
         net,
         requested_outputs,
         net_io_names["optimizer"],
-        net_io_names[loss_name],
+        net_io_names["loss"],
         mode=mode,
     )
     t.setup()
@@ -201,8 +202,9 @@ def train():
 def inference():
     net_name, input_shape, output_shape = build_net(mode="inference")
     outputs = [out_name + "_predicted" for out_name in output_names]
-    single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, coordinate=coordinate,
-                           output_file=output_file, voxel_size_input=voxel_size, voxel_size_output=voxel_size)
+    single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file,
+                           input_ds_name=input_ds, coordinate=coordinate, output_file=output_file,
+                           voxel_size_input=voxel_size, voxel_size_output=voxel_size)
 
 
 if __name__ == "__main__":
@@ -214,6 +216,7 @@ if __name__ == "__main__":
                         )
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
     parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
+    parser.add_argument("--input_ds", type=str, help="n5 dataset to predict from", default="volumes/raw")
     parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
     parser.add_argument("--coordinate", type=int, help="upper left coordinate of block to predict from (input)",
                         default=(0, 0, 0), nargs='+')
@@ -222,6 +225,7 @@ if __name__ == "__main__":
     mode = args.mode
     ckpt = args.ckpt
     input_file = args.input_file
+    input_ds = args.input_ds
     output_file = args.output_file
     coordinate = tuple(args.coordinate)
     sigma_range = args.sigma
