@@ -3,25 +3,29 @@ import numpy as np
 from . import ops3d
 import warnings
 import logging
+import typing
+
+int_dim_expandable = typing.Union[int, typing.Sequence[int]]
+bool_dim_expandable = typing.Union[bool, typing.Sequence[bool]]
 
 
 class UNet(object):
 
     def __init__(
         self,
-        num_fmaps_down,
-        num_fmaps_up,
-        downsample_factors,
-        kernel_size_down,
-        kernel_size_up,
-        skip_connections=True,
-        activation="relu",
-        padding="valid",
-        constant_upsample=True,
-        trans_equivariant=True,
-        input_fov=(1, 1, 1),
-        input_voxel_size=(1, 1, 1),
-    ):
+        num_fmaps_down: typing.Sequence[int],
+        num_fmaps_up: typing.Sequence[int],
+        downsample_factors: typing.Sequence[typing.Sequence[int]],
+        kernel_size_down: typing.Sequence[int_dim_expandable],
+        kernel_size_up: typing.Sequence[int_dim_expandable],
+        skip_connections: bool_dim_expandable = True,
+        activation: str = "relu",
+        padding: str = "valid",
+        constant_upsample: bool = True,
+        trans_equivariant: bool = True,
+        input_fov: typing.Tuple[int, int, int] = (1, 1, 1),
+        input_voxel_size: typing.Tuple[int, int, int] = (1, 1, 1),
+    ) -> None:
         assert (
             len(num_fmaps_down) - 1
             == len(num_fmaps_up) - 1
@@ -61,7 +65,7 @@ class UNet(object):
             self.compute_minimal_shapes()
         )
 
-    def compute_minimal_shapes(self):
+    def compute_minimal_shapes(self) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Computes the minimal input shape, shape at the bootleneck and output shape as well as suitable step sizes
         (additional context) for the given U-Net configuration. This is computed for U-Nets with `valid` padding as
@@ -159,19 +163,19 @@ class UNet(object):
 
     def build(
         self,
-        fmaps_in,
-        num_fmaps_down=None,
-        num_fmaps_up=None,
-        downsample_factors=None,
-        kernel_size_down=None,
-        kernel_size_up=None,
-        skip_connections=None,
-        activation=None,
-        padding=None,
-        layer=0,
-        fov=None,
-        voxel_size=None,
-    ):
+        fmaps_in: tf.Tensor,
+        num_fmaps_down: typing.Optional[typing.Sequence[int]] = None,
+        num_fmaps_up: typing.Optional[typing.Sequence[int]] = None,
+        downsample_factors: typing.Optional[typing.Sequence[int_dim_expandable]] = None,
+        kernel_size_down: typing.Optional[typing.Sequence[int_dim_expandable]] = None,
+        kernel_size_up: typing.Optional[typing.Sequence[int_dim_expandable]] = None,
+        skip_connections: typing.Optional[bool_dim_expandable] = None,
+        activation: typing.Optional[str] = None,
+        padding: typing.Optional[str] = None,
+        layer: int = 0,
+        fov: typing.Optional[typing.Tuple[int, int, int]] = None,
+        voxel_size: typing.Optional[typing.Tuple[int, int, int]] = None,
+    ) -> typing.Tuple[tf.Tensor, typing.Tuple[int, int, int], typing.Tuple[int, int, int]]:
 
         """Create a U-Net::
             f_in --> f_left --------------------------->> f_right--> f_out
@@ -241,7 +245,6 @@ class UNet(object):
             fov = self.input_fov
         if voxel_size is None:
             voxel_size = self.input_voxel_size
-
 
         prefix = "    " * layer
         logging.info(prefix + "Creating U-Net layer %i" % layer)
