@@ -44,7 +44,7 @@ class UNet(object):
         self.kernel_size_up = kernel_size_up
         if not isinstance(skip_connections, (list, tuple)):
             if skip_connections is True:
-                self.skip_connections  = [True, ] * len(self.downsample_factors)
+                self.skip_connections = [True, ] * len(self.downsample_factors)
             elif skip_connections is False:
                 self.skip_connections = [False, ] * len(self.downsample_factors)
             else:
@@ -62,58 +62,97 @@ class UNet(object):
         )
 
     def compute_minimal_shapes(self):
-        # compute minimal shape in the bottom layer (after the convolutions s.t. the upward path can still be evaluated
+        """
+        Computes the minimal input shape, shape at the bootleneck and output shape as well as suitable step sizes
+        (additional context) for the given U-Net configuration. This is computed for U-Nets with `valid` padding as
+        well as for U-Nets with `same` padding. For `same` padding U-Nets these requirements are not strict, but
+        represent the minimum shape for which voxels that are seeing a full field of view are contained in the output
+        and thus making it easy to switch to a `valid` padding U-Net for inference
+
+        Returns:
+            A 4-element tuple containing, respectively, the minimum input shape and valid step size, the corresponding
+            minimum output shape and minimum bottleneck shape, i.e. shape after last downsampling.
+        """
+
+        # valid step (meaning what values can be added on top of the minimum shape to also produce a U-Net with valid
+        # shapes
         step = np.prod(self.downsample_factors, axis=0)
 
+        # PART 1: calculate the minimum shape of the feature map after convolutions in the bottom layer ("bottom
+        # right") such that a feature map size of 1 can be guaranteed throughout the upsampling paths
+
+        # initialize with a minimum shape of 1 (representing the size after convolutions in each level)
         min_bottom_right = [(1.0, 1.0, 1.0)] * (len(self.downsample_factors) + 1)
+
+        # propagate those minimal shapes back through the network to calculate the corresponding minimal shapes on the
+        # "bottom right"
+
+        # iterate over levels of unet
         for lv in range(len(self.downsample_factors)):
             kernels = np.copy(self.kernel_size_up[lv])
 
+            # padding added by convolution kernels on current level (upsampling path)
             total_pad = np.sum(
                 [np.array(k) - np.array((1.0, 1.0, 1.0)) for k in kernels], axis=0
-            )  # padding needed for
-            # convolutions on upsamling side on level lv
+            )
+
+            # for translational equivariance U-Net includes cropping to the stride of the downsampling factors
             if self.trans_equivariant:
+                # rounding up the padding to the closest multiple of what is the crop factor because the result of the
+                # upsampling will be a multiple of the crop factor, and crop_to_factor makes it such that after the
+                # operations on this level the feature map will also be a multiple of the crop factor, i.e. the
+                # total_pad needs to be a multiple of the crop factor as well
                 total_pad = np.ceil(
                     total_pad
                     / np.prod(self.downsample_factors[lv:], axis=0, dtype=np.float)
                 ) * np.prod(self.downsample_factors[lv:], axis=0)
 
             for l in range(lv + 1):
-                min_bottom_right[l] += total_pad
-                min_bottom_right[l] /= self.downsample_factors[lv]
+                min_bottom_right[l] += total_pad # add the padding added by convolution
+                min_bottom_right[l] /= self.downsample_factors[lv] # divide by downsampling factor of current level
 
+        # round up the fractions potentially introduced by downsampling factor division
         min_bottom_right = np.ceil(min_bottom_right)
+
+        # take the max across levels (i.e. we find the level that required the most context)
         min_bottom_right = np.max(min_bottom_right, axis=0)
+
+        # PART 2: calculate the minimum input shape by propagating from the "bottom right" to the input of the U-Net
         min_input_shape = np.copy(min_bottom_right)
 
-        for lv in range(len(self.kernel_size_down))[::-1]:
+        for lv in range(len(self.kernel_size_down))[::-1]:  # go backwards through downsampling path
 
-            if lv != len(self.kernel_size_down) - 1:
-                min_input_shape *= self.downsample_factors[lv]
+            if lv != len(self.kernel_size_down) - 1:  # unless bottom layer
+                min_input_shape *= self.downsample_factors[lv]  # calculate shape before downsampling
 
+            # calculate shape before convolutions on current level
             kernels = np.copy(self.kernel_size_down[lv])
             total_pad = np.sum(
                 [np.array(k) - np.array((1.0, 1.0, 1.0)) for k in kernels], axis=0
             )
             min_input_shape += total_pad
 
+            # side product: shape before convolutions on bottom level
             if lv == len(self.kernel_size_down) - 1:
                 min_bottom_left = np.copy(min_input_shape)
 
+        # PART 3: calculate the minimum output shape by propagating from the "bottom right" to the output of the U-Net
         min_output_shape = np.copy(min_bottom_right)
-        for lv in range(len(self.downsample_factors))[::-1]:
-            min_output_shape *= self.downsample_factors[lv]
+        for lv in range(len(self.downsample_factors))[::-1]: # go through upsampling path
+            min_output_shape *= self.downsample_factors[lv] # calculate shape after upsampling
+
+            # calculate shape after convolutions on current level
             kernels = np.copy(self.kernel_size_up[lv])
             total_pad = np.sum(
                 [np.array(k) - np.array((1.0, 1.0, 1.0)) for k in kernels], axis=0
             )
+
+            # same rational for translational equivariance as above in PART 1
             if self.trans_equivariant:
                 total_pad = np.ceil(
                     total_pad
                     / np.prod(self.downsample_factors[lv:], axis=0, dtype=np.float)
                 ) * np.prod(self.downsample_factors[lv:], axis=0)
-
             min_output_shape -= total_pad
 
         return min_input_shape, step, min_output_shape, min_bottom_left
