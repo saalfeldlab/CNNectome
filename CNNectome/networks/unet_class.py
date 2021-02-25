@@ -365,7 +365,7 @@ class UNet(object):
             else:
                 if f_left.get_shape() != g_out_upsampled.get_shape():
                     g_out_upsampled = ops3d.crop_zyx(
-                        g_out_upsampled, f_left.get_shape().as_list(), enforce_even_context=self.enforce_even_context
+                        g_out_upsampled, f_left.get_shape().as_list(), enforce_even_context=False
                     )
                     logging.info(prefix + "g_out_upsampled_cropped: " + str(g_out_upsampled.shape))
             if skip_connections[layer]:
