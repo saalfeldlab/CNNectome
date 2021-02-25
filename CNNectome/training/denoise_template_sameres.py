@@ -14,13 +14,13 @@ import itertools
 logging.basicConfig(level=logging.INFO)
 
 # running parameters
-max_iteration = 500000
+max_iteration = 300000
 baseline_iterations = 15000
 cache_size=5
 num_workers=10
 
 # voxel size parameters
-voxel_size = Coordinate((8,) * 3)
+voxel_size = Coordinate((4,) * 3)
 
 # network parameters
 network_name = "unet"
@@ -45,11 +45,11 @@ kernel_sizes_up = [
     [(3,) * 3, (3,) * 3]
 ]
 skip_connections = [True, True, True]
+enforce_even_context = True
 
-
-add_context_train = 4 * np.prod(downsampling_factors, axis=-1)
-padding_train = "same"
-add_context_inference = 11 * np.prod(downsampling_factors, axis=-1)
+add_context_training = 16 * np.prod(downsampling_factors, axis=0)
+padding_train = "valid"
+add_context_inference = 36 * np.prod(downsampling_factors, axis=0)
 padding_inference = "valid"
 
 n_out = 1
@@ -65,12 +65,12 @@ data_path="/groups/cosem/cosem/data/jrc_mb-1a/jrc_mb-1a.n5"
 raw_dataset = "volumes/raw/s0"
 
 # augmentations
-augmentations = ["simple", "elastic", "intensity", "gamma", "poisson", "impulse_noise", "defect"]
+augmentations = ["simple", "intensity", "gamma", "impulse_noise"]
 exclude_for_baseline = ["elastic", "defect"]
 intensity_scale_range = (0.75, 1.25)
 intensity_shift_range = (-0.2, 0.2)
 gamma_range = (0.75, 4/3.)
-impulse_noise_prob = 0.05
+impulse_noise_prob = 0.1
 prob_missing = 0.05
 prob_low_contrast = 0.05
 contrast_scale = 0.1
@@ -79,10 +79,10 @@ contrast_scale = 0.1
 def build_net(mode="inference"):
     if mode == "inference":
         padding = padding_inference
-        add_context = add_context_train
+        add_context = add_context_inference
     elif mode == "training":
         padding = padding_train
-        add_context = add_context_inference
+        add_context = add_context_training
     else:
         raise ValueError("Unkown mode: {0:}".format(mode))
     unet = unet_class.UNet(
@@ -95,6 +95,7 @@ def build_net(mode="inference"):
         padding=padding,
         constant_upsample=constant_upsample,
         trans_equivariant=trans_equivariant,
+        enforce_even_context=enforce_even_context,
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
