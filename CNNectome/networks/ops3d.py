@@ -317,9 +317,9 @@ def crop_to_factor(fmaps_in, factor, kernel_sizes):
         sum((ks if isinstance(ks, int) else ks[d]) - 1 for ks in kernel_sizes)
         for d in range(spatial_dims)
     )
-    logging.debug("crop_to_factor: factor =", factor)
-    logging.debug("crop_to_factor: kernel_sizes =", kernel_sizes)
-    logging.debug("crop_to_factor: convolution_crop =", convolution_crop)
+    logging.debug("crop_to_factor: factor = {0:}".format(factor))
+    logging.debug("crop_to_factor: kernel_sizes = {0:}".format(kernel_sizes))
+    logging.debug("crop_to_factor: convolution_crop = {0:}".format(convolution_crop))
 
     # we need (spatial_shape - convolution_crop) to be a multiple of factor,
     # i.e.:
