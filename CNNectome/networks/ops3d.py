@@ -275,7 +275,7 @@ def gaussian_blur_var(fmaps_in, sigma):
     return fmaps
 
 
-def crop_zyx(fmaps_in, shape):
+def crop_zyx(fmaps_in, shape, enforce_even_context=False):
     """Crop only the spacial dimensions to match shape.
     Args:
         fmaps_in:
@@ -285,7 +285,8 @@ def crop_zyx(fmaps_in, shape):
     """
 
     in_shape = fmaps_in.get_shape().as_list()
-
+    if enforce_even_context:
+        assert all((in_shape[k]-shape[k]) % 2 == 0 for k in range(2,5))
     offset = [
         0,  # batch
         0,  # channel
@@ -300,7 +301,7 @@ def crop_zyx(fmaps_in, shape):
     return fmaps
 
 
-def crop_to_factor(fmaps_in, factor, kernel_sizes):
+def crop_to_factor(fmaps_in, factor, kernel_sizes, enforce_even_context=False):
     """Crop feature maps to ensure translation equivariance with stride of
     upsampling factor. This should be done right after upsampling, before
     application of the convolutions with the given kernel sizes.
@@ -334,15 +335,25 @@ def crop_to_factor(fmaps_in, factor, kernel_sizes):
     #
     # s' = n*k + c
 
-    ns = (
+    ns = list(
         int(math.floor(float(s - c) / f))
         for s, c, f in zip(spatial_shape, convolution_crop, factor)
     )
     target_spatial_shape = tuple(
         n * f + c for n, c, f in zip(ns, convolution_crop, factor)
     )
-    if target_spatial_shape != spatial_shape:
+    if enforce_even_context:
+        for k, (ts, cs, f) in enumerate(zip(target_spatial_shape, spatial_shape, factor)):
+            if (cs - ts) % 2 != 0:  # if the crop is not even
+                assert f % 2 != 0, \
+                    "Even context is not feasible with incoming shape {shape:} and factor {factor:}".format(
+                        shape=shape, factor=factor)
+                ns[k] -= 1
+        target_spatial_shape = tuple(
+            n * f + c for n, c, f in zip(ns, convolution_crop, factor)
+        )
 
+    if target_spatial_shape != spatial_shape:
         assert all(((t > c) for t, c in zip(target_spatial_shape, convolution_crop))), (
             "Feature map with shape %s is too small to ensure translation "
             "equivariance with factor %s and following convolutions %s"
@@ -358,7 +369,7 @@ def crop_to_factor(fmaps_in, factor, kernel_sizes):
             "crop_to_factor: target_spatial_shape = {0:}".format(target_spatial_shape)
         )
         logging.debug("crop_to_factor: target_shape ={0:}".format(target_shape))
-        fmaps = crop_zyx(fmaps_in, target_shape)
+        fmaps = crop_zyx(fmaps_in, target_shape, enforce_even_context=enforce_even_context)
     else:
         fmaps = fmaps_in
 

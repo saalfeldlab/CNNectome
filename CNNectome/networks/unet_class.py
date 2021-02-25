@@ -23,6 +23,7 @@ class UNet(object):
         padding: str = "valid",
         constant_upsample: bool = True,
         trans_equivariant: bool = True,
+        enforce_even_context: bool = False,
         input_fov: typing.Tuple[int, int, int] = (1, 1, 1),
         input_voxel_size: typing.Tuple[int, int, int] = (1, 1, 1),
     ) -> None:
@@ -60,6 +61,7 @@ class UNet(object):
         self.padding = padding
         self.constant_upsample = constant_upsample
         self.trans_equivariant = trans_equivariant
+        self.enforce_even_context = enforce_even_context
         self.input_voxel_size = input_voxel_size
         self.min_input_shape, self.step_valid_shape, self.min_output_shape, self.min_bottom_shape = (
             self.compute_minimal_shapes()
@@ -100,16 +102,27 @@ class UNet(object):
                 [np.array(k) - np.array((1.0, 1.0, 1.0)) for k in kernels], axis=0
             )
 
+            if self.enforce_even_context:
+                assert np.all(total_pad % 2 == 0), \
+                    "Kernels {kernels:} on level {lv:} of U-Net (upsampling path) not compatible with enforcing an " \
+                    "even context".format(kernels=kernels, lv=lv)
+
             # for translational equivariance U-Net includes cropping to the stride of the downsampling factors
             if self.trans_equivariant:
                 # rounding up the padding to the closest multiple of what is the crop factor because the result of the
                 # upsampling will be a multiple of the crop factor, and crop_to_factor makes it such that after the
                 # operations on this level the feature map will also be a multiple of the crop factor, i.e. the
                 # total_pad needs to be a multiple of the crop factor as well
+
                 total_pad = np.ceil(
                     total_pad
                     / np.prod(self.downsample_factors[lv:], axis=0, dtype=np.float)
                 ) * np.prod(self.downsample_factors[lv:], axis=0)
+
+                # when even context are enforced the padding needs to be even so trans_equivariant will crop +1
+                # factors if the otherwise resulting padding is odd
+                if self.enforce_even_context:
+                    total_pad += (total_pad%2)*np.prod(self.downsample_factors[lv:], axis=0)
 
             for l in range(lv + 1):
                 min_bottom_right[l] += total_pad # add the padding added by convolution
@@ -134,6 +147,11 @@ class UNet(object):
             total_pad = np.sum(
                 [np.array(k) - np.array((1.0, 1.0, 1.0)) for k in kernels], axis=0
             )
+            if self.enforce_even_context:
+                assert np.all(total_pad % 2 == 0), \
+                    "Kernels {kernels:} on level {lv:} of U-Net (downsampling path) not compatible with enforcing an " \
+                    "even context".format(kernels=kernels, lv=lv)
+
             min_input_shape += total_pad
 
             # side product: shape before convolutions on bottom level
@@ -335,18 +353,19 @@ class UNet(object):
                         g_out_upsampled,
                         factor=factor_product,
                         kernel_sizes=kernel_size_up[layer],
+                        enforce_even_context=self.enforce_even_context
                     )
                     logging.info(prefix + "after crop_to_factor: " + str(g_out_upsampled.shape))
                 if skip_connections[layer]: # can skip this step if there's no skip conneciton here
                     # copy-crop
                     f_left = ops3d.crop_zyx(
-                        f_left, g_out_upsampled.get_shape().as_list()
+                        f_left, g_out_upsampled.get_shape().as_list(), enforce_even_context=self.enforce_even_context
                     )
                     logging.info(prefix + "f_left_cropped: " + str(f_left.shape))
             else:
                 if f_left.get_shape() != g_out_upsampled.get_shape():
                     g_out_upsampled = ops3d.crop_zyx(
-                        g_out_upsampled, f_left.get_shape().as_list()
+                        g_out_upsampled, f_left.get_shape().as_list(), enforce_even_context=self.enforce_even_context
                     )
                     logging.info(prefix + "g_out_upsampled_cropped: " + str(g_out_upsampled.shape))
             if skip_connections[layer]:
