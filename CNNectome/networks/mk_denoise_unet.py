@@ -59,7 +59,7 @@ def make_net(
     if output_names is None:
         output_names = ["output_{0:}".format(n) for n in range(n_out)]
     assert len(output_names) == n_out
-    if mode.lower() == "train" or mode.lower() == "training":
+    if mode.lower() == "training" or mode.lower() == "forward":
         target = []
         for tgt in range(n_out):
             target.append(tf.placeholder(tf.float32, shape=output_shape))
@@ -95,15 +95,23 @@ def make_net(
 
         l2_total = tf.add_n(loss_l2)
         tf.summary.scalar("l2_total", l2_total)
+        l2_gp_readout = tf.reshape(l2_total, (1,)*3)
+        names["L2"] = l2_gp_readout.name
 
         l1_total = tf.add_n(loss_l1)
         tf.summary.scalar("l1_total", l1_total)
+        l1_gp_readout = tf.reshape(l1_total, (1,)*3)
+        names["L1"] = l1_gp_readout.name
 
         l2_gauss_total = tf.add_n(loss_l2_gauss)
         tf.summary.scalar("l2_gauss_total", l2_gauss_total)
+        l2_gauss_gp_readout = tf.reshape(l2_gauss_total, (1,)*3)
+        names["L2gauss"] = l2_gauss_gp_readout.name
 
         l1_gauss_total = tf.add_n(loss_l1_gauss)
         tf.summary.scalar("l1_gauss_total", l1_gauss_total)
+        l1_gauss_gp_readout = tf.reshape(l1_gauss_total, (1,)*3)
+        names["L1gauss"] = l1_gauss_gp_readout.name
 
         if loss_name == "L2":
             loss_opt = l2_total
@@ -120,16 +128,17 @@ def make_net(
         else:
             raise ValueError(loss_name + "not defined")
         names["loss"] = loss_opt.name
-        opt = tf.train.AdamOptimizer(
-            learning_rate=0.5e-4, beta1=0.95, beta2=0.999, epsilon=1e-8
-        )
-        optimizer = opt.minimize(loss_opt)
-        names["optimizer"] = optimizer.name
-        merged = tf.summary.merge_all()
-        names["summary"] = merged.name
+        if mode.lower() == "training":
+            opt = tf.train.AdamOptimizer(
+                learning_rate=0.5e-4, beta1=0.95, beta2=0.999, epsilon=1e-8
+            )
+            optimizer = opt.minimize(loss_opt)
+            names["optimizer"] = optimizer.name
+            merged = tf.summary.merge_all()
+            names["summary"] = merged.name
 
-        with open("{0:}_io_names.json".format(net_name), "w") as f:
-            json.dump(names, f)
+            with open("{0:}_io_names.json".format(net_name), "w") as f:
+                json.dump(names, f)
     elif (
         mode.lower() == "inference"
         or mode.lower() == "prediction"

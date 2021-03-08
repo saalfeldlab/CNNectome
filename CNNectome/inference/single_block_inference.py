@@ -58,11 +58,11 @@ def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, i
     for output_key in outputs:
         network_output_keys.append(net_io_names[output_key])
 
-    logging.info("Running inference using ckpt {0:} with network {1:}".format(ckpt, net_name+'.meta'))
+    logging.info("Running inference using ckpt {0:} with network {1:}".format(ckpt, net_name+'_inference.meta'))
     graph = tf.Graph()
     sess = tf.Session(graph=graph)
     with graph.as_default():
-        saver = tf.train.import_meta_graph(net_name + '.meta', clear_devices=True)
+        saver = tf.train.import_meta_graph(net_name + '_inference.meta', clear_devices=True)
         saver.restore(sess, ckpt)
     output_data = sess.run(network_output_keys, feed_dict={network_input_key: input_data})
 
