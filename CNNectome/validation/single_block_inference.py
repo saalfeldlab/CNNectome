@@ -15,10 +15,12 @@ def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, i
     store = zarr.N5Store(output_file)
     root = zarr.group(store=store)
     compr = GZip(level=6)
+    input_shape = tuple(int(ins) for ins in input_shape)
+    output_shape = tuple(int(outs) for outs in output_shape)
     for output_key in outputs:
         root.require_dataset(output_key, shape=output_shape, chunks=output_shape, dtype='float32', compressor=compr)
-    root.require_dataset(input, shape=input_shape, chunks=input_shape, dtype='float32', compressor=compr)
-
+    root.require_dataset(input, shape=input_shape, chunks=input_shape, dtype='float32',
+                         compressor=compr)
     logging.info("Reading input data from {0:}".format(os.path.join(input_file, input_ds_name)))
     sf = zarr.open(input_file, mode="r")
     input_ds = sf[input_ds_name]
@@ -44,9 +46,8 @@ def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, i
             input_file, input_ds_name)))
 
     logging.debug("Normalizing input data to range -1, 1")
-    input_data /= factor
+    input_data = input_data.astype(np.float32) / factor
     input_data = input_data * 2 - 1
-
 
     # prepare input and output definition for model
     with open('{0:}_io_names.json'.format(net_name))as f:
@@ -71,10 +72,8 @@ def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, i
     root[input].attrs["resolution"] = voxel_size_input
 
     # write output data to file
-    print((np.array(input_shape) * np.array(voxel_size_input)) - (np.array(output_shape) * np.array(
-        voxel_size_output)))
     offset = tuple(((np.array(input_shape) * np.array(voxel_size_input)) - (np.array(output_shape) * np.array(
-        voxel_size_output)) )/ 2.)
+        voxel_size_output))) / 2.)
     for output_key, data in zip(outputs, output_data):
         root[output_key][...] = data
         root[output_key].attrs["offset"] = offset
