@@ -1,4 +1,5 @@
 import pymongo
+import argparse
 import zarr
 import json
 import numpy as np
@@ -33,6 +34,7 @@ def label_filter(cond_f):
 #     steps = int(add_constant/2)
 #     binary_labelfield = labelfield==labelid
 #     return np.sum(binary_dilation(binary_labelfield, generate_binary_structure(3, 1), steps))
+
 
 def one_crop(crop, gt_version, labels):
     n5file = zarr.open(str(crop["parent"]), mode="r")
@@ -99,11 +101,13 @@ def one_crop(crop, gt_version, labels):
     return pos, neg
 
 
-def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", completion_min=6):
+def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", completion_min=6, dataset=None):
     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
     db = client[db_name]
     collection = db[gt_version]
     filter = {"completion": {"$gte": completion_min}}
+    if dataset is not None:
+        filter["parent"] = dataset
     skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1}
     positives = dict()
     negatives = dict()
@@ -133,14 +137,28 @@ def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", 
     stats["positives"] = positives
     stats["negatives"] = negatives
     stats["sums"] = sums
-    with open("stats_new.json", "w") as f:
-        json.dump(stats, f)
+    if dataset is None:
+        with open("stats_all.json", "w") as f:
+            json.dump(stats, f)
+    else:
+        shorts = {
+            '/groups/cosem/cosem/data/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm.n5': "HeLa2",
+            '/groups/cosem/cosem/data/HeLa_Cell3_4x4x4nm/HeLa_Cell3_4x4x4nm.n5': "HeLa3",
+            '/groups/cosem/cosem/data/Macrophage_FS80_Cell2_4x4x4nm/Cryo_FS80_Cell2_4x4x4nm.n5': "Macrophage",
+            '/groups/cosem/cosem/data/Jurkat_Cell1_4x4x4nm/Jurkat_Cell1_FS96-Area1_4x4x4nm.n5': "Jurkat"
+        }
+        with open("stats_{dataset:}.json".format(dataset=shorts[dataset]), "w") as f:
+            json.dump(stats, f)
 
 
 if __name__ == "__main__":
 
-    db_username = "root"
-    db_password = "root"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db_username", type=str)
+    parser.add_argument("--db_password", type=str)
+    parser.add_argument("--dataset", type=str)
+    args = parser.parse_args()
+
     labels = list()
     labels.append(Label("ecs", 1))
     labels.append(Label("plasma_membrane", 2))
@@ -179,4 +197,8 @@ if __name__ == "__main__":
     labels.append(Label("subdistal_app", 33))
     labels.append(Label("ribosomes", 34, add_constant=8, separate_labelset=True))
     labels.append(Label("nucleus_generic", 37))
-    main(labels, db_username, db_password)
+    if args.dataset == "None":
+        dataset = None
+    else:
+        dataset = args.dataset
+    main(labels, args.db_username, args.db_password, dataset=dataset)
