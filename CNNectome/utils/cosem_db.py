@@ -75,8 +75,15 @@ class MongoCosemDB(CosemDB):
     def get_all_validation_crops(self, output_type=list):
         crop_db = self.access('crops', self.gt_version)
         filter = {'completion': -1, "alias": {"$regex": "Validation"}}
-        skip = {'_id': 0}
-        crops = crop_db.find(filter, skip)
+        skip = crop_db.find_one()
+        for k in skip.keys():
+            skip[k] = True
+        skip["_id"] = False
+        crops = crop_db.aggregate([
+            {"$match": filter},
+            {"$sort": {"number": 1}},
+            {"$project": skip}
+        ])
         if output_type is not None:
             crops = output_type(crops)
         return crops
