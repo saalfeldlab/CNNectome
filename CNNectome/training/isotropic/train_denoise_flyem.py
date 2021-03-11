@@ -293,7 +293,7 @@ def evaluate_metric(eval_iterations: int,
         ak_ref = "RAW_TARGET"
 
     else:
-        assert len(augmentations) > 1, "Evaluation without denoising model or augmentation is nonsensical"
+        assert len(augmentations) > 0, "Evaluation without denoising model or augmentation is nonsensical"
         del request[ArrayKey("RAW_PREDICTED")]
         ak_out = "RAW_INPUT"
         ak_ref = "RAW_TARGET"
