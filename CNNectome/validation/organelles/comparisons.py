@@ -4,10 +4,33 @@ from CNNectome.utils import cosem_db, crop_utils, hierarchy
 import csv
 import argparse
 import tabulate
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 
-def compare_4vs8(db, metric, crops=None, tol_distance=40, clip_distance=200, threshold=127, mode="across_setups",
-                 test=False):
+def compare_4vs8(db: cosem_db.MongoCosemDB,
+                 metric: str,
+                 crops: Optional[Sequence[Union[str, int]]] = None,
+                 tol_distance: int = 40,
+                 clip_distance: int = 200,
+                 threshold: int = 127,
+                 mode: str = "across_setups",
+                 test: bool = False) -> List[List[Dict[str, Any]]]:
+    """
+    Compare 4nm setups with corresponding 8nm setups.
+    Args:
+        db: Databse with crop information and evaluation result.
+        metric: Metric to use for comparison.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used
+        threshold: Threshold to have been applied on top of raw predictions.
+        mode: "across_setups" to optimize both setup+iteration or "per_setup" to optimize iteration for a fixed setup
+        test: whether to run in test mode
+
+    Returns:
+        List of comparisons. Each comparison is itself a list with the first entry the 4nm result and the second entry
+        the corresponding 8nm result.
+    """
     if mode == "across_setups":
         setups = [("setup03", "setup25", "setup27.1", "setup31", "setup35", "setup45", "setup47"),
                   ("setup04", "setup26.1", "setup28", "setup32", "setup36", "setup46", "setup48")]
@@ -16,14 +39,29 @@ def compare_4vs8(db, metric, crops=None, tol_distance=40, clip_distance=200, thr
 
     elif mode == "per_setup":
         setups = [("setup03", "setup03", "setup03", "setup03", "setup03", "setup03", "setup03", "setup03", "setup03",
-                   "setup03", "setup03", "setup25", "setup25", "setup27.1", "setup27.1", "setup31", "setup31",
-                   "setup35", "setup45", "setup45", "setup47", "setup47"),
+                   "setup03", "setup03",
+                   "setup25", "setup25",
+                   "setup27.1", "setup27.1",
+                   "setup31", "setup31",
+                   "setup35",
+                   "setup45", "setup45",
+                   "setup47", "setup47"),
                   ("setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04",
-                   "setup04", "setup04", "setup26.1", "setup26.1", "setup28", "setup28", "setup32", "setup32",
-                   "setup36", "setup46", "setup46", "setup48", "setup48")]
+                   "setup04", "setup04",
+                   "setup26.1", "setup26.1",
+                   "setup28", "setup28",
+                   "setup32", "setup32",
+                   "setup36",
+                   "setup46", "setup46",
+                   "setup48", "setup48")]
         labels = ["mito", "mito_membrane", "er", "er_membrane", "microtubules", "microtubules_out", "nucleus", "ecs",
-                  "plasma_membrane", "MVB", "MVB_membrane", "mito", "mito_membrane", "er", "er_membrane",
-                  "microtubules", "microtubules_out", "nucleus", "ecs", "plasma_membrane", "MVB", "MVB_membrane"]
+                  "plasma_membrane", "MVB", "MVB_membrane",
+                  "mito", "mito_membrane",
+                  "er", "er_membrane",
+                  "microtubules", "microtubules_out",
+                  "nucleus",
+                  "ecs", "plasma_membrane",
+                  "MVB", "MVB_membrane"]
     else:
         raise ValueError("unknown mode {0:}".format(mode))
 
@@ -34,25 +72,62 @@ def compare_4vs8(db, metric, crops=None, tol_distance=40, clip_distance=200, thr
     return comparisons
 
 
-def compare_s1vssub(db, metric, crops=None, tol_distance=40, clip_distance=200, threshold=127, mode="across_setups",
-                    test=False):
+def compare_s1vssub(db: cosem_db.MongoCosemDB,
+                    metric: str,
+                    crops: Optional[Sequence[Union[str, int]]] = None,
+                    tol_distance: int = 40,
+                    clip_distance: int = 200,
+                    threshold: int = 127,
+                    mode: str = "across_setups",
+                    test: bool = False) -> List[List[Dict[str, Any]]]:
+    """
+    Compare 8nm setups run on averaged downsampled data to the same setup run on randomly subsampled data.
+    Args:
+        db: Databse with crop information and evaluation result.
+        metric: Metric to use for comparison.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used
+        threshold: Threshold to have been applied on top of raw predictions.
+        mode: "across_setups" to optimize both setup+iteration or "per_setup" to optimize iteration for a fixed setup
+        test: whether to run in test mode
+
+    Returns:
+        List of comparisons. Each comparison is itself a list with the first entry the result when run on averaged
+        downsampled data and the second entry the corresponding result when run on randomly subsampled data.
+    """
     raw_ds = ["volumes/raw/s1", "volumes/subsampled/raw/0"]
 
     if mode == "across_setups":
-        setups = [("setup04", "setup26", "setup28", "setup32", "setup46", "setup48"),
-                  ("setup04", "setup26", "setup28", "setup32", "setup46", "setup48")]
+        setups = [("setup04", "setup26.1", "setup28", "setup32", "setup46", "setup48"),
+                  ("setup04", "setup26.1", "setup28", "setup32", "setup46", "setup48")]
         labels = ["mito", "mito_membrane", "er", "er_membrane", "microtubules", "microtubules_out", "nucleus", "ecs",
                   "plasma_membrane", "MVB", "MVB_membrane"]
     elif mode == "per_setup":
         setups = [("setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04",
-                   "setup04", "setup04", "setup04", "setup26", "setup26", "setup28", "setup28", "setup32", "setup32",
-                   "setup36", "setup46", "setup46", "setup48", "setup48"),
+                   "setup04", "setup04", "setup04",
+                   "setup26.1", "setup26.1",
+                   "setup28", "setup28",
+                   "setup32", "setup32",
+                   "setup36",
+                   "setup46", "setup46",
+                   "setup48", "setup48"),
                   ("setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04",
-                   "setup04", "setup04", "setup04", "setup26", "setup26", "setup28", "setup28", "setup32", "setup32",
-                   "setup36", "setup46", "setup46", "setup48", "setup48")]
+                   "setup04", "setup04", "setup04",
+                   "setup26.1", "setup26.1",
+                   "setup28", "setup28",
+                   "setup32", "setup32",
+                   "setup36",
+                   "setup46", "setup46",
+                   "setup48", "setup48")]
         labels = ["mito", "mito_membrane", "er", "er_membrane", "microtubules", "microtubules_out", "nucleus", "ecs",
-                  "plasma_membrane", "MVB", "MVB_membrane", "mito", "mito_membrane", "er", "er_membrane",
-                  "microtubules", "microtubules_out", "nucleus", "ecs", "plasma_membrane", "MVB", "MVB_membrane"]
+                  "plasma_membrane", "MVB", "MVB_membrane",
+                  "mito", "mito_membrane",
+                  "er", "er_membrane",
+                  "microtubules", "microtubules_out",
+                  "nucleus",
+                  "ecs", "plasma_membrane",
+                  "MVB", "MVB_membrane"]
     else:
         raise ValueError("unknown mode {0:}".format(mode))
     comparisons = analyze_evals.compare_setups(db, setups, labels, metric, raw_ds=raw_ds, crops=crops,
@@ -61,8 +136,29 @@ def compare_s1vssub(db, metric, crops=None, tol_distance=40, clip_distance=200, 
     return comparisons
 
 
-def compare_allvscommonvssingle_4nm(db, metric, crops=None, tol_distance=40, clip_distance=200, threshold=127,
-                                    test=False):
+def compare_allvscommonvssingle_4nm(db: cosem_db.MongoCosemDB,
+                                    metric: str,
+                                    crops: Optional[Sequence[Union[str, int]]] = None,
+                                    tol_distance: int = 40,
+                                    clip_distance: int = 200,
+                                    threshold: int = 127,
+                                    test: bool = False) -> List[List[Dict[str, Any]]]:
+    """
+    Compare 4nm setups trained on all labels, many labels and few labels.
+    Args:
+        db: Databse with crop information and evaluation result.
+        metric: Metric to use for comparison.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used
+        threshold: Threshold to have been applied on top of raw predictions.
+        test: whether to run in test mode
+
+    Returns:
+        List of comparisons. Each comparison is itself a list with the first entry the result with the setup trained
+        on all labels, the second entry the result with the setup trained on many labels, the third entry the result
+        with setups each trained on just a few labels.
+    """
     setups = [("setup01",),
               ("setup03",),
               ("setup25", "setup27.1", "setup31", "setup35", "setup45", "setup47")]
@@ -73,8 +169,36 @@ def compare_allvscommonvssingle_4nm(db, metric, crops=None, tol_distance=40, cli
     return comparisons
 
 
-def compare_metrics(db, metric_compare, metric_bestby, crops=None, tol_distance=40, clip_distance=200,
-                    threshold=127, mode="across_setups", test=False):
+def compare_metrics(db: cosem_db.MongoCosemDB,
+                    metric_compare: str,
+                    metric_bestby: str,
+                    crops: Union[None, str, int, Sequence[Union[str, int]]] = None,
+                    tol_distance: int = 40,
+                    clip_distance: int = 200,
+                    threshold: int = 127,
+                    mode: str = "across_setups",
+                    test: bool = False) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """
+    A way of comparing the effect of choosing different metrics. Optimize iteration ("per_setup") / setup+iteration
+    ("across_setups") using both metrics, then compare those evaluations using one of the metrics (`metric_compare).
+    The `metric_bestby` can be manual and comparisons will always be run for the configurations for which a manual
+    evaluation has been completed.
+
+    Args:
+        db: Database with crop information and evaluation results.
+        metric_compare: Metric used to report comparisons.
+        metric_bestby: Metric to compare to, used to optimize configuration.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used.
+        threshold: Threshold to have been applied on top of raw predictions.
+        mode: "across_setups" to optimize both setup+iteration or "per_setup" to optimize iteration for a fixed setup
+        test: whether to run in test mode.
+
+    Returns:
+        List of comparisons. Each comparison is a tuple with the first entry the result with the configuration
+        optimized for `metric_compare`, the second entry optimized for `metric_bestby`.
+    """
     all_queries = analyze_evals.get_manual_comparisons(db, cropno=crops, mode=mode)
     comparisons = analyze_evals.compare_evaluation_methods(db, metric_compare, metric_bestby, all_queries,
                                                            tol_distance=tol_distance, clip_distance=clip_distance,
@@ -82,16 +206,58 @@ def compare_metrics(db, metric_compare, metric_bestby, crops=None, tol_distance=
     return comparisons
 
 
-def compare_rawvsrefined(db, metric, crops=None, tol_distance=40, clip_distance=200, threshold=127):
+def compare_rawvsrefined(db: cosem_db.MongoCosemDB, 
+                         metric: str, 
+                         crops: Union[None, str, int, Sequence[Union[str, int]]] = None, 
+                         tol_distance: int = 40, 
+                         clip_distance: int = 200, 
+                         threshold: int = 127) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """
+    Evaluate effect of refinements.
+    Args:
+        db: Database with crop information and evaluation result.
+        metric: Metric to use for comparison.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used
+        threshold: Threshold to have been applied on top of raw predictions.
+
+    Returns:
+        List of comparisons. Each comparison is a tuple with the first entry the result before refinements, the second
+        after refinements.
+    """
     all_queries = analyze_evals.get_refined_comparisons(db, cropno=crops)
     comparisons = analyze_evals.compare_refined(db, metric, all_queries, tol_distance=tol_distance,
                                                 clip_distance=clip_distance, threshold=threshold)
     return comparisons
 
 
+def best_4nm(db: cosem_db.MongoCosemDB, 
+             metric: str, 
+             crops: Optional[Sequence[Union[str, int]]] = None, 
+             tol_distance: int = 40, 
+             clip_distance: int = 200, 
+             threshold: int = 200, 
+             mode: str = "across_setups",
+             raw_ds: Union[None, str, Sequence[str]] = "volumes/raw",
+             test: bool = False) -> List[List[Optional[Dict[str, Any]]]]:
+    """
+    Get the best results for the 4nm setups.
 
-def best_4nm(db, metric, crops, tol_distance=40, clip_distance=200, threshold=200, mode="across_setups",
-             raw_ds="volumes/raw", test=False):
+    Args:
+        db: Database with crop information and evaluation result.
+        metric: Metric to report and use for optimiation of iteration/setup.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used.
+        threshold: Threshold to have been applied on top of raw predictions.
+        mode: "across_setups" to optimize both setup+iteration or "per_setup" to optimize iteration for a fixed setup.
+        raw_ds: raw dataset to run prediction on.
+        test: whether to run in test mode.
+
+    Returns:
+        List of best results. Each result is a list with just one dictionary.
+    """
     if mode == "across_setups":
         setups = ["setup01", "setup03", "setup25", "setup27.1", "setup31", "setup33", "setup35", "setup45", "setup47",
                   "setup56", "setup59"]
@@ -137,26 +303,57 @@ def best_4nm(db, metric, crops, tol_distance=40, clip_distance=200, threshold=20
     return results
 
 
-def best_8nm(db, metric, crops, tol_distance=40, clip_distance=200, threshold=200, mode="across_setups",
-             raw_ds="volumes/subsampled/raw/0", test=False):
+def best_8nm(db: cosem_db.MongoCosemDB, 
+             metric: str, 
+             crops: Optional[Sequence[Union[str, int]]], 
+             tol_distance: int = 40, 
+             clip_distance: int = 200, 
+             threshold: int = 200, 
+             mode: str = "across_setups",
+             raw_ds: Union[None, str, Sequence[str]] = "volumes/subsampled/raw/0",
+             test: bool = False) -> List[List[Dict[str, Any]]]:
+    """
+    Get the best results for the 8nm setups.
+
+    Args:
+        db: Database with crop information and evaluation result.
+        metric: Metric to report and use for optimiation of iteration/setup.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        tol_distance: tolerance distance when using a metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using a metric with clip distance, otherwise not used.
+        threshold: Threshold to have been applied on top of raw predictions.
+        mode: "across_setups" to optimize both setup+iteration or "per_setup" to optimize iteration for a fixed setup.
+        raw_ds: raw dataset to run prediction on.
+        test: whether to run in test mode.
+
+    Returns:
+        List of best results. Each result is a list with just one dictionary.
+    """
     if mode == "across_setups":
         setups = ["setup04", "setup26.1", "setup28", "setup32", "setup36", "setup46", "setup48"]
         labels = ["ecs", "plasma_membrane", "mito", "mito_membrane", "mito_DNA", "vesicle", "vesicle_membrane", "MVB",
-                  "MVB_membrane", "lysosome", "lysosome_membrane", "er", "er_membrane", "ERES", "nucleus", "NE",
-                  "NE_membrane", "nuclear_pore", "nuclear_pore_out", "chromatin", "EChrom", "microtubules",
-                  "microtubules_out", 'ribosomes']
+                  "MVB_membrane", "lysosome", "lysosome_membrane", "er", "er_membrane", "ERES", "nucleus",
+                  "microtubules", "microtubules_out"]
     elif mode == "per_setup":
         setups = ["setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04", "setup04",
-                  "setup04", "setup04", "setup04", "setup04", "setup04", "setup26.1", "setup26.1", "setup26.1",
-                  "setup28", "setup28", "setup32", "setup32", "setup36", "setup46", "setup46", "setup48", "setup48",
-                  "setup48", "setup48"]
+                  "setup04", "setup04", "setup04", "setup04", "setup04",
+                  "setup26.1", "setup26.1", "setup26.1",
+                  "setup28", "setup28",
+                  "setup32", "setup32",
+                  "setup36",
+                  "setup46", "setup46",
+                  "setup48", "setup48", "setup48", "setup48"]
         labels = ["ecs", "plasma_membrane", "mito", "mito_membrane", "vesicle", "vesicle_membrane", "MVB",
                   "MVB_membrane", "er", "er_membrane", "ERES", "nucleus", "microtubules", "microtubules_out",
-                  "mito", "mito_membrane", "mito_DNA", "er", "er_membrane", "microtubules", "microtubules_out",
-                  "nucleus", "ecs", "plasma_membrane", "MVB", "MVB_membrane", "lysosome", "lysosome_membrane"]
+                  "mito", "mito_membrane", "mito_DNA",
+                  "er", "er_membrane",
+                  "microtubules", "microtubules_out",
+                  "nucleus",
+                  "ecs", "plasma_membrane",
+                  "MVB", "MVB_membrane", "lysosome", "lysosome_membrane"]
     else:
         raise ValueError("unknown mode {0:}".format(mode))
-
+    
     results = []
     if crops is None:
         crops = [c["number"] for c in db.get_all_validation_crops()]
@@ -176,10 +373,37 @@ def best_8nm(db, metric, crops, tol_distance=40, clip_distance=200, threshold=20
     return results
 
 
-def print_comparison(comparison_task, db, metric, crops=None, save=None, tol_distance=40, clip_distance=200,
-                     threshold=127, mode="across_setups", raw_ds="volumes/raw", test=False):
-    columns = ["label{0:}", "setup{0:}", "iteration{0:}", "crop{0:}", "raw_dataset{0:}", "metric{0:}",
-               "metric_params{0:}", "value{0:}"]
+def print_comparison(comparison_task: str,
+                     db: cosem_db.MongoCosemDB,
+                     metric: Sequence[str],
+                     crops: Optional[Sequence[Union[str, int]]] = None,
+                     save: Optional[str] = None,
+                     tol_distance: int = 40,
+                     clip_distance: int = 200,
+                     threshold: int = 127,
+                     mode: str = "across_setups",
+                     raw_ds: str = "volumes/raw",
+                     test: bool = False) -> None:
+    """
+    Print out table with results for chosen comparison. Not all arguments are relevant to all comparison tasks.
+    Args:
+        comparison_task: Type of comparison to complete ("4vs8"/"s1vssub"/"rawvsrefined"/"allvscommonvssingle"/
+                         "metrics"/"best_4nm"/"best_8nm")
+        db: Database with crop information and evaluation results.
+        metric: Metrics to use for comparison. List of 2 for "metrics", otherwise list of 1.
+        crops: List of crops to run comparison on. If None will use all validation crops.
+        save: path to csv file for saving output. If None, result won't be saved.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
+        threshold: Threshold to habe been applied on top of predictions.
+        mode: "across_setups" to optimize both setup+iteration or "per_setup" to optimize iteration for a fixed setup.
+        raw_ds: Raw dataset to consider predictions for.
+        test: whether to run in test mode.
+
+    Returns:
+        None.
+    """
+
     if comparison_task == "4vs8":
         comparisons = compare_4vs8(db, metric[0], crops=crops, tol_distance=tol_distance, clip_distance=clip_distance,
                                    threshold=threshold, mode=mode, test=test)
@@ -212,6 +436,9 @@ def print_comparison(comparison_task, db, metric, crops=None, save=None, tol_dis
     else:
         raise ValueError("Unknown comparison option {0:}".format(comparison_task))
 
+    # define columns for table
+    columns = ["label{0:}", "setup{0:}", "iteration{0:}", "crop{0:}", "raw_dataset{0:}", "metric{0:}",
+               "metric_params{0:}", "value{0:}"]
     fields = []
     for name in names:
         fields.extend([col.format(name) for col in columns])
@@ -230,18 +457,19 @@ def print_comparison(comparison_task, db, metric, crops=None, save=None, tol_dis
             compare_writer.writerow(row)
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def main() -> None:
+    parser = argparse.ArgumentParser("Run a pre-defined comparison for evaluation results in the database.")
     parser.add_argument("comparison", type=str, help="Type of comparison to run",
                         choices=["4vs8", "s1vssub", "rawvsrefined", "allvscommonvssingle", "metrics", "best_4nm",
                                  "best_8nm"])
     parser.add_argument("--db_username", type=str, help="username for the database")
     parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--metric", nargs="+", type=str,
-                        choices=list(em.value for em in segmentation_metrics.EvaluationMetrics) + ["manual"])
-    parser.add_argument("--crops", type=int, nargs="*", default=None,
+                        choices=list(em.value for em in segmentation_metrics.EvaluationMetrics) + ["manual"],
                         help="Metric to use for evaluation. For metrics evaluation the first one is used for "
-                             "comparison, the second one is the alternative metric by which to pick the best result")
+                             "comparison, the second one is the alternative metric by which to pick the best result"
+                        )
+    parser.add_argument("--crops", type=int, nargs="*", default=None, help="Crops on which .")
     parser.add_argument("--threshold", type=int, default=127, help="threshold applied on distances for evaluation")
     parser.add_argument("--clip_distance", type=int, default=200, help="Parameter used for clipped false distances "
                                                                        "for relevant metrics.")
@@ -259,9 +487,9 @@ def main():
     if args.mode == "all" and args.comparison != "metrics":
         raise ValueError("Mode all can only be used for metrics comparison.")
     db = cosem_db.MongoCosemDB(args.db_username, args.db_password)
-    print_comparison(args.comparison, db, args.metric, crops=args.crops, save=args.csv,
-                     tol_distance=args.tol_distance, clip_distance=args.clip_distance, threshold=args.threshold,
-                     mode=args.mode, raw_ds=args.raw_ds, test=args.test)
+    print_comparison(args.comparison, db, args.metric, crops=args.crops, save=args.csv, tol_distance=args.tol_distance,
+                     clip_distance=args.clip_distance, threshold=args.threshold, mode=args.mode, raw_ds=args.raw_ds,
+                     test=args.test)
 
 
 if __name__ == "__main__":
