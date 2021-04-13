@@ -4,6 +4,7 @@ from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, Inten
 from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
 
+import CNNectome.utils.label
 import fuse
 import tensorflow as tf
 import math
@@ -12,75 +13,59 @@ import json
 import numpy as np
 import logging
 import pymongo
+from typing import Any, Callable, Dict, List, Optional, Union, Sequence, Tuple
 
 
-def get_label_ids_by_category(crop, category):
+def get_label_ids_by_category(crop: Dict[str, Any],
+                              category: str) -> List[int]:
     """
     Get all label ids from a crop that belong to a certain category
 
-    Parameters
-    ----------
-    crop : dict
-        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
-    category : str, one of {"present_annotated", "present_unannotated", "absent_annotated",
-               "present_partial_annotation"}
-        Category to filter label ids from the crop by.
+    Args:
+        crop: Instance of an entry in the crop database.
+        category: one of "present_annotated", "present_unannotated", "absent_annotated", "present_partial_annotation"
 
-    Returns
-    -------
-    list [int]
+    Returns:
         All label ids that belong to the `category` for that crop.
     """
     return [l[0] for l in crop['labels'][category]]
 
 
-def get_all_annotated_label_ids(crop):
+def get_all_annotated_label_ids(crop: Dict[str, Any]) -> List[int]:
     """
     Get all label ids from a crop that are annotated (regardless of whether the labelid is present or absent)
 
-    Parameters
-    ----------
-    crop : dict
-        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+    Args:
+        crop: Instance of an entry in the crop database.
 
-    Returns
-    -------
-    list [int]
+    Returns:
         All label ids that are annotated in the crop.
     """
     return get_label_ids_by_category(crop, "present_annotated") + get_label_ids_by_category(crop, "absent_annotated")
 
 
-def get_crop_size(crop):
+def get_crop_size(crop: Dict[str, Any]) -> int:
     """
     Compute the size of a crop in voxels (at annotation resolution).
 
-    Parameters
-    ----------
-    crop : dict
-        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+    Args:
+        crop: Instance of an entry in the crop database.
 
-    Returns
-    -------
-    size : int
+    Returns:
         Total number of voxels (at annotation resolution) in the given crop.
     """
     return np.prod(list(crop["dimensions"].values()))
 
 
-def get_all_labelids(labels):
+def get_all_labelids(labels: List[CNNectome.utils.label.Label]) -> List[int]:
     """
-    Generate list of all label ids occuring in the given list of labels.
+    Generate list of all label ids occurring in the given list of labels.
 
-    Parameters
-    ----------
-    labels : list [CNNectome.utils.label.Label]
-        List of the labels from which to combine the labelids.
+    Args:
+        labels: List of the labels from which to combine the label_ids.
 
-    Returns
-    -------
-    all_labelids : list [int]
-        Combined list of all the labelids from the labels in the list.
+    Returns:
+        Combined list of all the label_ids from the labels in the list.
     """
     all_labelids = []
     for label in labels:
@@ -88,26 +73,22 @@ def get_all_labelids(labels):
     return all_labelids
 
 
-def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
+def prioritized_sampling_probabilities(crop_sizes: Union[Sequence[int], np.ndarray],
+                                       indicator: Union[Sequence[bool], np.ndarray],
+                                       prob_prioritized: float) -> List[float]:
     """
     Compute probabilities for sampling from each individual crop when using the prioritized sampling scheme. Crops
     that are prioritized will be sampled from with probability `prob_prioritized`. All other crops will be sampled
     from with probability 1 - `prob_prioritized`. Within each collection the sampling probability is proportional to
     the crop size.
 
-    Parameters
-    ----------
-    crop_sizes : array_like [int]
-        List of total size of each crop.
-    indicator : array_like [bool]
-        List with value indicating for each crop whether it should be prioritized. Crops should follow same ordering
-        as in `crop_sizes`.
-    prob_prioritized : float
-        Probability with which to sample from one of the prioritized crops.
+    Args:
+        crop_sizes: List of total size of each crop.
+        indicator: List with value indicating for each crop whether it should be prioritized. Crops should follow same
+                   ordering as in `crop_sizes`.
+        prob_prioritized: Probability with which to sample from one of the prioritized crops.
 
-    Returns
-    -------
-    list [float]
+    Returns:
         Probabilities for sampling from each crop, given in same order as `crop_sizes` and `indicator`.
     """
     crop_sizes_np = np.array(crop_sizes)
@@ -127,23 +108,18 @@ def prioritized_sampling_probabilities(crop_sizes, indicator, prob_prioritized):
     return list(prob_present + prob_absent)
 
 
-def is_prioritized(crop, prioritized_label):
+def is_prioritized(crop: Dict[str, Any],
+                   prioritized_label: CNNectome.utils.label.Label) -> bool:
     """
     Determines whether a crop should be prioritized for training depending on whether it contains examples of the
     specified label.
 
-    Parameters
-    ----------
-    crop : dict
-        Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
+    Args:
+        crop: Instance of an entry in the crop database.
+        prioritized_label: Other label that should be present in the crop for it to be considered prioritized.
 
-    prioritized_label: CNNectome.utils.label.Label
-        Other label that should be present in the crop for it to be considered priortized.
-
-    Returns
-    -------
-    prioritized_crop : bool
-        True if crop contains examples of specified label, false otherwise.
+    Returns:
+        True if crop contains examples of specified `prioritized_label`, false otherwise.
     """
     present = set(get_label_ids_by_category(crop, "present_annotated"))
     annotated = set(get_all_annotated_label_ids(crop))
@@ -165,310 +141,314 @@ def is_prioritized(crop, prioritized_label):
     return prioritized_crop
 
 
+def _label_filter(cond_f: Callable[[CNNectome.utils.label.Label], bool],
+                  labels: List[CNNectome.utils.label.Label]) -> List[CNNectome.utils.label.Label]:
+    """
+    Filter `labels` according to the given condition.
+
+    Args:
+        cond_f: Function that given a label evaluated to a boolean. Labels evaluating to False will be filtered out.
+        labels: List of labels to filter.
+
+    Returns:
+        Copy of `labels` without the elements that evaluated to False with `cond_f`.
+    """
+    return [ll for ll in labels if cond_f(ll)]
+
+
+def _get_label(name: str, labels: List[CNNectome.utils.label.Label]) -> Optional[CNNectome.utils.label.Label]:
+    """
+    Finds the (first) element of the `labels` list whose attribute labelname is `name`.
+
+    Args:
+        name: The label with this labelname should be extracted from `labels`.
+        labels: List of labels in which to look for label with labelname `name`.
+
+    Returns:
+        If label with labelname `name` is found in the list `labels` return it, otherwise None.
+    """
+    filtered = _label_filter(lambda l: l.labelname == name, labels)
+    if len(filtered) > 0:
+        return filtered[0]
+    else:
+        return None
+
+
+def _make_crop_source(crop: Dict[str, Any],
+                      subsample_variant: Optional[
+                         Union[int, str]],
+                      gt_version: str,
+                      labels: List[CNNectome.utils.label.Label],
+                      ak_raw: ArrayKey,
+                      ak_labels: ArrayKey,
+                      ak_labels_downsampled: ArrayKey,
+                      ak_mask: ArrayKey,
+                      input_size: Coordinate,
+                      output_size: Coordinate,
+                      voxel_size_input: Coordinate,
+                      voxel_size: Coordinate,
+                      crop_width: Coordinate,
+                      keep_thr: float) -> gunpowder.batch_provider_tree.BatchProviderTree:
+    """
+    Generate a batch provider for a specific crop, including label data, raw data, generating per label mask,
+    rejection based on `min_masked_voxels` and contrast scaling.
+
+    Args:
+        crop: Instance of an entry in the crop database.
+        subsample_variant: If using raw data that has been subsampled from its original resolution,
+                           `subsample_variant` is the name of the dataset in the group "volumes/subsampled/raw"
+                           containing the subsampled raw data. If None, use the raw data at original resolution
+                           from "volumes/raw".
+        gt_version: Version of groundtruth annotations, e.g. "v0003"
+        labels: List of labels that the network needs to be trained for.
+        ak_raw: array key for raw data
+        ak_labels: array key for label data
+        ak_labels_downsampled: array key for downsampled label data
+        ak_mask: array key for mask
+        input_size: Size of input arrays of network.
+        output_size: Size of output arrays of network.
+        voxel_size_input: Voxel size of the input arrays.
+        voxel_size: Voxel size of the output arrays.
+        crop_width: additional padding width on top of `output_size`
+        keep_thr: threshold for ratio of voxels that need to be annotated for a batch to not be rejected.
+
+    Returns:
+        Gunpowder  batch provider tree for grabbing batches from the specified crop.
+    """
+    n5file = zarr.open(ensure_str(crop["parent"]), mode='r')
+    blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
+    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
+    blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
+    if subsample_variant is None:
+        raw_ds = "volumes/raw"
+    else:
+        raw_ds = "volumes/subsampled/raw/{0:}".format(subsample_variant)
+    label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
+    labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
+    mask_ds = blueprint_mask_ds.format(version=gt_version.lstrip("v"))
+
+    # add sources for all groundtruth labels
+    all_srcs = []
+    # We should really only be adding this with the above if statement, but need it for now because we need to
+    # construct masks from it as separate labelsets contain zeros
+    logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+        cropno=crop["number"], file=crop["parent"], ds=label_ds.format(label="all"), ak=ak_labels))
+    all_srcs.append(
+        ZarrSource(crop["parent"],
+                   {ak_labels: label_ds.format(label="all")}
+                   )
+        + Pad(ak_labels, Coordinate(output_size) + crop_width)
+        + DownSample(ak_labels, (2, 2, 2), ak_labels_downsampled)
+    )
+
+    for label in _label_filter(lambda l: l.separate_labelset, labels):
+        if all(l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid):
+            ds = label_ds.format(label=label.labelname)
+            assert ds in n5file, "separate dataset {ds:} not present in file {file:}".format(ds=ds,
+                                                                                             file=n5file.store.path)
+        else:
+            ds = label_ds.format(label="all")
+        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"], file=crop["parent"], ds=ds, ak=label.gt_key))
+        all_srcs.append(ZarrSource(crop["parent"], {label.gt_key: ds}) +
+                        Pad(label.gt_key, Coordinate(output_size) + crop_width))
+
+    # add mask source per label
+    labelmask_srcs = []
+    for label in labels:
+        labelmask_ds = labelmask_ds.format(label=label.labelname)
+        if labelmask_ds in n5file:  # specified mask available:
+            logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+                cropno=crop["number"], file=crop["parent"], ds=labelmask_ds, ak=label.mask_key))
+            labelmask_srcs.append(ZarrSource(crop["parent"],
+                                             {label.mask_key: labelmask_ds}
+                                             )
+                                  + Pad(label.mask_key, Coordinate(output_size) + crop_width))
+        else:
+            if label.generic_label is not None:
+                specific_labels = list(set(label.labelid) - set(label.generic_label))
+                generic_condition = (all(l in get_all_annotated_label_ids(crop) for l in label.generic_label) or
+                                     all(l in get_all_annotated_label_ids(crop) for l in specific_labels))
+            else:
+                generic_condition = False
+
+            if all(l in get_all_annotated_label_ids(crop) for l in label.labelid) or generic_condition:
+                f = lambda val: ((val > 0) * 1).astype(np.bool)
+            else:
+                f = lambda val: ((val > 0) * 0).astype(np.bool)
+            # This does not work because there are crops that are very close to each other. This would lead to
+            # issues with masking
+            # logging.debug("Adding LambdaSource {f:} for crop {cropno:}, providing {ak}".format(
+            #     cropno=crop["number"], f=f, ak=label.mask_key))
+            # labelmask_srcs.append(
+            #     LambdaSource(
+            #         f,
+            #         label.mask_key,
+            #         {label.mask_key: ArraySpec(voxel_size=voxel_size, interpolatable=False)}
+            #     )
+            # )
+            all_srcs[0] += LambdaFilter(f, ak_labels_downsampled, target_key=label.mask_key, target_spec=ArraySpec(
+                dtype=np.bool, interpolatable=False))
+    all_srcs.extend(labelmask_srcs)
+
+    # add raw source
+    logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+        cropno=crop["number"], file=crop["parent"], ds=raw_ds, ak=ak_raw))
+    raw_src = (
+        ZarrSource(
+            crop["parent"],
+            {ak_raw: raw_ds},
+            array_specs={ak_raw: ArraySpec(voxel_size=voxel_size_input)})
+        + Pad(ak_raw, Coordinate(input_size), 0)
+    )
+    all_srcs.append(raw_src)
+
+    # add gt mask source
+    logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+        cropno=crop["number"], file=crop["parent"], ds=mask_ds, ak=ak_mask))
+    mask_src = (
+        ZarrSource(
+            crop["parent"],
+            {ak_mask: mask_ds},
+            array_specs={ak_mask: ArraySpec(interpolatable=False, voxel_size=voxel_size)}
+        )
+    )
+    all_srcs.append(mask_src)
+
+    # combine all sources and pick a random location
+    crop_src = (
+        tuple(all_srcs)
+        + MergeProvider()
+        + RandomLocation()
+        + Reject(ak_mask, min_masked=keep_thr)
+               )
+
+    # contrast adjustment
+    contr_adj = n5file["volumes/raw"].attrs["contrastAdjustment"]
+    scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
+    shift = - scale * float(contr_adj["min"])
+    logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
+    crop_src += IntensityScaleShift(ak_raw,
+                                    scale,
+                                    shift
+                                    )
+    return crop_src
+
+
+def _network_setup(max_iteration: int,
+                   ak_raw: ArrayKey,
+                   ak_mask: ArrayKey,
+                   labels: List[CNNectome.utils.label.Label]) -> Tuple[
+                   Dict[str, str], int, Dict[str, gunpowder.array.ArrayKey], Dict[str, gunpowder.array.ArrayKey]]:
+    """
+    Setup the tensorflow network with its inputs and outputs to be used in the train node.
+
+    Args:
+        max_iteration:  Total number of iterations that network should be trained for.
+        ak_raw: array key for raw data
+        ak_mask: array key for mask
+        labels: List of labels that the network needs to be trained for.
+
+    Returns:
+        Tuple of net_io_names, start_iteration, inputs and outputs.
+        net_io_names: Mapping easily usable names to names of tensors in the tensorflow graph, read from json file
+                      that was generated when making the tensorflow graph
+        start_iteration: Starting iteration of this training. 0 if training this setup for the first time,
+                         otherwise read from checkpoint file.
+        inputs: Mapping names of input tensors in `net_io_names` to keys of corresponding arrays in gunpowder
+                batch.
+        outputs: Mapping names of output tensors in `net_io_names` to keys of corresponding arrays in gunpowder
+                 batch.
+    """
+    # load net_io_names.json
+    with open("net_io_names.json", "r") as f:
+        net_io_names = json.load(f)
+
+    # find checkpoint from previous training, start a new one if not found
+    if tf.train.latest_checkpoint("."):
+        start_iteration = int(tf.train.latest_checkpoint(".").split("_")[-1])
+        if start_iteration >= max_iteration:
+            logging.info("Network has already been trained for {0:} iterations".format(start_iteration))
+        else:
+            logging.info("Resuming training from {0:}".format(start_iteration))
+    else:
+        start_iteration = 0
+        logging.info("Starting fresh training")
+
+    # define network inputs
+    inputs = dict()
+    inputs[net_io_names["raw"]] = ak_raw
+    inputs[net_io_names["mask"]] = ak_mask
+    for label in labels:
+        inputs[net_io_names["mask_" + label.labelname]] = label.mask_key
+        inputs[net_io_names["gt_" + label.labelname]] = label.gt_dist_key
+        if label.scale_loss or label.scale_key is not None:
+            inputs[net_io_names["w_" + label.labelname]] = label.scale_key
+
+    # define network outputs
+    outputs = dict()
+    for label in labels:
+        outputs[net_io_names[label.labelname]] = label.pred_dist_key
+    return net_io_names, start_iteration, inputs, outputs
+
+
 def train_until(
-    max_iteration,
-    gt_version,
-    labels,
-    net_name,
-    input_shape,
-    output_shape,
-    loss_name,
-    db_username,
-    db_password,
-    balance_global=False,
-    prioritized_label=None,
-    dataset=None,
-    prob_prioritized=0.5,
-    db_name="crops",
-    completion_min=6,
-    dt_scaling_factor=50,
-    cache_size=5,
-    num_workers=10,
-    min_masked_voxels=17561.,
-    voxel_size_labels=Coordinate((2, 2, 2)),
-    voxel_size=Coordinate((4, 4, 4)),
-    voxel_size_input=Coordinate((4, 4, 4))
+    max_iteration: int,
+    gt_version: str,
+    labels: List[CNNectome.utils.label.Label],
+    net_name: str,
+    input_shape: Union[np.ndarray, List[int]],
+    output_shape: Union[np.ndarray, List[int]],
+    loss_name: str,
+    db_username: str,
+    db_password: str,
+    balance_global: bool = False,
+    prioritized_label: Optional[CNNectome.utils.label.Label] = None,
+    dataset: Optional[str] = None,
+    prob_prioritized: float = 0.5,
+    db_name: str = "crops",
+    completion_min: int = 6,
+    dt_scaling_factor: int = 50,
+    cache_size: int = 5,
+    num_workers: int = 10,
+    min_masked_voxels: Union[float, int] = 17561.,
+    voxel_size_labels: Coordinate = Coordinate((2, 2, 2)),
+    voxel_size: Coordinate = Coordinate((4, 4, 4)),
+    voxel_size_input: Coordinate = Coordinate((4, 4, 4))
 ):
     """
     Training a tensorflow network to learn signed distance transforms of specified labels (organelles) using gunpowder.
     Training data is read from crops whose metadata are organized in a database.
 
-    Parameters
-    ----------
-    max_iteration : int
-        Total number of iterations that network should be trained for.
-    gt_version : str
-        Version of groundtruth annotations, e.g. "v0003".
-    labels : list [CNNectome.utils.label.Label]
-        List of labels that the network needs to be trained for.
-    net_name : str
-        Filename of tensorflow meta graph definition.
-    input_shape : numpy.array or list [int]
-        Input shape of network.
-    output_shape : numpy.array or list [int]
-        Output shape of network.
-    loss_name : str
-        Name of loss used as stored in net io names json file.
-    db_username : str
-        Username for access to database.
-    db_password : str
-        Password for access to database.
-    balance_global : bool, optional
-        If True, use global balancing i.e. weigh loss for each label using its `frac_pos` and `frac_neg` attributes.
-    prioritized_label : CNNectome.utils.label.Label or None, optional
-        Label to use for prioritizing sampling from crops that contain examples of it. If None (default), sample from
-        each crop equally.
-    dataset : str, optional or None
-        Only consider crops that come from the specified dataset. If None (default), use all otherwise eligible crops.
-    prob_prioritized : float, optional
-        If `prioritized_label` is not None, this is the probability with which to sample from the crops containing
-        the label. Default is .5, which implies sampling equally from crops containing the labels and all others.
-    db_name : str, optional
-        Name of database collection with crop information.
-    completion_min : int, optional
-        Minimal completion status for a crop from the database to be added to the training.
-    dt_scaling_factor : int, optional
-        Scaling factor to divide distance transform by before applying nonlinearity.
-    cache_size : int, optional
-        Cache size for queue grabbing batches.
-    num_workers : int, optional
-        Number of workers grabbing batches.
-    min_masked_voxels : int, optional
-        Minimum number of voxels in a batch that need to be part of the groundtruth annotation.
-    voxel_size_labels : gunpowder.Coordinate, optional
-        Voxel size of the annotated labels.
-    voxel_size : gunpowder.Coordinate, optional
-        Voxel size of the desired output.
-    voxel_size_input : gunpowder.Coordinate, optional
-        Voxel size of the input data.
-
-    Returns
-    -------
-    None
+    Args:
+        max_iteration: Total number of iterations that network should be trained for.
+        gt_version: Version of groundtruth annotations, e.g. "v0003".
+        labels: List of labels that the network needs to be trained for.
+        net_name: Filename of tensorflow meta graph definition.
+        input_shape: Input shape of network.
+        output_shape: Output shape of network.
+        loss_name: Name of loss used as stored in net io names json file.
+        db_username: Username for access to database.
+        db_password: Password for access to database.
+        balance_global: If Ture, use globabl balancing, i.e. weigh loss for each label using its `frac_pos` and
+                        `frac_neg` attributes.
+        prioritized_label: Label to use for prioritizing sampling from crops that contain examples of it. If None
+                           (default), sample from each crop equally.
+        dataset: Only consider crops that come from the specified dataset. If None (default), use all othwerwise
+                 eligible training data.
+        prob_prioritized: If `prioritized_label` is not None, this is the probability with which to sample from the
+                          crops containing the label. Default is .5, which implies sampling equally from crops
+                          containing the labels and all others.
+        db_name: Name of database collection with crop information.
+        completion_min: Minimal completion status for a crop from the database to be added to the training.
+        dt_scaling_factor: Scaling factor to divide distance transform by before applying nonlinearity tanh.
+        cache_size: Cache size for queue grabbing batches.
+        num_workers: Number of workers grabbing batches.
+        min_masked_voxels: Minimum number of voxels in a batch that need to be part of the groundtruth annotation.
+        voxel_size_labels: Voxel size of the annotated labels.
+        voxel_size: Voxel size of the desired output.
+        voxel_size_input: Voxel size of the raw input data.
     """
-    def label_filter(cond_f):
-        """
-        Filter `labels` according to the given condition.
-
-        Parameters
-        ----------
-        cond_f : function
-            Function that given a label (CNNectome.utils.label.Label) evaluates to True or False. Labels that
-            evaluate to False will be filtered out.
-
-        Returns
-        -------
-        list [CNNectome.utils.label.Label]
-            Copy of `labels` without the elements that evaluated to False with `cond_f`.
-        """
-        return [ll for ll in labels if cond_f(ll)]
-
-    def get_label(name):
-        """
-        Finds the (first) element of the `labels` list whose attribute labelname is `name`.
-
-        Parameters
-        ----------
-        name : str
-            The label with this labelname should be extracted from the list .
-
-        Returns
-        -------
-        CNNectome.utils.label.Label or None
-            If label with labelname `name` is found in the list `labels` return it, otherwise None.
-
-        """
-        filtered = label_filter(lambda l: l.labelname == name)
-        if len(filtered) > 0:
-            return filtered[0]
-        else:
-            return None
-
-    def make_crop_source(crop, subsample_variant=None):
-        """
-        Generate a batch provider for a specific crop, including label data, raw data, generating per label mask,
-        rejection based on `min_masked_voxels` and contrast scaling.
-
-        Parameters
-        ----------
-        crop : dict
-            Dictionary with attributes describing the crop, as defined in database (see CNNectome.utils.cosem_db)
-        subsample_variant : int, str or None
-            If using raw data that has been subsampled from its original resolution, `subsample_variant` is the name
-            of the dataset in the group "volumes/subsampled/raw" containing the subsampled raw data. If None,
-            use the raw data at original resolution from "volumes/raw"
-
-        Returns
-        -------
-        crop_src : gunpowder.batch_provider_tree.BatchProviderTree
-            Gunpowder batch provider tree for grabbing batches from the specified crop.
-        """
-        n5file = zarr.open(ensure_str(crop["parent"]), mode='r')
-        blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
-        blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
-        blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
-        if subsample_variant is None:
-            raw_ds = "volumes/raw"
-        else:
-            raw_ds = "volumes/subsampled/raw/{0:}".format(subsample_variant)
-        label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
-        labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
-        mask_ds = blueprint_mask_ds.format(version=gt_version.lstrip("v"))
-
-        # add sources for all groundtruth labels
-        all_srcs = []
-        # We should really only be adding this with the above if statement, but need it for now because we need to
-        # construct masks from it as separate labelsets contain zeros
-        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-            cropno=crop["number"], file=crop["parent"], ds=label_ds.format(label="all"), ak=ak_labels))
-        all_srcs.append(
-            ZarrSource(crop["parent"],
-                       {ak_labels: label_ds.format(label="all")}
-                       )
-            + Pad(ak_labels, Coordinate(output_size) + crop_width)
-            + DownSample(ak_labels, (2, 2, 2), ak_labels_downsampled)
-        )
-
-        for label in label_filter(lambda l: l.separate_labelset):
-            if all(l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid):
-                ds = label_ds.format(label=label.labelname)
-                assert ds in n5file, "separate dataset {ds:} not present in file {file:}".format(ds=ds,
-                                                                                                 file=n5file.store.path)
-            else:
-                ds = label_ds.format(label="all")
-            logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-                cropno=crop["number"], file=crop["parent"], ds=ds, ak=label.gt_key))
-            all_srcs.append(ZarrSource(crop["parent"], {label.gt_key: ds}) +
-                            Pad(label.gt_key, Coordinate(output_size) + crop_width))
-
-        # add mask source per label
-        labelmask_srcs = []
-        for label in labels:
-            labelmask_ds = labelmask_ds.format(label=label.labelname)
-            if labelmask_ds in n5file:  # specified mask available:
-                logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-                    cropno=crop["number"], file=crop["parent"], ds=labelmask_ds, ak=label.mask_key))
-                labelmask_srcs.append(ZarrSource(crop["parent"],
-                                                 {label.mask_key: labelmask_ds}
-                                                 )
-                                      + Pad(label.mask_key, Coordinate(output_size) + crop_width))
-            else:
-                if label.generic_label is not None:
-                    specific_labels = list(set(label.labelid) - set(label.generic_label))
-                    generic_condition = (all(l in get_all_annotated_label_ids(crop) for l in label.generic_label) or
-                                         all(l in get_all_annotated_label_ids(crop) for l in specific_labels))
-                else:
-                    generic_condition = False
-
-                if all(l in get_all_annotated_label_ids(crop) for l in label.labelid) or generic_condition:
-                    f = lambda val: ((val > 0) * 1).astype(np.bool)
-                else:
-                    f = lambda val: ((val > 0) * 0).astype(np.bool)
-                # This does not work because there are crops that are very close to each other. This would lead to
-                # issues with masking
-                # logging.debug("Adding LambdaSource {f:} for crop {cropno:}, providing {ak}".format(
-                #     cropno=crop["number"], f=f, ak=label.mask_key))
-                # labelmask_srcs.append(
-                #     LambdaSource(
-                #         f,
-                #         label.mask_key,
-                #         {label.mask_key: ArraySpec(voxel_size=voxel_size, interpolatable=False)}
-                #     )
-                # )
-                all_srcs[0] += LambdaFilter(f, ak_labels_downsampled, target_key=label.mask_key, target_spec=ArraySpec(
-                    dtype=np.bool, interpolatable=False))
-        all_srcs.extend(labelmask_srcs)
-
-        # add raw source
-        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-            cropno=crop["number"], file=crop["parent"], ds=raw_ds, ak=ak_raw))
-        raw_src = (
-            ZarrSource(
-                crop["parent"],
-                {ak_raw: raw_ds},
-                array_specs={ak_raw: ArraySpec(voxel_size=voxel_size_input)})
-            + Pad(ak_raw, Coordinate(input_size), 0)
-        )
-        all_srcs.append(raw_src)
-
-        # add gt mask source
-        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-            cropno=crop["number"], file=crop["parent"], ds=mask_ds, ak=ak_mask))
-        mask_src = (
-            ZarrSource(
-                crop["parent"],
-                {ak_mask: mask_ds},
-                array_specs={ak_mask: ArraySpec(interpolatable=False, voxel_size=voxel_size)}
-            )
-        )
-        all_srcs.append(mask_src)
-
-        # combine all sources and pick a random location
-        crop_src = (
-            tuple(all_srcs)
-            + MergeProvider()
-            + RandomLocation()
-            + Reject(ak_mask, min_masked=keep_thr)
-                   )
-
-        # contrast adjustment
-        contr_adj = n5file["volumes/raw"].attrs["contrastAdjustment"]
-        scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
-        shift = - scale * float(contr_adj["min"])
-        logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
-        crop_src += IntensityScaleShift(ak_raw,
-                                        scale,
-                                        shift
-                                        )
-        return crop_src
-
-    def network_setup():
-        """
-        Methods to setup the tensorflow network with its inputs and outputs to be used in the train node.
-
-        Returns
-        -------
-        net_io_names : dict (str -> str)
-            Mapping easily usable names to names of tensors in the tensorflow graph, read from json file that was
-            generated when making the tensorflow graph
-        start_iteration : int
-            Starting iteration of this training. 0 if training this setup for the first time, otherwise read from
-            checkpoint file.
-        inputs: dict (str -> gunpowder.array.ArrayKey)
-            Mapping names of input tensors in tensorflow graph to keys of corresponding arrays in gunpowder batch.
-        outputs: dict (str -> gunpowder.array.ArrayKey)
-            Mapping names of output tensors in tensorflow graph to keys of corresponding arrays in gunpowder batch.
-        """
-        # load net_io_names.json
-        with open("net_io_names.json", "r") as f:
-            net_io_names = json.load(f)
-
-        # find checkpoint from previous training, start a new one if not found
-        if tf.train.latest_checkpoint("."):
-            start_iteration = int(tf.train.latest_checkpoint(".").split("_")[-1])
-            if start_iteration >= max_iteration:
-                logging.info("Network has already been trained for {0:} iterations".format(start_iteration))
-            else:
-                logging.info("Resuming training from {0:}".format(start_iteration))
-        else:
-            start_iteration = 0
-            logging.info("Starting fresh training")
-
-        # define network inputs
-        inputs = dict()
-        inputs[net_io_names["raw"]] = ak_raw
-        inputs[net_io_names["mask"]] = ak_mask
-        for label in labels:
-            inputs[net_io_names["mask_" + label.labelname]] = label.mask_key
-            inputs[net_io_names["gt_" + label.labelname]] = label.gt_dist_key
-            if label.scale_loss or label.scale_key is not None:
-                inputs[net_io_names["w_" + label.labelname]] = label.scale_key
-
-        # define network outputs
-        outputs = dict()
-        for label in labels:
-            outputs[net_io_names[label.labelname]] = label.pred_dist_key
-        return net_io_names, start_iteration, inputs, outputs
 
     keep_thr = float(min_masked_voxels) / np.prod(output_shape)
     one_vx_thr = 1. / np.prod(output_shape)
@@ -481,24 +461,23 @@ def train_until(
     ak_labelmasks_comb = ArrayKey("LABELMASKS_COMBINED")
     input_size = Coordinate(input_shape) * voxel_size_input
     output_size = Coordinate(output_shape) * voxel_size
-    crop_width = Coordinate((max_distance,)* len(voxel_size_labels))
+    crop_width = Coordinate((max_distance,) * len(voxel_size_labels))
     crop_width = crop_width//voxel_size
     if crop_width == 0:
         crop_width *= voxel_size
     else:
-        crop_width= (crop_width+(1,)*len(crop_width)) * voxel_size
-    crop_width = crop_width #(Coordinate((max_distance,) * len(voxel_size_labels))/2 )
-
+        crop_width = (crop_width+(1,)*len(crop_width)) * voxel_size
+    # crop_width = crop_width  # (Coordinate((max_distance,) * len(voxel_size_labels))/2 )
 
     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
     db = client[db_name]  # db_name = "crops"
     collection = db[gt_version]  # gt_version = "v0003"
-    filter = {"completion": {"$gte": completion_min}}
+    db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
-        filter['parent'] = dataset
+        db_filter['parent'] = dataset
     skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1}
 
-    net_io_names, start_iteration, inputs, outputs = network_setup()
+    net_io_names, start_iteration, inputs, outputs = _network_setup()
 
     # construct batch request
     request = BatchRequest()
@@ -525,9 +504,9 @@ def train_until(
     snapshot_data = dict()
     snapshot_data[ak_raw] = "volumes/raw"
     snapshot_data[ak_mask] = "volumes/masks/all"
-    if len(label_filter(lambda l: not l.separate_labelset)) > 0:
+    if len(_label_filter(lambda l: not l.separate_labelset, labels)) > 0:
         snapshot_data[ak_labels] = "volumes/labels/gt_labels"
-    for label in label_filter(lambda l: l.separate_labelset):
+    for label in _label_filter(lambda l: l.separate_labelset, labels):
         snapshot_data[label.gt_key] = "volumes/labels/gt_"+label.labelname
     for label in labels:
         snapshot_data[label.gt_dist_key] = "volumes/labels/gt_dist_" + label.labelname
@@ -542,12 +521,14 @@ def train_until(
     if prioritized_label is not None:
         crop_prioritized_label_indicator = []
 
-    for crop in collection.find(filter, skip):
+    for crop in collection.find(db_filter, skip):
         if len(set(get_all_annotated_label_ids(crop)).intersection(set(get_all_labelids(labels)))) > 0:
             logging.info("Adding crop number {0:}".format(crop["number"]))
             if voxel_size_input != voxel_size:
                 for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
-                    crop_srcs.append(make_crop_source(crop, subsample_variant))
+                    crop_srcs.append(_make_crop_source(crop, subsample_variant, gt_version, labels, ak_raw, ak_labels,
+                                                       ak_labels_downsampled, ak_mask, input_size, output_size,
+                                                       voxel_size_input, voxel_size, crop_width, keep_thr))
                     crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
                     crop_prioritized = is_prioritized(crop, prioritized_label)
@@ -556,7 +537,9 @@ def train_until(
                         [crop_prioritized] * int(np.prod(voxel_size_input/voxel_size))
                     )
             else:
-                crop_srcs.append(make_crop_source(crop))
+                crop_srcs.append(
+                    _make_crop_source(crop, None, gt_version, labels, ak_raw, ak_labels, ak_labels_downsampled, ak_mask,
+                                      input_size, output_size, voxel_size_input, voxel_size, crop_width, keep_thr))
                 crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
                     crop_prioritized = is_prioritized(crop, prioritized_label)
@@ -607,11 +590,11 @@ def train_until(
 
     # combine distances for centrosomes
 
-    centrosome = get_label("centrosome")
-    microtubules = get_label("microtubules")
-    microtubules_out = get_label("microtubules_out")
-    subdistal_app = get_label("subdistal_app")
-    distal_app = get_label("distal_app")
+    centrosome = _get_label("centrosome", labels)
+    microtubules = _get_label("microtubules", labels)
+    microtubules_out = _get_label("microtubules_out", labels)
+    subdistal_app = _get_label("subdistal_app", labels)
+    distal_app = _get_label("distal_app", labels)
 
     # add the centrosomes to the microtubules
     if microtubules_out is not None and centrosome is not None:
@@ -653,7 +636,7 @@ def train_until(
     for label in labels:
         pipeline += TanhSaturate(label.gt_dist_key, dt_scaling_factor)
 
-    for label in label_filter(lambda l: l.scale_loss):
+    for label in _label_filter(lambda l: l.scale_loss, labels):
         if balance_global:
             pipeline += BalanceGlobalByThreshold(
                 label.gt_dist_key,
