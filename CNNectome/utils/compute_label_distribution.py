@@ -3,40 +3,67 @@ import argparse
 import zarr
 import json
 import numpy as np
+import os
+import logging
 from CNNectome.utils.label import Label
 from scipy.ndimage.morphology import generate_binary_structure,binary_dilation, binary_erosion, distance_transform_edt
+from typing import Any, Dict, List, Optional, Tuple
 
 
-def distance(label, **kwargs):
-    inner_distance = distance_transform_edt(binary_erosion(label, border_value=1,
-                                                           structure=generate_binary_structure(label.ndim,
-                                                                                               label.ndim)),
+def distance(labelfield: np.ndarray,
+             **kwargs: Any) -> np.ndarray:
+    """
+    Compute signed distance transform of binary labelfield.
+
+    Args:
+        labelfield: Array of binary labels.
+        **kwargs: Additional keyword arguments passed on to `scipy.ndimage.morphology.distance_transform_edt`
+
+    Returns:
+        Signed distance transform
+    """
+    inner_distance = distance_transform_edt(binary_erosion(labelfield, border_value=1,
+                                                           structure=generate_binary_structure(labelfield.ndim,
+                                                                                               labelfield.ndim)),
                                             **kwargs)
-    outer_distance = distance_transform_edt(np.logical_not(label), **kwargs)
+    outer_distance = distance_transform_edt(np.logical_not(labelfield), **kwargs)
     result = inner_distance - outer_distance
     return result
 
 
-def count_with_add(labelfield, labelid, add_constant):
+def count_with_add(labelfield: np.ndarray,
+                   labelid: int,
+                   add_constant: int) -> int:
+    """
+    Count effective frequency of label that is computationally expanded.
+
+    Args:
+        labelfield: Array of labels.
+        labelid: Id of label to count frequency of.
+        add_constant: Constant to add to distances.
+
+    Returns:
+        Effective frequency of label in the array.
+    """
     binary_labelfield = labelfield == labelid
     distances = distance(binary_labelfield, sampling=(2, 2, 2)) + add_constant
-    return np.sum(distances>0)
+    return np.sum(distances > 0)
 
 
-def get_label_ids_by_category(crop, category):
-    return [l[0] for l in crop['labels'][category]]
+def one_crop(crop: Dict[str, Any],
+             gt_version: str,
+             labels: List[Label]) -> Tuple[Dict[int, int], Dict[int, int]]:
+    """
+    Calculate the distribution of `labels` for one particular crop.
 
+    Args:
+        crop: Instance of an entry in the crop database.
+        gt_version: Version of groundtruth annotations, e.g. "v0003"
+        labels: List of labels to compute distribution for.
 
-def label_filter(cond_f):
-    return [ll for ll in labels if cond_f(ll)]
-
-# def count_with_add(labelfield, labelid, add_constant):
-#     steps = int(add_constant/2)
-#     binary_labelfield = labelfield==labelid
-#     return np.sum(binary_dilation(binary_labelfield, generate_binary_structure(3, 1), steps))
-
-
-def one_crop(crop, gt_version, labels):
+    Returns:
+        Dictionaries of number of positive and negative annotations per label in this `crop`.
+    """
     n5file = zarr.open(str(crop["parent"]), mode="r")
     blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
     blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
@@ -54,13 +81,14 @@ def one_crop(crop, gt_version, labels):
     for b, h in zip(be, hist):
         counts[b] = h
 
-    present_annotated = get_label_ids_by_category(crop, "present_annotated")
-    not_present_annotated = get_label_ids_by_category(crop, "absent_annotated")
+    present_annotated = [ll[0] for ll in crop['labels']["present_annotated"]]
+    not_present_annotated = [ll[0] for ll in crop['labels']["absent_annotated"]]
+
     for ll in present_annotated:
         if ll == 34:
-            print(ll)
+            logging.debug(ll)
         try:
-            label = label_filter(lambda l: l.labelid[0] == ll)[0]
+            label = [lli for lli in labels if lli.labelid[0] == ll][0]
         except IndexError:
             continue
         labelmask_ds = labelmask_ds.format(label=label.labelname)
@@ -91,9 +119,9 @@ def one_crop(crop, gt_version, labels):
             neg[ll] += size - c
     for ll in not_present_annotated:
         if ll == 34:
-            print(ll)
+            logging.debug(ll)
         try:
-            label = label_filter(lambda l: l.labelid[0] == ll)[0]
+            label = [lli for lli in labels if lli.labelid[0] == ll][0]
         except IndexError:
             continue
         size = crop["dimensions"]["x"] * crop["dimensions"]["y"] * crop["dimensions"]["z"] * 8
@@ -101,62 +129,72 @@ def one_crop(crop, gt_version, labels):
     return pos, neg
 
 
-def main(labels, db_username, db_password, db_name="crops", gt_version="v0003", completion_min=6, dataset=None):
+def label_dist(labels: List[Label],
+               db_username: str,
+               db_password: str,
+               db_name: str = "crops",
+               gt_version: str = "v0003",
+               completion_min: int = 6,
+               dataset: Optional[str] = None,
+               path: str = ".") -> Dict[str, Dict[int, int]]:
+    """
+    Compute label distribution.
+
+    Args:
+        labels: List of labels to compute distribution for.
+        db_username: Username for crop database.
+        db_password: Password for crop database.
+        db_name: Name of crop database.
+        gt_version: Version of groundtruth to compute distribution for.
+        completion_min: Minimal completion status for a crop from the database to be included in the distribution.
+        dataset: Dataset for which to calculate label distribution. If None calculate across all datasets.
+        path: Path in which to save distributions.
+
+    Returns:
+        Dictionary with distributions per label with counts for "positives", "negatives" and the sum of both ("sums").
+    """
     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
     db = client[db_name]
     collection = db[gt_version]
-    filter = {"completion": {"$gte": completion_min}}
+    db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
-        filter["parent"] = dataset
-    skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1}
+        db_filter["dataset_id"] = dataset
+    skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1, "dataset_id": 1}
     positives = dict()
     negatives = dict()
-    for l in labels:
-        positives[int(l.labelid[0])] = 0
-        negatives[int(l.labelid[0])] = 0
-    for crop in collection.find(filter, skip):
-        print(crop)
-        # if int(crop["number"]) in [54,55,56,57,58,59,94,95,96,60,61,62,63,64,65,85,86,87,25,26,81,82,83,84,97,98,99,
-        #                            72,73,74,75,76,77,88,89,90,66,67,68,69,70,71,91,92,93]:
-        #     print("Skipping {0:}".format(int(crop["number"])))
-        #     continue
-        # print(crop)
+    for ll in labels:
+        positives[int(ll.labelid[0])] = 0
+        negatives[int(ll.labelid[0])] = 0
+    for crop in collection.find(db_filter, skip):
         pos, neg = one_crop(crop, gt_version, labels)
-        for l, c in pos.items():
-            positives[l] += int(c)
-        for l, c in neg.items():
-            negatives[l] += int(c)
+        for ll, c in pos.items():
+            positives[ll] += int(c)
+        for ll, c in neg.items():
+            negatives[ll] += int(c)
 
     sums = dict()
-    for l in pos.keys():
-        sums[l] = negatives[l]+positives[l]
-    print("positives", positives)
-    print("negatives", negatives)
-    print("sums", sums)
+    for ll in pos.keys():
+        sums[ll] = negatives[ll] + positives[ll]
     stats = dict()
     stats["positives"] = positives
     stats["negatives"] = negatives
     stats["sums"] = sums
     if dataset is None:
-        with open("stats_all.json", "w") as f:
+        with open(os.path.join(path, "stats_all.json"), "w") as f:
             json.dump(stats, f)
     else:
-        shorts = {
-            '/groups/cosem/cosem/data/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm.n5': "HeLa2",
-            '/groups/cosem/cosem/data/HeLa_Cell3_4x4x4nm/HeLa_Cell3_4x4x4nm.n5': "HeLa3",
-            '/groups/cosem/cosem/data/Macrophage_FS80_Cell2_4x4x4nm/Cryo_FS80_Cell2_4x4x4nm.n5': "Macrophage",
-            '/groups/cosem/cosem/data/Jurkat_Cell1_4x4x4nm/Jurkat_Cell1_FS96-Area1_4x4x4nm.n5': "Jurkat"
-        }
-        with open("stats_{dataset:}.json".format(dataset=shorts[dataset]), "w") as f:
+        with open(os.path.join(path, "stats_{dataset:}.json".format(dataset=dataset)), "w") as f:
             json.dump(stats, f)
+    return stats
 
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--db_username", type=str)
-    parser.add_argument("--db_password", type=str)
-    parser.add_argument("--dataset", type=str)
+def main() -> None:
+    parser = argparse.ArgumentParser("Calculate the distribution of labels.")
+    parser.add_argument("--db_username", type=str, help="Username for crop database.")
+    parser.add_argument("--db_password", type=str, help="Password for crop database.")
+    parser.add_argument("--dataset", type=str, help=("Dataset id for which to calculate label distribution. If None "
+                        "calculate across all datasets."))
+    parser.add_argument("--path", type=str, help="Path to save results to as json", default=".")
     args = parser.parse_args()
 
     labels = list()
@@ -201,4 +239,8 @@ if __name__ == "__main__":
         dataset = None
     else:
         dataset = args.dataset
-    main(labels, args.db_username, args.db_password, dataset=dataset)
+    label_dist(labels, args.db_username, args.db_password, dataset=dataset, path=args.path)
+
+
+if __name__ == "__main__":
+    main()
