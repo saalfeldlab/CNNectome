@@ -214,6 +214,7 @@ def compare_rawvsrefined(db: cosem_db.MongoCosemDB,
                          threshold: int = 127) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     """
     Evaluate effect of refinements.
+
     Args:
         db: Database with crop information and evaluation result.
         metric: Metric to use for comparison.

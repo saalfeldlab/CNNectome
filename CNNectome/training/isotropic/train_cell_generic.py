@@ -28,7 +28,7 @@ def get_label_ids_by_category(crop: Dict[str, Any],
     Returns:
         All label ids that belong to the `category` for that crop.
     """
-    return [l[0] for l in crop['labels'][category]]
+    return [ll[0] for ll in crop['labels'][category]]
 
 
 def get_all_annotated_label_ids(crop: Dict[str, Any]) -> List[int]:

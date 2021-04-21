@@ -6,7 +6,6 @@ import logging
 import numpy as np
 
 
-
 def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
     names = dict()
     input_size = unet.min_input_shape

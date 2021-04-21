@@ -22,8 +22,8 @@ def plot_val(db: MongoCosemDB,
 
     Args:
         db: Database with crop information and evaluation results.
-        setup: Setup to plot validation results for
-        labelname: Label to plot validation results for
+        setup: Setup to plot validation results for.
+        labelname: Label to plot validation results for.
         file: File to save validation plot to, if None show plot instead.
         threshold: Threshold to be applied on top of raw predictions to generate binary segmentations for evaluation.
 
