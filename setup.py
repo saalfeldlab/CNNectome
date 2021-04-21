@@ -9,11 +9,11 @@ URL = "https://github.com/saalfeldlab/CNNectome"
 EMAIL = "heinrichl@janelia.hhmi.org"
 AUTHOR = "Larissa Heinrich"
 REQUIRES_PYTHON = ">=3.6"
-VERSION = "2.0.dev31"
 
 REQUIRED = [
     "tensorflow_gpu<1.15",
     "absl-py>=0.9",
+    "appdirs",
     "numpy",
     "scipy<1.6",
     "cython",
@@ -57,6 +57,8 @@ DEPENDENCY_LINKS = [
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "README.md"), "r") as f:
     LONG_DESCRIPTION = "\n" + f.read()
+with open(os.path.join(here, "CNNectome", 'VERSION'), 'r') as version_file:
+    VERSION = version_file.read().strip()
 
 setup(
     name=NAME,
@@ -71,12 +73,14 @@ setup(
     entry_points={
         'console_scripts': [
              'add_missing_n5_attributes = CNNectome.utils.add_missing_n5_attributes:main',
-             'auto_evaluation = CNNectome.validation.organelles.auto_evaluation:main'
+             'auto_evaluation = CNNectome.validation.organelles.auto_evaluation:main',
+             'init_CNNectome_config = CNNectome.utils.load_config:main'
         ],
     },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     dependency_links=DEPENDENCY_LINKS,
+    package_data={'CNNectome': ['VERSION']},
     include_package_data=True,
     license="BSD-2-Clause",
     classifiers=[
