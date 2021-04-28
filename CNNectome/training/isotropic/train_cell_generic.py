@@ -5,6 +5,7 @@ from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
 
 import CNNectome.utils.label
+import CNNectome.utils.cosem_db
 import fuse
 import tensorflow as tf
 import math
@@ -12,7 +13,6 @@ import time
 import json
 import numpy as np
 import logging
-import pymongo
 from typing import Any, Callable, Dict, List, Optional, Union, Sequence, Tuple
 
 
@@ -400,13 +400,10 @@ def train_until(
     input_shape: Union[np.ndarray, List[int]],
     output_shape: Union[np.ndarray, List[int]],
     loss_name: str,
-    db_username: str,
-    db_password: str,
     balance_global: bool = False,
     prioritized_label: Optional[CNNectome.utils.label.Label] = None,
     dataset: Optional[str] = None,
     prob_prioritized: float = 0.5,
-    db_name: str = "crops",
     completion_min: int = 6,
     dt_scaling_factor: int = 50,
     cache_size: int = 5,
@@ -428,8 +425,6 @@ def train_until(
         input_shape: Input shape of network.
         output_shape: Output shape of network.
         loss_name: Name of loss used as stored in net io names json file.
-        db_username: Username for access to database.
-        db_password: Password for access to database.
         balance_global: If Ture, use globabl balancing, i.e. weigh loss for each label using its `frac_pos` and
                         `frac_neg` attributes.
         prioritized_label: Label to use for prioritizing sampling from crops that contain examples of it. If None
@@ -439,7 +434,6 @@ def train_until(
         prob_prioritized: If `prioritized_label` is not None, this is the probability with which to sample from the
                           crops containing the label. Default is .5, which implies sampling equally from crops
                           containing the labels and all others.
-        db_name: Name of database collection with crop information.
         completion_min: Minimal completion status for a crop from the database to be added to the training.
         dt_scaling_factor: Scaling factor to divide distance transform by before applying nonlinearity tanh.
         cache_size: Cache size for queue grabbing batches.
@@ -469,9 +463,8 @@ def train_until(
         crop_width = (crop_width+(1,)*len(crop_width)) * voxel_size
     # crop_width = crop_width  # (Coordinate((max_distance,) * len(voxel_size_labels))/2 )
 
-    client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
-    db = client[db_name]  # db_name = "crops"
-    collection = db[gt_version]  # gt_version = "v0003"
+    db = CNNectome.utils.cosem_db.MongoCosemDB(gt_version=gt_version)
+    collection = db.access("crops", db.gt_version)
     db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
         db_filter['parent'] = dataset

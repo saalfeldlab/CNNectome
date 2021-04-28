@@ -3,6 +3,7 @@ import sys
 import time
 import json
 from functools import partial
+from CNNectome.utils import config_loader
 from simpleference.inference.inference import run_inference_zarr
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict
 from simpleference.backends.gunpowder.preprocess import preprocess
@@ -22,22 +23,21 @@ def single_gpu_inference(path, data_eval, samples, gpu, iteration):
         net_io_names["post_dist"],
         net_io_names["cleft_dist"],
     ]
-    input_shape = (91, 862, 862)
-    output_shape = (71, 650, 650)
+    input_shape = (91*40, 862*4, 862*4)
+    output_shape = (71*40, 650*4, 650*4)
 
     prediction = TensorflowPredict(
         weight_meta_graph,
         inference_meta_graph,
-        input_key=input_key,
-        output_key=output_key,
+        input_keys=input_key,
+        output_keys=output_key,
     )
     t_predict = time.time()
     for k, de in enumerate(data_eval):
         for s in samples:
             print("{0:} ({1:}/{2:}), {3:}".format(de, k, len(data_eval), s))
-            raw_file = "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/{0:}/{1:}.n5".format(
-                de, s
-            )
+            raw_file = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"],
+                                    "{0:}/{1:}.n5".format(de, s))
             out_file = os.path.join(
                 path, "evaluation/{0:}/{1:}/{2:}.n5".format(iteration, de, s)
             )
@@ -51,10 +51,12 @@ def single_gpu_inference(path, data_eval, samples, gpu, iteration):
                 raw_file,
                 out_file,
                 offset_list,
-                input_shape=input_shape,
-                output_shape=output_shape,
+                input_shape_wc=input_shape,
+                output_shape_wc=output_shape,
                 target_keys=("pre_dist", "post_dist", "clefts"),
                 input_key="volumes/raw",
+                input_resolution=(40, 4, 4),
+                target_resolution=(40, 4, 4),
                 log_processed=os.path.join(
                     out_file, "list_gpu_{0:}processed.txt".format(gpu)
                 ),

@@ -50,7 +50,6 @@ final_feature_width = 12 * 6
 
 # groundtruth source parameters
 gt_version = "v0003"
-db_name = 'crops'
 completion_min = 5
 
 
@@ -173,9 +172,6 @@ def train(steps=steps_train):
         input_shape,
         output_shape,
         loss_name,
-        db_username,
-        db_password,
-        db_name=db_name,
         completion_min=completion_min,
         dt_scaling_factor=dt_scaling_factor,
         cache_size=cache_size,
@@ -201,8 +197,6 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
                                                "training network", choices=["training", "inference"],
                         )
-    parser.add_argument("--db_username", type=str, help="username for the database")
-    parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
     parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
     parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
@@ -210,8 +204,6 @@ if __name__ == "__main__":
                         default=(0, 0, 0), nargs='+')
     args = parser.parse_args()
     mode = args.mode
-    db_username = args.db_username
-    db_password = args.db_password
     ckpt = args.ckpt
     input_file = args.input_file
     output_file = args.output_file
@@ -222,8 +214,6 @@ if __name__ == "__main__":
             raise ValueError("script train should not be run with mode inference")
         else:
             mode = "training"
-        assert db_username is not None and db_password is not None, \
-            "db_username and db_password need to be given to run training"
 
     elif args.script == "inference":
         if mode == "training":

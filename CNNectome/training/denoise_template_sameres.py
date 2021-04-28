@@ -303,7 +303,6 @@ def main():
             assert args.model in ["unet", ], "model {0:} does not have iterations".format(str(args.model))
         if args.model in ["unet", ]:
             assert args.iteration is not None, "need to specify iteration for model {0:}".format(str(args.model))
-
         evaluate(args.model, args.iteration, add_input_noise=args.add_input_noise, metric=args.metric, sigma=args.sigma)
 
 

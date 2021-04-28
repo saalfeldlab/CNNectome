@@ -3,11 +3,8 @@ import os
 import zarr
 import numpy as np
 
-gt_version = "v0003"
-
 def get_label_ids_by_category(crop, category):
     return [l[0] for l in crop['labels'][category]]
-
 
 def get_all_annotated_label_ids(crop):
     return get_label_ids_by_category(crop, "present_annotated") + get_label_ids_by_category(crop, "absent_annotated")
@@ -26,6 +23,7 @@ def get_all_annotated_labelnames(crop):
         if all(l in annotated_label_ids for l in label.labelid) or generic_condition:
             annotated_labelnames.append(labelname)
     return annotated_labelnames
+
 
 def get_all_present_labelnames(crop):
     present_labelnames = []
@@ -46,9 +44,11 @@ def get_all_present_labelnames(crop):
             present_labelnames.append(labelname)
     return present_labelnames
 
-def get_offset_and_shape_from_crop(crop):
+
+def get_offset_and_shape_from_crop(crop, gt_version="v0003"):
     n5file = zarr.open(crop["parent"], mode="r")
-    label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/all".format(version=gt_version.lstrip("v"), cropno=crop["number"])
+    label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/all".format(version=gt_version.lstrip("v"),
+                                                                                cropno=crop["number"])
     offset_wc = n5file[label_ds].attrs["offset"][::-1]
     offset = tuple(np.array(offset_wc)/4.)
     shape = tuple(np.array(n5file[label_ds].shape)/2.)
@@ -69,12 +69,12 @@ def get_data_path(crop, s1):
 
 def short_cell_id(crop):
     shorts = {
-        '/groups/cosem/cosem/data/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm.n5': "HeLa2",
-        '/groups/cosem/cosem/data/HeLa_Cell3_4x4x4nm/HeLa_Cell3_4x4x4nm.n5': "HeLa3",
-        '/groups/cosem/cosem/data/Macrophage_FS80_Cell2_4x4x4nm/Cryo_FS80_Cell2_4x4x4nm.n5': "Macrophage",
-        '/groups/cosem/cosem/data/Jurkat_Cell1_4x4x4nm/Jurkat_Cell1_FS96-Area1_4x4x4nm.n5': "Jurkat"
+        'jrc_hela-2': "HeLa2",
+        'jrc_hela-3': "HeLa3",
+        'jrc_mac-2': "Macrophage",
+        'jrc_jurkat-1': "Jurkat"
     }
-    return shorts[crop["parent"]]
+    return shorts[crop["dataset_id"]]
 
 
 def check_label_in_crop(label, crop):

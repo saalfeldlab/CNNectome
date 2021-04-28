@@ -8,6 +8,8 @@ from cremi.evaluation import (
 )
 import logging
 import sys
+import os
+from CNNectome.utils import config_loader
 
 
 def evaluate(test, truth):
@@ -78,9 +80,9 @@ def main(s, mode=0, data=None):
     samples = [(s.split("/")[-1]).split("_")[0]]
     for sample in samples:
         logging.info("evaluating synapse predictions for sample {0:}".format(sample))
-        truth_fn = (
-            "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{"
-            "0:}_padded_20170424.aligned.hdf".format(sample)
+        truth_fn = (os.path.join(
+            config_loader.get_config()["synapses"]["cremi17_data_path"],
+            "sample_{0:}_padded_20170424.aligned.hdf".format(sample))
         )
         if data is not None:
             logging.info(

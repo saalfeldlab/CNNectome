@@ -5,6 +5,7 @@ import os
 import warnings
 from scipy.ndimage.morphology import distance_transform_edt
 import csv
+from CNNectome.utils import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -63,33 +64,6 @@ def normalize(distances, normalize_mode, normalize_args):
         return np.tanh(distances / scale)
     else:
         raise NotImplementedError
-
-    # def __normalize(self, gradients, norm):
-
-
-#
-#    dims = gradients.shape[0]
-#
-#    if norm == 'l1':
-#        factors = sum([np.abs(gradients[d]) for d in range(dims)])
-#    elif norm == 'l2':
-#        factors = np.sqrt(
-#                sum([np.square(gradients[d]) for d in range(dims)]))
-#    else:
-#        raise RuntimeError('norm %s not supported'%norm)
-#
-#    factors[factors < 1e-5] = 1
-#    gradients /= factors
-#
-# def __scale(self, gradients, distances, scale, scale_args):
-#
-#    dims = gradients.shape[0]
-#
-#    if scale == 'exp':
-#        alpha, beta = self.scale_args
-#        factors = np.exp(-distances*alpha)*beta
-#
-#    gradients *= factors
 
 
 def create_prepost_dt(
@@ -150,7 +124,7 @@ def create_dt(
 ):
     boundaries = 1.0 - find_boundaries(labels)
     print(np.sum(boundaries == 0))
-    if False:  # np.sum(boundaries == 0) == 0:
+    if np.sum(boundaries == 0) == 0:
         max_distance = min(dim * vs for dim, vs in zip(labels.shape, voxel_size))
         if np.sum(labels) == 0:
             distances = -np.ones(labels.shape, dtype=np.float32) * max_distance
@@ -189,7 +163,7 @@ def create_dt(
 def main():
     data_sources = ["A", "B", "C"]
 
-    cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/"
+    cremi_dir = config_loader.get_config()["synapses"]["cremi17_data_path"]
     csv_files = [
         os.path.join(cremi_dir, "cleft-partners_" + sample + "_2017.csv")
         for sample in data_sources

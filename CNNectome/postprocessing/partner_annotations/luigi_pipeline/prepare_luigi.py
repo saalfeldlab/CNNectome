@@ -1,5 +1,6 @@
 import luigi
 import os
+from CNNectome.utils import config_loader
 
 
 class CheckCheckpoint(luigi.ExternalTask):
@@ -15,8 +16,8 @@ class CheckCheckpoint(luigi.ExternalTask):
             return 0.0
 
     def output(self):
-        base = os.path.join(
-            "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations/",
+        base = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
+            "data_and_augmentations",
             self.dt,
             self.aug,
             "unet_checkpoint_" + str(self.it),

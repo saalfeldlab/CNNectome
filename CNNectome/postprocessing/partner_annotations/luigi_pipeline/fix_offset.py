@@ -1,12 +1,14 @@
 import h5py
 import os
 import numpy as np
+from CNNectome.utils import config_loader
 
 offsets = dict()
 offsets["A"] = {True: (38, 942, 951), False: (38, 911, 911)}
 offsets["B"] = {True: (37, 1165, 1446), False: (37, 911, 911)}
 offsets["C"] = {True: (37, 1032, 1045), False: (37, 911, 911)}
 samples = ["A", "B", "C"]
+training_dir = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "data_and_augmentations")
 # for it in range(12000, 150000+2000, 2000):
 for it in [10000]:
     for dt in (
@@ -24,7 +26,7 @@ for it in [10000]:
             ):
                 if os.path.exists(
                     os.path.join(
-                        "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                        training_dir,
                         dt,
                         aug,
                         "evaluation",
@@ -35,7 +37,7 @@ for it in [10000]:
                 ):
                     print(
                         os.path.join(
-                            "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                            training_dir,
                             dt,
                             aug,
                             "evaluation",
@@ -47,7 +49,7 @@ for it in [10000]:
                     for s in samples:
                         assert os.path.exists(
                             os.path.join(
-                                "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                                training_dir,
                                 dt,
                                 aug,
                                 "evaluation",
@@ -59,7 +61,7 @@ for it in [10000]:
                     for s in samples:
                         f = h5py.File(
                             os.path.join(
-                                "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                                training_dir,
                                 dt,
                                 aug,
                                 "evaluation",

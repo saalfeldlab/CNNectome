@@ -1,6 +1,6 @@
 from CNNectome.utils import crop_utils
 from CNNectome.validation.organelles.segmentation_metrics import *
-from CNNectome.utils import cosem_db
+from CNNectome.utils import cosem_db, config_loader
 from CNNectome.utils.hierarchy import hierarchy
 from CNNectome.utils.label import Label
 import os
@@ -12,11 +12,6 @@ import tabulate
 import warnings
 import itertools
 import scipy.ndimage
-
-db_host = "cosem.int.janelia.org:27017"
-gt_version = "v0003"
-training_version = "v0003.2"
-eval_results_csv_folder = "/groups/cosem/cosem/computational_evaluation/{training_version:}/csv/".format(training_version=training_version)
 
 
 def downsample(arr, factor=2):
@@ -79,8 +74,10 @@ def extract_binary_class(gt_seg, resolution, label):
 def apply_threshold(prediction, thr=127):
     return (prediction >= thr).astype(np.bool)
 
+
 def make_binary(input):
     return input.astype(np.bool)
+
 
 def read_prediction(prediction_path, pred_ds, offset, shape):
     n5file = zarr.open(prediction_path, mode="r")
@@ -105,23 +102,26 @@ def reconstruct_cytosol_prediction(prediction_path, offset, shape, thr=127):
     return cytosol_binary, resolution
 
 
-def pred_path_without_iteration(setup, crop, s1):
-    default_pred_path = "/nrs/cosem/cosem/training/{0:}/".format(training_version)
-    setup_path = os.path.join(default_pred_path, setup)
-    pred_path = os.path.join(setup_path, crop_utils.get_data_path(crop, s1))
-    return pred_path.split("it{0:}.n5")[0]+"it"
+def pred_path_without_iteration(setup, crop, s1, training_version="v0003.2"):
+    for tsp in config_loader.get_config()["organelles"]["training_setups_paths"].split(","):
+        setup_path = os.path.join(tsp, training_version, setup)
+        if os.path.exists(setup_path):
+            pred_path = os.path.join(setup_path, crop_utils.get_data_path(crop, s1))
+            return pred_path.split("it{0:}.n5")[0] + "it"
+    raise FileNotFoundError("Have not found location for setup {0:}".format(setup))
 
 
-def construct_pred_path(setup, iteration, crop, s1):
-    default_pred_path = '/nrs/cosem/cosem/training/v0003.2/'
-    setup_path = os.path.join(default_pred_path, setup)
-    pred_path = os.path.join(setup_path, crop_utils.get_data_path(crop, s1).format(iteration))
-
-    return pred_path
+def construct_pred_path(setup, iteration, crop, s1, training_version="v0003.2"):
+    for tsp in config_loader.get_config()["organelles"]["training_setups_paths"].split(","):
+        setup_path = os.path.join(tsp, training_version, setup)
+        if os.path.exists(setup_path):
+            pred_path = os.path.join(setup_path, crop_utils.get_data_path(crop, s1).format(iteration))
+            return pred_path
+    raise FileNotFoundError("Have not found location for setup {0:}".format(setup))
 
 
 def construct_refined_path(crop):
-    default_refined_path = "/groups/cosem/cosem/ackermand/paperResultsWithFullPaths/collected/"
+    default_refined_path = config_loader.get_config()["organelles"]["refined_seg_path"]
     short_cell_id = crop_utils.short_cell_id(crop)
     refined_path = os.path.join(default_refined_path, short_cell_id+'.n5')
     return refined_path
@@ -153,7 +153,7 @@ def autodetect_setup(path, ds):
 
 
 def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold, metrics, metric_params, db=None,
-                   csvh=None, save=False, overwrite=False, refined=False):
+                   csvh=None, save=False, overwrite=False, refined=False, gt_version="v0003"):
     results = dict()
     n5 = zarr.open(pred_path, mode="r")
     raw_dataset = n5[pred_ds].attrs["raw_ds"]
@@ -177,7 +177,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
 
     if set(results.keys()) != set(metrics):
         gt_empty = not any(l in crop_utils.get_label_ids_by_category(crop, "present_annotated") for l in label.labelid)
-        offset, shape = crop_utils.get_offset_and_shape_from_crop(crop)
+        offset, shape = crop_utils.get_offset_and_shape_from_crop(crop, gt_version=gt_version)
         if label == "cytosol":
             assert setup == "setup01" or setup == "setup02"
             test_binary, resolution = reconstruct_cytosol_prediction(pred_path, offset, shape, thr=threshold)
@@ -236,20 +236,22 @@ def main(alt_args=None):
                         help="Parameter used for counting false negatives/positives with a tolerance. Only false "
                              "predictions that are farther than this value from the closest pixel where they would be "
                              "correct are counted.")
+    parser.add_argument("--training_version", type=str, default="v0003.2", help="Version of training from which to "
+                                                                                "evaluate setup.")
+    parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth to use for evaluation.")
     parser.add_argument("--save", action='store_true',
                         help="save to database and csv file")
     parser.add_argument("--overwrite", action='store_true',
                         help="overwrite existing entries in database and csv")
     parser.add_argument("--s1", action='store_true', help="use s1 standard directory")
     parser.add_argument("--refined", action='store_true', help="use refined predictions")
-    parser.add_argument("--db_username", type=str, help="username for the database")
-    parser.add_argument("--db_password", type=str, help="password for the database")
     parser.add_argument("--dry-run", action='store_true',
                         help="show list of evaluations that would be run with given arguments without compute anything")
 
     args = parser.parse_args(alt_args)
-    db = cosem_db.MongoCosemDB(args.db_username, args.db_password, host=db_host, gt_version=gt_version,
-                               training_version=training_version)
+    db = cosem_db.MongoCosemDB(write_access=True, training_version=args.training_version, gt_version=args.gt_version)
+    eval_results_csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"],
+                                           db.training_version, "evaluation_results")
     csvhandler = cosem_db.CosemCSV(eval_results_csv_folder)
     if args.overwrite and not args.save:
         raise ValueError("Overwriting should only be set if save is also set")
@@ -275,7 +277,6 @@ def main(alt_args=None):
         assert args.iteration is None
     else:
         assert args.setup is not None
-
 
     num_validations = max(len(list(always_iterable(args.setup))),
                       len(list(always_iterable(args.iteration))),  len(list(always_iterable(args.label))),
@@ -303,7 +304,7 @@ def main(alt_args=None):
             if args.refined:
                 pred_path = construct_refined_path(crop)
             else:
-                pred_path = construct_pred_path(setup, iteration, crop, args.s1)
+                pred_path = construct_pred_path(setup, iteration, crop, args.s1, training_version=args.training_version)
         if not os.path.exists(pred_path):
             raise ValueError("{0:} not found".format(pred_path))
         if not os.path.exists(os.path.join(pred_path, 'attributes.json')):
@@ -355,7 +356,8 @@ def main(alt_args=None):
                         )
                 else:
                     this_setup = setup
-            if not args.refined and pred_path != construct_pred_path(this_setup, iter, crop, args.s1):
+            if not args.refined and pred_path != construct_pred_path(this_setup, iter, crop, args.s1,
+                                                                     training_version=args.training_version):
                 warnings.warn(
                     "You specified pred_path as well as setup and the pred_path does not match the standard "
                     "location."
@@ -381,7 +383,7 @@ def main(alt_args=None):
         for val_params in validations:
             pp, d, s, i, ll, c , r_ds, parent, t = val_params
             results = run_validation(pp, d, s, i, ll, c, t, metric, metric_params, db, csvhandler, args.save,
-                                     args.overwrite, args.refined)
+                                     args.overwrite, args.refined, gt_version=args.gt_version)
             val_params.append(results)
         print("\nResults Summary:")
         tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m), v) for

@@ -1,6 +1,7 @@
 from gunpowder import *
 from gunpowder.tensorflow import *
 from gunpowder.contrib import ZeroOutConstSections, AddBoundaryDistance
+from CNNectome.utils import config_loader
 import tensorflow as tf
 import os
 import math
@@ -10,6 +11,7 @@ import logging
 
 def train_until(
     max_iteration,
+    data_dir,
     data_sources,
     input_shape,
     output_shape,
@@ -28,7 +30,6 @@ def train_until(
     ArrayKey("PREDICTED_DIST")
 
     data_providers = []
-    fib25_dir = "/groups/saalfeld/saalfeldlab/larissa/data/gunpowder/fib25/"
     if "fib25h5" in data_sources:
 
         for volume_name in (
@@ -38,7 +39,7 @@ def train_until(
             "trvol-250-2",
         ):
             h5_source = Hdf5Source(
-                os.path.join(fib25_dir, volume_name + ".hdf"),
+                os.path.join(data_dir, volume_name + ".hdf"),
                 datasets={
                     ArrayKeys.RAW: "volumes/raw",
                     ArrayKeys.GT_LABELS: "volumes/labels/clefts",
@@ -48,7 +49,7 @@ def train_until(
             )
             data_providers.append(h5_source)
 
-    fib19_dir = "/groups/saalfeld/saalfeldlab/larissa/fib19"
+    # fib19_dir = "/groups/saalfeld/saalfeldlab/larissa/fib19"
     # if 'fib19h5' in data_sources:
     #    for volume_name in ("trvol-250", "trvol-600"):
     #        h5_source = prepare_h5source(fib19_dir, volume_name)
@@ -195,19 +196,20 @@ def train_until(
     print("Training finished")
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    data_sources = ["fib25h5"]  # , 'fib19h5']
-    max_iteration = 400000
-    dt_scaling_factor = 50
-    input_shape = (430, 430, 430)
-    output_shape = (218, 218, 218)
-    loss_name = "loss_balanced_syn"
-    train_until(
-        max_iteration,
-        data_sources,
-        input_shape,
-        output_shape,
-        dt_scaling_factor,
-        loss_name,
-    )
+# if __name__ == "__main__":
+#     logging.basicConfig(level=logging.INFO)
+#     data_sources = ["fib25h5"]  # , 'fib19h5']
+#     max_iteration = 400000
+#     dt_scaling_factor = 50
+#     input_shape = (430, 430, 430)
+#     output_shape = (218, 218, 218)
+#     loss_name = "loss_balanced_syn"
+#     train_until(
+#         max_iteration,
+#         "/groups/saalfeld/saalfeldlab/larissa/data/gunpowder/fib25/",
+#         data_sources,
+#         input_shape,
+#         output_shape,
+#         dt_scaling_factor,
+#         loss_name,
+#     )

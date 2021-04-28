@@ -4,15 +4,16 @@ import os
 import csv
 import json
 import logging
+from typing import Any, Dict, List, Optional, Union
+from CNNectome.utils import config_loader
 
 
 class CosemDB(object):
-    def __init__(self, username, password, host, gt_version, training_version):
-        self.host = host
-        self.username = username
-        self.password = password
+    def __init__(self, uri, gt_version, training_version, write_access):
+        self.uri = uri
         self.gt_version = gt_version
         self.training_version = training_version
+        self.write_access = write_access
 
     @lazy_property.LazyProperty
     def client(self):
@@ -49,19 +50,28 @@ class CosemDB(object):
 
 
 class MongoCosemDB(CosemDB):
-    def __init__(self, username, password, host="cosem.int.janelia.org:27017", gt_version='v0003',
-                 training_version='v0003.2'):
-        super(MongoCosemDB, self).__init__(username, password, host, gt_version, training_version)
+    def __init__(self,
+                 uri: Optional[str] = None,
+                 gt_version: str = "v0003",
+                 training_version: str = "v0003.2",
+                 write_access: bool = False):
+        if uri is None:
+            if write_access:
+                uri = config_loader.get_config()["organelles"]["database-private"]
+            else:
+                uri = config_loader.get_config()["organelles"]["database-public"]
+
+        super(MongoCosemDB, self).__init__(uri, gt_version, training_version, write_access)
 
     @lazy_property.LazyProperty
     def client(self):
-        client = pymongo.MongoClient(self.host, username=self.username, password=self.password)
+        client = pymongo.MongoClient(self.uri)
         return client
 
     def access(self, db_name, collection):
         return self.client[db_name][collection]
 
-    def get_crop_by_number(self, number):
+    def get_crop_by_number(self, number: Union[int, str]):
         crop_db = self.access('crops', self.gt_version)
         crop = crop_db.find_one({"number": str(number)})
         return crop
@@ -88,7 +98,7 @@ class MongoCosemDB(CosemDB):
             crops = output_type(crops)
         return crops
 
-    def find(self, query):
+    def find(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
         eval_db = self.access("evaluation", self.training_version)
         result = []
         for qu in eval_db.find(query):
@@ -132,7 +142,7 @@ class CosemCSV(object):
                            "parent_path", "threshold", "refined", "metric", "metric_params", "value"]
 
     def read_evaluation_result(self, query):
-        with open(os.path.join(self.folder, labelname + '.csv', "r")) as f:
+        with open(os.path.join(self.folder, query["label"] + '.csv', "r")) as f:
             reader = csv.DictReader(f, self.fieldnames)
             for row in reader:
                 for k, v in query.items():

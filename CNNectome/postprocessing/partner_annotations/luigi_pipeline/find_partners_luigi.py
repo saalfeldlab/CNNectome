@@ -6,6 +6,7 @@ import numpy.ma as ma
 import scipy.ndimage
 import itertools
 import cremi
+from CNNectome.utils import config_loader
 from cc_luigi import ConnectedComponents
 import logging
 
@@ -671,7 +672,7 @@ class FindPartners(luigi.Task):
             pre_ds = "pre_dist_cropped"
             post_ds = "post_dist_cropped"
             seg_file = os.path.join(
-                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/",
+                config_loader.get_config()["synapses"]["cremieval_path"],
                 self.de,
                 s + ".n5",
             )

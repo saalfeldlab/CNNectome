@@ -1,7 +1,7 @@
 import zarr, numcodecs
 import os
 import numpy as np
-
+from CNNectome.utils import config_loader
 BG_VAL = 0
 
 
@@ -68,9 +68,7 @@ def main():
     # dat_file = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}_sizefilter{' \
     #           '1:}.dat'
 
-    filename_src = (
-        "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/data2016-aligned/{0:}.n5"
-    )
+    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "data2016-aligned/{0:}.n5")
     dataset_src = "volumes/labels/neuron_ids_constis_slf1_cropped"
     dataset_tgt = "volumes/labels/neuron_ids_constis_slf1_sf{0:}_cropped"
     for sample in samples:

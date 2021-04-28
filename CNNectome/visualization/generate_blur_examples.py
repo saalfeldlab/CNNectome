@@ -97,30 +97,6 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
     return factor, scale, shift
 
 
-# def make_examples(size, voxel_size):
-#     names = blur_tf(size)
-#     ak_raw_input = ArrayKey("RAW_INPUT")
-#     ak_raw_blurred = ArrayKey("RAW_BLURRED")
-#     input_size_wc = size * voxel_size
-#     client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
-#     db = client[db_name]
-#     collection = db[gt_version]
-#     filter = {"completion": {"$gte": completion_min}}
-#     skip = {"_id": 0, "parent":1}
-#     raw_datasets = set()
-#     for crop in collection.find(filter, skip):
-#         raw_datasets.add(crop["parent"])
-#     raw_datasets = list(raw_datasets)
-#     prefix = os.path.commonprefix(raw_datasets)
-#     if data_path is not None:
-#         for k, raw_ds in enumerate(raw_datasets):
-#             raw_datasets[k] = raw_ds.replace(prefix, data_path)
-#     inputs = dict()
-#     inputs[names["raw_input"]] = ak_raw_input
-#     outputs=dict()
-#     outputs[names["output"]] = ak_raw_blurred
-
-
 def prepare_cell_inference(n_jobs, raw_data_path, sigma, raw_ds, setup_path, output_path, factor,
                            min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
     # assert os.path.exists(setup_path), "Path to experiment directory does not exist"

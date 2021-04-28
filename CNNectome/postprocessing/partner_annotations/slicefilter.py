@@ -3,6 +3,7 @@ import numcodecs
 import os
 import numpy as np
 import scipy.ndimage
+from CNNectome.utils import config_loader
 
 BG_VAL1 = 0xFFFFFFFFFFFFFFFD
 BG_VAL2 = 0
@@ -79,9 +80,7 @@ def main():
     # filename_src = '/groups/saalfeld/home/papec/Work/neurodata_hdd/cremi_new/sample{0:}.n5'
     # dataset_src = 'segmentation/multicut'
     # filename_tgt = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0}.n5'
-    filename = (
-        "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/data2016-aligned/{0:}.n5"
-    )
+    filename = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"],"data2016-aligned/{0:}.n5")
     dataset_src = "volumes/labels/neuron_ids_constis_cropped"
     dataset_tgt = "volumes/labels/neuron_ids_constis_slf{0:}_cropped"
     # dat_file = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}_constis_slicefilter{' \

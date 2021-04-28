@@ -6,6 +6,7 @@ import numpy as np
 import os
 import logging
 from CNNectome.utils.label import Label
+from CNNectome.utils.cosem_db import MongoCosemDB
 from scipy.ndimage.morphology import generate_binary_structure,binary_dilation, binary_erosion, distance_transform_edt
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -51,8 +52,8 @@ def count_with_add(labelfield: np.ndarray,
 
 
 def one_crop(crop: Dict[str, Any],
-             gt_version: str,
-             labels: List[Label]) -> Tuple[Dict[int, int], Dict[int, int]]:
+             labels: List[Label],
+             gt_version: str = "v0003") -> Tuple[Dict[int, int], Dict[int, int]]:
     """
     Calculate the distribution of `labels` for one particular crop.
 
@@ -130,32 +131,25 @@ def one_crop(crop: Dict[str, Any],
 
 
 def label_dist(labels: List[Label],
-               db_username: str,
-               db_password: str,
-               db_name: str = "crops",
-               gt_version: str = "v0003",
                completion_min: int = 6,
                dataset: Optional[str] = None,
-               path: str = ".") -> Dict[str, Dict[int, int]]:
+               gt_version: str = "v0003",
+               save: Optional[str] = None) -> Dict[str, Dict[int, int]]:
     """
     Compute label distribution.
 
     Args:
         labels: List of labels to compute distribution for.
-        db_username: Username for crop database.
-        db_password: Password for crop database.
-        db_name: Name of crop database.
-        gt_version: Version of groundtruth to compute distribution for.
         completion_min: Minimal completion status for a crop from the database to be included in the distribution.
         dataset: Dataset for which to calculate label distribution. If None calculate across all datasets.
-        path: Path in which to save distributions.
+        gt_version: Version of groundtruth for which to accumulate distribution.
+        save: File to which to save distributions as json. If None, results won't be saved.
 
     Returns:
         Dictionary with distributions per label with counts for "positives", "negatives" and the sum of both ("sums").
     """
-    client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
-    db = client[db_name]
-    collection = db[gt_version]
+    db = MongoCosemDB(gt_version=gt_version)
+    collection = db.access("crops", db.gt_version)
     db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
         db_filter["dataset_id"] = dataset
@@ -166,7 +160,7 @@ def label_dist(labels: List[Label],
         positives[int(ll.labelid[0])] = 0
         negatives[int(ll.labelid[0])] = 0
     for crop in collection.find(db_filter, skip):
-        pos, neg = one_crop(crop, gt_version, labels)
+        pos, neg = one_crop(crop, labels, db.gt_version)
         for ll, c in pos.items():
             positives[ll] += int(c)
         for ll, c in neg.items():
@@ -179,22 +173,22 @@ def label_dist(labels: List[Label],
     stats["positives"] = positives
     stats["negatives"] = negatives
     stats["sums"] = sums
-    if dataset is None:
-        with open(os.path.join(path, "stats_all.json"), "w") as f:
+
+    if save is not None:
+        if not save.endswith(".json"):
+            save += ".json"
+        with open(save, "w") as f:
             json.dump(stats, f)
-    else:
-        with open(os.path.join(path, "stats_{dataset:}.json".format(dataset=dataset)), "w") as f:
-            json.dump(stats, f)
+
     return stats
 
 
 def main() -> None:
     parser = argparse.ArgumentParser("Calculate the distribution of labels.")
-    parser.add_argument("--db_username", type=str, help="Username for crop database.")
-    parser.add_argument("--db_password", type=str, help="Password for crop database.")
     parser.add_argument("--dataset", type=str, help=("Dataset id for which to calculate label distribution. If None "
                         "calculate across all datasets."))
-    parser.add_argument("--path", type=str, help="Path to save results to as json", default=".")
+    parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth.")
+    parser.add_argument("--save", type=str, help="File to save results to as json", default=".")
     args = parser.parse_args()
 
     labels = list()
@@ -239,7 +233,7 @@ def main() -> None:
         dataset = None
     else:
         dataset = args.dataset
-    label_dist(labels, args.db_username, args.db_password, dataset=dataset, path=args.path)
+    label_dist(labels, dataset=dataset, gt_version=args.gt_version, save=args.save)
 
 
 if __name__ == "__main__":

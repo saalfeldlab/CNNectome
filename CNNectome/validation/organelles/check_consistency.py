@@ -357,10 +357,10 @@ def main() -> None:
                         help="Clip distance to check for which metrics using clip distance.")
     parser.add_argument("--threshold", type=int, default=127,
                         help="Threshold to have been applied on top of raw predictions.")
-    parser.add_argument("--db_password", type=str, help="Password to access database.")
-    parser.add_argument("--db_username", type=str, help="Username to access database.")
+    parser.add_argument("--training_version", type=str, default="v0003.2", help="Version of training")
+    parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth")
     args = parser.parse_args()
-    db = cosem_db.MongoCosemDB(args.db_username, args.db_password)
+    db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
     metric_params = {"tol_distance": args.tol_distance,
                      "clip_distance": args.clip_distance}
     if args.type == "completeness":

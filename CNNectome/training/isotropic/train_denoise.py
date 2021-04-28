@@ -13,8 +13,7 @@ import json
 import os
 import numpy as np
 import logging
-import pymongo
-
+import CNNectome.utils.cosem_db
 
 
 def network_setup(net_name, trainable=True):
@@ -49,10 +48,7 @@ def batch_generator(
         input_shape,
         output_shape,
         target_matches,
-        db_username,
-        db_password,
         augmentations,
-        db_name="crops",
         completion_min=6,
         data_path=None,
         intensity_scale_range=(0.75, 1.25),
@@ -146,13 +142,12 @@ def batch_generator(
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
 
-    client = pymongo.MongoClient("cosem.int.janelia.org:27017", username=db_username, password=db_password)
-    db = client[db_name]
-    collection = db[gt_version]
-    filter = {"completion": {"$gte": completion_min}}
+    db = CNNectome.utils.cosem_db.MongoCosemDB(gt_version=gt_version)
+    collection = db.access("crops", db.gt_version)
+    db_filter = {"completion": {"$gte": completion_min}}
     skip = {"_id": 0, "parent":1}
     raw_datasets = set()
-    for crop in collection.find(filter, skip):
+    for crop in collection.find(db_filter, skip):
         raw_datasets.add(crop["parent"])
 
     raw_datasets = list(raw_datasets)
@@ -241,12 +236,8 @@ def train_until(
     net_name,
     input_shape,
     output_shape,
-    loss_name,
     target_matches,
-    db_username,
-    db_password,
     augmentations,
-    db_name="crops",
     completion_min=6,
     data_path=None,
     cache_size=5,
@@ -267,10 +258,7 @@ def train_until(
         input_shape,
         output_shape,
         target_matches,
-        db_username,
-        db_password,
         augmentations,
-        db_name=db_name,
         completion_min=completion_min,
         data_path=data_path,
         intensity_scale_range=intensity_scale_range,
@@ -335,10 +323,7 @@ def evaluate_blur(
         output_shape,
         loss_name,
         target_matches,
-        db_username,
-        db_password,
         augmentations,
-        db_name="crops",
         completion_min=6,
         data_path=None,
         cache_size=5,
@@ -358,10 +343,7 @@ def evaluate_blur(
         input_shape,
         output_shape,
         target_matches,
-        db_username,
-        db_password,
         augmentations,
-        db_name=db_name,
         completion_min=completion_min,
         data_path=data_path,
         intensity_scale_range=intensity_scale_range,

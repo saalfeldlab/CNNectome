@@ -3,24 +3,6 @@ import zarr
 from gunpowder import ArrayKey
 
 
-class N5Dataset(object):
-    def __init__(
-        self,
-        filename,
-        labeled_voxels,
-        special_categories=None,
-        data_dir="/groups/saalfeld/saalfeldlab/larissa/data/cell/{0:}.n5",
-    ):
-        self.filename = filename
-        self.data_dir = data_dir
-        self.full_path = data_dir.format(filename)
-        self.labeled_voxels = labeled_voxels
-        if special_categories is not None:
-            self.special_categories = special_categories
-        else:
-            self.special_categories = tuple()
-
-
 class Label(object):
     def __init__(
         self,

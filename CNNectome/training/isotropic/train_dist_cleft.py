@@ -7,10 +7,12 @@ import math
 import json
 import numpy as np
 import logging
+from CNNectome.utils import config_loader
 
 
 def train_until(
     max_iteration,
+    data_dir,
     data_sources,
     input_shape,
     output_shape,
@@ -38,7 +40,6 @@ def train_until(
         print("Starting fresh training")
     if trained_until >= max_iteration:
         return
-    data_dir = "/groups/saalfeld/saalfeldlab/larissa/data/fib19/mine/"
     for sample in data_sources:
         print(sample)
         h5_source = Hdf5Source(
@@ -162,19 +163,20 @@ def train_until(
     print("Training finished")
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    data_sources = ["01", "02", "03"]  # , 'B', 'C']
-    input_shape = (196, 196, 196)
-    output_shape = (92, 92, 92)
-    dt_scaling_factor = 50
-    max_iteration = 400000
-    loss_name = "loss_balanced_syn"
-    train_until(
-        max_iteration,
-        data_sources,
-        input_shape,
-        output_shape,
-        dt_scaling_factor,
-        loss_name,
-    )
+# if __name__ == "__main__":
+#     logging.basicConfig(level=logging.INFO)
+#     data_sources = ["01", "02", "03"]  # , 'B', 'C']
+#     input_shape = (196, 196, 196)
+#     output_shape = (92, 92, 92)
+#     dt_scaling_factor = 50
+#     max_iteration = 400000
+#     loss_name = "loss_balanced_syn"
+#     train_until(
+#         max_iteration,
+#         "/groups/saalfeld/saalfeldlab/larissa/data/fib19/mine/",
+#         data_sources,
+#         input_shape,
+#         output_shape,
+#         dt_scaling_factor,
+#         loss_name,
+#     )

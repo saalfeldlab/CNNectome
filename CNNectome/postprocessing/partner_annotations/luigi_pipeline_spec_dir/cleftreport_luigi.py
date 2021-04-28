@@ -6,6 +6,7 @@ import h5py
 import json
 import zarr
 import numcodecs
+from CNNectome.utils import config_loader
 from threshold_luigi import Threshold
 
 # d OUTSIDE
@@ -120,7 +121,7 @@ class CleftReport(luigi.Task):
             thr = 127
             testfile = os.path.join(os.path.dirname(self.input().fn), s + ".n5")
             truthfile = os.path.join(
-                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/",
+                config_loader.get_config()["synapses"]["cremieval_path"],
                 self.de,
                 s + ".n5",
             )

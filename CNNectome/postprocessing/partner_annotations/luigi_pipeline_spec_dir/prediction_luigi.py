@@ -6,24 +6,10 @@ import zarr
 import json
 from concurrent.futures import ProcessPoolExecutor
 import subprocess
+from CNNectome.utils import config_loader
 from prepare_luigi import MakeItFolder, CheckCheckpoint
 from simpleference.inference.util import get_offset_lists
-
-
-def single_inference(path, data_eval, samples, gpu, iteration):
-    subprocess.call(
-        [
-            "/groups/saalfeld/home/heinrichl/Projects/CNNectome/postprocessing"
-            "/partner_annotations_single_luigi"
-            "/run_inference"
-            ".sh",
-            path,
-            data_eval,
-            samples,
-            gpu,
-            iteration,
-        ]
-    )
+from .run_prediction import single_gpu_inference
 
 
 class Predict(luigi.Task):
@@ -59,7 +45,7 @@ class Predict(luigi.Task):
 
     def run(self):
 
-        src = "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/{0:}/{1:}.n5"
+        src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5")
         tgt = os.path.join(os.path.dirname(self.input().fn), "{0:}", "{1:}.n5")
         output_shape = (71, 650, 650)
         gpu_list = []
@@ -147,10 +133,10 @@ class Predict(luigi.Task):
             raise AssertionError
 
     def submit_inference(self, data_eval, gpu_list):
+        # todo: figure out how to run this in separate processes that know about the gpu without the explicit
+        #  shell script
         with ProcessPoolExecutor(max_workers=len(gpu_list)) as pp:
-            tasks = [
-                pp.submit(
-                    single_inference,
+            tasks = [single_gpu_inference(
                     self.path,
                     json.dumps(list(data_eval)).replace(" ", "").replace('"', '\\"'),
                     json.dumps(list(self.samples)).replace(" ", "").replace('"', '\\"'),

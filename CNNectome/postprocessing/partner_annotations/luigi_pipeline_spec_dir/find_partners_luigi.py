@@ -6,6 +6,7 @@ import numpy.ma as ma
 import scipy.ndimage
 import itertools
 import cremi
+from CNNectome.utils import config_loader
 from cc_luigi import ConnectedComponents
 import logging
 
@@ -761,7 +762,7 @@ class FindPartners(luigi.Task):
             post_ds = "post_dist_cropped"
             cleft_ds = "clefts_cropped"
             seg_file = os.path.join(
-                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/",
+                config_loader.get_config()["synapses"]["cremieval_path"],
                 self.de,
                 s + ".n5",
             )
@@ -804,10 +805,8 @@ class FindPartners(luigi.Task):
 def main():
     logging.debug("Starting to run partner finding")
     samples = ("A", "B", "C", "A+", "B+", "C+")
-    inp = (
-        "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v9.0/run01/evaluation/186000/data2016-aligned"
-        "/cc.msg"
-    )
+    inp = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
+                       "pre_and_post/pre_and_post-v9.0/run01/evaluation/186000/data2016-aligned/cc.msg")
     output = os.path.join(os.path.dirname(inp), "partners{0:}.msg")
     de = "data2016-aligned"
     thr = 127
@@ -825,7 +824,7 @@ def main():
         post_ds = "post_dist_cropped"
         cleft_ds = "clefts_cropped"
         seg_file = os.path.join(
-            "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/", de, s + ".n5"
+            config_loader.get_config()["synapses"]["cremieval_path"], de, s + ".n5"
         )
         seg_ds = "volumes/labels/neuron_ids_constis_slf1_sf750_cropped"
         if "unaligned" in de:

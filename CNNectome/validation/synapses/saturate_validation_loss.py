@@ -6,7 +6,7 @@ import json
 import os
 import sys
 import zarr
-
+from CNNectome.utils import config_loader
 
 class Clefts:
     def __init__(self, to_be_evaluated, gt, inverted_mask, scale=200.0):
@@ -98,14 +98,15 @@ def bbox2_ND(img):
 def run_evaluation(experiment_name, scale=200):
 
     for sample in ["A", "B", "C"]:
-
-        truth_path = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_20160501.aligned.uncompressed.hdf".format(
+        data_path = config_loader.get_config()["synapses"]["cremi17_data_path"]
+        setups_path = config_loader.get_config()["synapses"]["training_setups_path"]
+        truth_path = os.path.join(data_path, "sample_{0:}_20160501.aligned.uncompressed.hdf".format(
             sample
-        )
+        ))
         truth_ds = "volumes/labels/clefts"
-        mask_path = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_cleftsorig_withvalidation.n5".format(
+        mask_path = os.path.join(data_path, "sample_{0:}_cleftsorig_withvalidation.n5".format(
             sample
-        )
+        ))
         val_ds = "volumes/masks/validation"
         train_ds = "volumes/masks/training"
         truth = h5py.File(truth_path, "r")[truth_ds]
@@ -127,18 +128,17 @@ def run_evaluation(experiment_name, scale=200):
         else:
             iterations = list(range(2000, 56000, 2000))
         for iteration in iterations:
-            validation_json = (
-                "/nrs/saalfeld/heinrichl/synapses/miccai_experiments/{0:}/{1:}.n5/it_{"
+            validation_json = (os.path.join(setups_path, "miccai_experiments/{0:}/{1:}.n5/it_{"
                 "2:}/validation_saturated_s{3:}.json".format(
                     experiment_name, sample, iteration, scale
                 )
-            )
+            ))
             if os.path.exists(validation_json):
                 continue
             else:
-                test_path = "/nrs/saalfeld/heinrichl/synapses/miccai_experiments/{0:}/{1:}.n5".format(
+                test_path = os.path.join(setups_path, "miccai_experiments/{0:}/{1:}.n5".format(
                     experiment_name, sample
-                )
+                ))
                 test_ds = "it_{0:}".format(iteration)
                 print(test_path, test_ds)
                 test = zarr.open(test_path, mode="r")[test_ds]
@@ -184,64 +184,3 @@ def run_evaluation(experiment_name, scale=200):
             # with open(training_json, 'w') as f:
             #    json.dump(t_res, f)
             # del test_train, t_res, test
-
-
-if __name__ == "__main__":
-    processed_configs = []
-    for gpu in range(8):
-        json_file = (
-            "/groups/saalfeld/home/heinrichl/Projects/simpleference/experiments/cremi_validation/{"
-            "0:}_processed_configs.json".format(gpu)
-        )
-        with open(json_file, "r") as f:
-            processed_configs.append(json.load(f))
-    experiment_names = [
-        "baseline_DTU2",
-        "DTU2_unbalanced",
-        "DTU2-small",
-        "DTU2_100tanh",
-        "DTU2_150tanh",
-        "DTU2_Aonly",
-        "DTU2_Bonly",
-        "DTU2_Conly",
-        "DTU2_Adouble",
-        "baseline_DTU1",
-        "DTU1_unbalanced",
-        "DTU2_plus_bdy",
-        "DTU1_plus_bdy",
-        "BCU2",
-        "BCU1",
-    ]
-    scale = 100
-    for experiment_name in experiment_names:
-        if experiment_name != "DTU2_Bonly":
-            iteration = 82000
-        else:
-            iteration = 54000
-        sample = "C"
-        last_config = "config_{0:}_{1:}_{2:}.json".format(
-            experiment_name, sample, iteration
-        )
-        print(last_config)
-        processed = True
-        for gpu in range(8):
-            if last_config not in processed_configs[gpu]:
-                processed = False
-        print("processed:", processed)
-        evaluated = True
-        if processed:
-            validation_json = (
-                "/nrs/saalfeld/heinrichl/synapses/miccai_experiments/{0:}/{1:}.n5/it_{"
-                "2:}/validation_saturated_s{3:}.json".format(
-                    experiment_name, sample, iteration, scale
-                )
-            )
-            if not os.path.exists(validation_json):
-                evaluated = False
-        else:
-            evaluated = False
-        print("evaluated:", evaluated)
-
-        if processed and (not evaluated):
-            print("Running evaluation for", experiment_name)
-            run_evaluation(experiment_name, scale=scale)

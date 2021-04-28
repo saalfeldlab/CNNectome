@@ -5,6 +5,7 @@ import matplotlib.table as tab
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
+from CNNectome.utils import config_loader
 
 iterations = list(range(30000, 150000, 2000))
 colors = {
@@ -22,7 +23,8 @@ linestyles = {
 
 def load_result(data_train, augmentation, data_eval, iteration, mode):
     result_json = os.path.join(
-        "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "data_and_augmentations",
         data_train,
         augmentation,
         "evaluation",
@@ -237,7 +239,8 @@ def summary_plot(data_train, samples):
             plot_cremi_score_by_iteration(samples, trained_on, augmentation, de)
 
     plotfile = os.path.join(
-        "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "data_and_augmentations",
         trained_on,
         "".join(samples) + ".pdf",
     )

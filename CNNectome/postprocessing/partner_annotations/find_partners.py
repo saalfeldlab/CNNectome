@@ -6,6 +6,7 @@ import scipy.ndimage
 import itertools
 import cremi
 import sys
+from CNNectome.utils import config_loader
 from joblib import Parallel, delayed
 import multiprocessing
 
@@ -804,23 +805,25 @@ def main_crop():
         "C+": "sample_C+_85_aff_0.8_cf_hq_dq_dm1_mf0.75.n5",
     }
     for sample in samples:
-        filename_tgt = (
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_predictions_it80000.hdf".format(sample)
-        )
-        syn_file = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop.n5".format(
+        setups_path = config_loader.get_config()["synapses"]["training_setups_path"]
+        cremi17_data_path = config_loader.get_config()["synapses"]["cremi17_data_path"]
+        filename_tgt = os.path.join(setups_path,
+                                    "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_predictions_it80000.hdf".format(
+                                        sample)
+                                    )
+        syn_file = os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop.n5".format(
             sample
-        )
+        ))
         cleft_cc_ds = "predictions_it80000/cleft_dist_cropped_thr127_cc"
         pre_ds = "predictions_it80000/pre_dist_cropped"
         post_ds = "predictions_it80000/post_dist_cropped"
-        seg_file = os.path.join(
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/", segf_name[sample]
+        seg_file = os.path.join(setups_path,
+            "pre_and_post/", segf_name[sample]
         )
         seg_ds = "main"
-        raw_file = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_padded_aligned.n5".format(
+        raw_file = os.path.join(cremi17_data_path, "sample_{0:}_padded_aligned.n5".format(
             sample
-        )
+        ))
         raw_ds = "volumes/raw"
         print("initializing Matchmaker for sample {0:}".format(sample))
         mm = Matchmaker(
@@ -840,18 +843,12 @@ def main_crop():
         print("finding partners for sample {0:}".format(sample))
         mm.write_partners()
         mm.extract_dat(
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_preness.dat".format(sample),
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_postness.dat".format(sample),
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_distances.dat".format(sample),
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_presizes.dat".format(sample),
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_postsizes.dat".format(sample),
-            "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{"
-            "0:}_crop_sizes.dat".format(sample),
+            os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_preness.dat".format(sample)),
+            os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_postness.dat".format(sample)),
+            os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_distances.dat".format(sample)),
+            os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_presizes.dat".format(sample)),
+            os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_postsizes.dat".format(sample)),
+            os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/{0:}_crop_sizes.dat".format(sample)),
         )
         mm.cremi_file.close()
 
@@ -936,8 +933,10 @@ def main(samples):
         "B+": "sample_B+_median_aff_0.8_cf_hq_dq_dm1_mf0.87",
         "C+": "sample_C+_85_aff_0.8_cf_hq_dq_dm1_mf0.75",
     }
+    setups_path = config_loader.get_config()["synapses"]["training_setups_path"]
+    cremi_path = config_loader.get_config()["synapses"]["cremi17_data_path"]
     for sample in samples:
-        path = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/pre_post_accumulated"
+        path = os.path.join(setups_path, "pre_and_post/pre_and_post-v6.3/cremi/pre_post_accumulated")
         path = os.path.join(path, "it{0:}k".format(iteration // 1000))
         path = os.path.join(path, seg)
         path = os.path.join(path, "thr{0:}_cc{1:}".format(thr, cc_thr))
@@ -983,18 +982,16 @@ def main(samples):
         # filename_tgt = os.path.join(path,
         #                             '{0:}_predictions_it80000_gtslf1_acccleftnotdilated_regiondilated_twocrit_thr{' \
         #                '1:}_cc{2:}_st5_pre42_post42_splitcc_ngbrs_mvpts.hdf'.format(sample, thr, cc_thr))
-        syn_file = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v6.3/cremi/{0:}.n5".format(
-            sample
-        )
+        syn_file = os.path.join(setups_path,
+                                "pre_and_post/pre_and_post-v6.3/cremi/{0:}.n5".format(sample))
         cleft_cc_ds = "predictions_it{0:}/cleft_dist_cropped_thr{1:}_cc{2:}".format(
             iteration, thr, cc_thr
         )
         pre_ds = "predictions_it{0:}/pre_dist_cropped".format(iteration)
         post_ds = "predictions_it{0:}/post_dist_cropped".format(iteration)
 
-        seg_file = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5".format(
-            sample
-        )
+        seg_file = os.path.join(setups_path,
+                                "pre_and_post/cremi/{0:}.n5".format(sample))
         if seg == "gtslf1":
             seg_ds = "volumes/labels/neuron_ids_gt_slf1_cropped"
         elif seg == "constislf1sf750":
@@ -1002,26 +999,18 @@ def main(samples):
         elif seg == "gt":
             seg_ds = "volumes/labels/neuron_ids_gt_cropped"
         elif seg == "jans":
-            seg_file = os.path.join(
-                "/nrs/saalfeld/heinrichl/synapses/pre_and_post/",
-                segf_name[sample] + ".n5",
+            seg_file = os.path.join(setups_path,
+                "pre_and_post", segf_name[sample] + ".n5"
             )
             seg_ds = "main"
         elif seg == "jans750":
-            seg_file = os.path.join(
-                "/nrs/saalfeld/heinrichl/synapses/pre_and_post",
-                segf_name[sample] + "_sizefiltered750.n5",
-            )
+            seg_file = os.path.join(setups_path,"pre_and_post", segf_name[sample] + "_sizefiltered750.n5")
             seg_ds = "main"
         if "+" in sample:
-            raw_file = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_padded_aligned.n5".format(
-                sample
-            )
+            raw_file = os.path.join(cremi_path, "sample_{0:}_padded_aligned.n5".format(sample))
             raw_ds = "volumes/raw"
         else:
-            raw_file = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_padded_20170424.aligned.0bg.n5".format(
-                sample
-            )
+            raw_file = os.path.join(cremi_path, "sample_{0:}_padded_20170424.aligned.0bg.n5".format(sample))
             raw_ds = "volumes/raw"
         print("initializing Matchmaker for sample {0:}".format(sample))
         mm = Matchmaker(

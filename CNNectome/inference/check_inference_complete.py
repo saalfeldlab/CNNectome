@@ -4,6 +4,7 @@ import argparse
 import re
 from typing import Tuple
 
+
 def check_completeness_single_job(out_file: str,
                                   job_no: int,
                                   iteration: int) -> bool:

@@ -4,6 +4,7 @@ import zarr
 import itertools
 import argparse
 
+
 def get_slice_shape(sl):
     sh = tuple([sl[0].stop - sl[0].start, sl[1].stop - sl[1].start, sl[2].stop - sl[2].start])
     return sh
@@ -53,6 +54,7 @@ def main():
     parser.add_argument("--chunk_size", type=int, default=(256,256,256), nargs="+")
     args = parser.parse_args()
     save_mask(args.n5file, args.raw_dataset, args.mask_dataset, tuple(args.chunk_size), args.cut_axis)
+
 
 if __name__ == "__main__":
     main()

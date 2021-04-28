@@ -10,6 +10,7 @@ import logging
 
 def train_until(
     max_iteration,
+    cremi_dir,
     data_sources,
     input_shape,
     output_shape,
@@ -28,7 +29,6 @@ def train_until(
     ArrayKey("PREDICTED_PROB")
 
     data_providers = []
-    cremi_dir = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/"
     if tf.train.latest_checkpoint("."):
         trained_until = int(tf.train.latest_checkpoint(".").split("_")[-1])
         print("Resuming training from", trained_until)
@@ -194,11 +194,12 @@ def train_until(
     print("Training finished")
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    data_sources = ["A", "B", "C"]
-    input_shape = (43, 430, 430)
-    output_shape = (23, 218, 218)
-    max_iteration = 400000
-    loss_name = "loss_balanced_syn"
-    train_until(max_iteration, data_sources, input_shape, output_shape, loss_name)
+# if __name__ == "__main__":
+#     logging.basicConfig(level=logging.INFO)
+#     data_sources = ["A", "B", "C"]
+#     input_shape = (43, 430, 430)
+#     output_shape = (23, 218, 218)
+#     max_iteration = 400000
+#     loss_name = "loss_balanced_syn"
+#     train_until(max_iteration, "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/", data_sources, input_shape,
+#                 output_shape, loss_name)

@@ -227,12 +227,6 @@ def convert(in_file, out_file):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    # for sample in ['A', 'B', 'C']:
-    #     file_in = '/groups/saalfeld/saalfeldlab/projects/cremi-synaptic-partners/sample_{' \
-    #               '0:}_padded_20160501.hdf'.format(sample)
-    #     file_out = '/groups/saalfeld/saalfeldlab/larissa/data/cremi-2016/sample_{0:}_padded_20160501.0bg.hdf'.format(
-    #         sample)
-    #     convert(file_in, file_out)
     file_in = sys.argv[1]
     file_out = sys.argv[2]
     convert(file_in, file_out)

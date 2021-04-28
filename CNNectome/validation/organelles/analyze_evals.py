@@ -3,20 +3,13 @@ from CNNectome.utils.setup_utils import autodiscover_labels
 from CNNectome.validation.organelles.check_consistency import max_iteration_for_analysis
 from CNNectome.validation.organelles.run_evaluation import *
 from CNNectome.utils import cosem_db
+from CNNectome.utils import config_loader
 import csv
 import os
 import re
 from CNNectome.utils.hierarchy import hierarchy
 import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-
-
-db_host = "cosem.int.janelia.org:27017"
-gt_version = "v0003"
-training_version = "v0003.2"
-# todo: read directories from a config file
-csv_folder_manual = "/groups/cosem/cosem/computational_evaluation/{0:}/manual/".format(training_version)
-csv_folder_refined = "/groups/cosem/cosem/computational_evaluation/{0:}/refined/".format(training_version)
 
 
 def _best_automatic(db: cosem_db.MongoCosemDB,
@@ -170,6 +163,8 @@ def _best_manual(db: cosem_db.MongoCosemDB,
     # read csv file containing results of manual evaluation, first for best iteration
     c = db.get_crop_by_number(str(cropno))
     cell_identifier = get_cell_identifier(c)
+    csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
+                                     "manual")
     csv_file_iterations = open(os.path.join(csv_folder_manual, cell_identifier + "_iteration.csv"), "r")
     fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
     reader = csv.DictReader(csv_file_iterations, fieldnames)
@@ -303,7 +298,8 @@ def get_diff(db: cosem_db.MongoCosemDB,
     return compare_setup
 
 
-def _get_csv_files(domain: str, cropno: Sequence[Union[int, str]], db: cosem_db.MongoCosemDB) -> List[str]:
+def _get_csv_files(csv_folder_manual: str, domain: str, cropno: Sequence[Union[int, str]],
+                   db: cosem_db.MongoCosemDB) -> List[str]:
     if cropno is None:
         csv_result_files = os.listdir(csv_folder_manual)
         csv_result_files = [fn for fn in csv_result_files if fn.endswith("_{0:}.csv".format(domain))]
@@ -317,7 +313,9 @@ def _get_csv_files(domain: str, cropno: Sequence[Union[int, str]], db: cosem_db.
 
 def _get_setup_queries(cropno: Sequence[Union[int, str]],
                        db: cosem_db.MongoCosemDB) -> List[Dict[str, Union[str, Sequence[str]]]]:
-    csv_result_files = _get_csv_files("setup", cropno, db)
+    csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
+                                     "manual")
+    csv_result_files = _get_csv_files(csv_folder_manual, "setup", cropno, db)
     setup_queries = []
     for csv_f in csv_result_files:
         f = open(os.path.join(csv_folder_manual, csv_f), "r")
@@ -352,7 +350,9 @@ def _get_setup_queries(cropno: Sequence[Union[int, str]],
 
 
 def _get_iteration_queries(cropno: Sequence[Union[int, str]], db: cosem_db.MongoCosemDB) -> List[Dict[str, str]]:
-    csv_result_files = _get_csv_files("iteration", cropno, db)
+    csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
+                                     "manual")
+    csv_result_files = _get_csv_files(csv_folder_manual, "iteration", cropno, db)
     iteration_queries = []
     for csv_f in csv_result_files:
         f = open(os.path.join(csv_folder_manual, csv_f), "r")
@@ -415,7 +415,8 @@ def get_refined_comparisons(db: cosem_db.MongoCosemDB,
     Returns:
         List of queries for which refined predictions exist.
     """
-
+    csv_folder_refined = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
+                                     "refined")
     # get list of csv files relevant for crops
     if cropno is None:
         csv_result_files = os.listdir(csv_folder_refined)

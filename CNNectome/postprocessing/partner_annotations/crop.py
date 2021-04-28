@@ -4,6 +4,7 @@ import os
 import logging
 import h5py
 import numpy as np
+from CNNectome.utils import config_loader
 
 offsets = dict()
 offsets["A"] = {True: (38, 942, 951), False: (38, 911, 911)}
@@ -77,7 +78,7 @@ def crop_to_seg(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, sh
 
 def main():
     samples = ["A", "B", "C"]
-    filename_src = "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/{0:}/{1:}.n5"
+    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5")
     data_eval = [
         "data2016-aligned",
         "data2016-unaligned",
@@ -110,16 +111,11 @@ def main():
 
 def main_seg():
     samples = ["A", "B", "C", "A+", "B+", "C+"]  # ['A', 'C', 'B+', 'C+']
-    filename_src = "/groups/saalfeld/saalfeldlab/larissa/data/cremi-2017/sample_{0:}_padded_20170424.aligned.0bg.n5"
+    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremi17_data_path"],
+                                "sample_{0:}_padded_20170424.aligned.0bg.n5")
     dataset_src = "volumes/labels/neuron_ids"
-    # filename_tgt = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5'
-    # dataset_tgt = 'volumes/labels/neuron_ids_cropped'
-    # filename_src = '/groups/saalfeld/home/papec/Work/neurodata_hdd/cremi_warped/sample{0:}.n5'
-    # filename_src = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5'
-    # dataset_src = 'volumes/labels/neuron_ids_constis_slf1_sf750'
-    # dataset_src = 'segmentations/mc_glia_global2'
-    # dataset_src = 'segmentations/multicut'
-    filename_tgt = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5"
+    filename_tgt = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
+                                "pre_and_post/cremi/{0:}.n5")
     dataset_tgt = "volumes/labels/neuron_ids_gt_cropped"
     for sample in samples:
         print(sample)
@@ -137,7 +133,7 @@ def main_seg():
 
 def main_test_blocks():
     samples = ["A+", "B+", "C+"]
-    filename_src = "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/{0:}/{1:}.n5"
+    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5")
     data_eval = ["data2016-aligned", "data2016-unaligned"]
     datasets_srcs = ["volumes/masks/groundtruth", "segmentation/multicut"]
     dataset_tgts = [
@@ -165,24 +161,24 @@ def main_test_blocks():
                 )
 
 
-def main_birdsnests(sample):
-    filename_src = (
-        "/groups/funke/cremi/01_data/20181003Final/segmentationGroundtruth/{0:}"
-    )
-    if sample == "A+":
-        filename_src = filename_src.format("sample_A+_20181003_Segmentation.merged.h5")
-    elif sample == "B+":
-        filename_src = filename_src.format("sample_B+_20181003_Segmentation.merged.h5")
-    elif sample == "C+":
-        filename_src = filename_src.format("sample_C+_20181003_Segmentation.merged.hdf")
-    dataset_src = "volumes/labels/birdsnests.canvas"
-    dataset_tgt = "volumes/labels/birdsnests.canvas"
-    aligned = True
-    off = offsets[sample][aligned]
-    sh = shapes[sample][aligned]
-    crop_to_seg_h5(filename_src, dataset_src, filename_src, dataset_tgt, off, sh)
+# def main_birdsnests(sample):
+#     filename_src = (
+#         "/groups/funke/cremi/01_data/20181003Final/segmentationGroundtruth/{0:}"
+#     )
+#     if sample == "A+":
+#         filename_src = filename_src.format("sample_A+_20181003_Segmentation.merged.h5")
+#     elif sample == "B+":
+#         filename_src = filename_src.format("sample_B+_20181003_Segmentation.merged.h5")
+#     elif sample == "C+":
+#         filename_src = filename_src.format("sample_C+_20181003_Segmentation.merged.hdf")
+#     dataset_src = "volumes/labels/birdsnests.canvas"
+#     dataset_tgt = "volumes/labels/birdsnests.canvas"
+#     aligned = True
+#     off = offsets[sample][aligned]
+#     sh = shapes[sample][aligned]
+#     crop_to_seg_h5(filename_src, dataset_src, filename_src, dataset_tgt, off, sh)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    main_birdsnests("A+")
+# if __name__ == "__main__":
+#     logging.basicConfig(level=logging.INFO)
+#     main_birdsnests("A+")

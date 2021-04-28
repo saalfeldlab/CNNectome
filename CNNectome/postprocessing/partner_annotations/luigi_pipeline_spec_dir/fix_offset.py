@@ -1,6 +1,7 @@
 import h5py
 import os
 import numpy as np
+from CNNectome.utils import config_loader
 
 offsets = dict()
 offsets["A"] = {True: (38, 942, 951), False: (38, 911, 911)}
@@ -24,7 +25,8 @@ for it in [10000]:
             ):
                 if os.path.exists(
                     os.path.join(
-                        "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                        config_loader.get_config()["synapses"]["training_setups_path"],
+                        "data_and_augmentations",
                         dt,
                         aug,
                         "evaluation",
@@ -35,7 +37,8 @@ for it in [10000]:
                 ):
                     print(
                         os.path.join(
-                            "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                            config_loader.get_config()["synapses"]["training_setups_path"],
+                            "data_and_augmentations",
                             dt,
                             aug,
                             "evaluation",
@@ -47,7 +50,8 @@ for it in [10000]:
                     for s in samples:
                         assert os.path.exists(
                             os.path.join(
-                                "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                                config_loader.get_config()["synapses"]["training_setups_path"],
+                                "data_and_augmentations",
                                 dt,
                                 aug,
                                 "evaluation",
@@ -59,7 +63,8 @@ for it in [10000]:
                     for s in samples:
                         f = h5py.File(
                             os.path.join(
-                                "/nrs/saalfeld/heinrichl/synapses/data_and_augmentations",
+                                config_loader.get_config()["synapses"]["cremieval_path"],
+                                "data_and_augmentations",
                                 dt,
                                 aug,
                                 "evaluation",

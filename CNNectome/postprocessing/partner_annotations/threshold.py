@@ -3,6 +3,7 @@ import numcodecs
 import os
 import numpy as np
 import logging
+from CNNectome.utils import config_loader
 
 
 def threshold(filename_src, dataset_src, filename_tgt, dataset_tgt, thr):
@@ -30,15 +31,16 @@ def threshold(filename_src, dataset_src, filename_tgt, dataset_tgt, thr):
 def main():
     thrs_mult = [[127, 42]]
     samples = ["A", "B", "C", "A+", "B+", "C+"]
-    filename_src = (
-        "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5"
+    setups_path = config_loader.get_config()["synapses"]["training_setups_path"]
+    filename_src = os.path.join(setups_path,
+        "pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5"
     )
     dataset_srcs = [
         "predictions_it100000/cleft_dist_cropped",
         "predictions_it100000/cleft_dist_cropped",
     ]
-    filename_tgt = (
-        "/nrs/saalfeld/heinrichl/synapses/pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5"
+    filename_tgt = os.path.join(setups_path,
+        "pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5"
     )
     dataset_tgts = [
         "predictions_it100000/cleft_dist_cropped_thr{0:}",
@@ -60,7 +62,8 @@ def main():
 
 
 def run():
-    filepath = "/nrs/saalfeld/heinrichl/synapses/cremi_all/cremi_all_0116_01/prediction_cremi_warped_sampleC+_200000.n5"
+    filepath = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
+                            "cremi_all/cremi_all_0116_01/prediction_cremi_warped_sampleC+_200000.n5")
     dataset = "syncleft_dist"
     thr = 0.0
     dataset_tgt = "syncleft_dist_thr{0:}".format(thr)

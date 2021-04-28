@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager
 import numpy as np
 from CNNectome.utils.label import Label
+import argparse
 
 plt.rcParams["svg.fonttype"] = "none"
 
@@ -91,17 +92,17 @@ def get_raw_stats(stats):
     )
 
 
-def plot_hist(counts, label_names, order=None, count_labels=None, colors=None):
+def plot_hist(counts, label_names, order=None, count_labels=None, colors=None, plotfile=None, transparent=True):
     # plt.style.use('dark_background')
     fs = 40
-    flist = matplotlib.font_manager.get_fontconfig_fonts()
-    x = matplotlib.font_manager.findSystemFonts(
-        fontpaths="groups/saalfeld/home/heinrichl/fonts/webfonts/", fontext="ttf"
-    )
-    names = [
-        matplotlib.font_manager.FontProperties(fname=fname).get_name()
-        for fname in flist
-    ]
+    # flist = matplotlib.font_manager.get_fontconfig_fonts()
+    # x = matplotlib.font_manager.findSystemFonts(
+    #     fontpaths="groups/saalfeld/home/heinrichl/fonts/webfonts/", fontext="ttf"
+    # )
+    # names = [
+    #     matplotlib.font_manager.FontProperties(fname=fname).get_name()
+    #     for fname in flist
+    # ]
     plt.rcParams["font.family"] = "Nimbus Sans L"
 
     # plt.rcParams["font.sans-serif"] = "NimbusSansL"
@@ -170,24 +171,22 @@ def plot_hist(counts, label_names, order=None, count_labels=None, colors=None):
     ax.spines["left"].set_visible(False)
     ax.spines["bottom"].set(linewidth=2)
     plt.tight_layout(True)
-
-    plt.savefig(
-        "/groups/saalfeld/home/heinrichl/figures/COSEM/organelle_distribution_both_stylestephan.svg",
-        transparent=True,
-    )
+    if plotfile is not None:
+        plt.savefig(
+            plotfile,
+            transparent=transparent,
+        )
     plt.show()
 
 
 def main():
-    get_raw_stats(get_data("/groups/saalfeld/home/heinrichl/stats.json"))
-    plot_hist(*get_raw_stats(get_data("/groups/saalfeld/home/heinrichl/stats.json")))
-    # labels = list()
-    # labels.append(Label("ecs", 1))
-    # labels.append(Label("blobs", (3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)))
-    # labels.append(Label("membranes", (2,3,6,8,10,12,14,16,18,20,22)))
-    # labels.append(Label("nucleus", (20,21,22,23,24,25,26,27,28,29,37), generic_label=37))
-
-    # plot_hist(*rearrange(labels, get_data("/groups/saalfeld/home/heinrichl/stats.json")))
+    parser = argparse.ArgumentParser("")
+    parser.add_argument("--json", type=str,
+                        help="json file with statistics, can be generated with `utils/compute_label_distribution.py`")
+    parser.add_argument("--plotfile", type=str, help="Location in which to save figure.")
+    parser.add_argument("--transparent", action="store_true", help="whether to save with transparent background")
+    args = parser.parse_args()
+    plot_hist(*get_raw_stats(get_data(args.json)), plotfile=args.plotfile, transparent=args.transparent)
 
 
 if __name__ == "__main__":

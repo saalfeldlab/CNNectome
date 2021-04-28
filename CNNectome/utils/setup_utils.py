@@ -6,6 +6,7 @@ from CNNectome.utils.crop_utils import check_label_in_crop
 from gunpowder import Coordinate
 from types import ModuleType
 from typing import Dict, List
+from CNNectome.utils import config_loader
 
 
 def get_unet_setup(setup: str,
@@ -14,51 +15,38 @@ def get_unet_setup(setup: str,
     Load specific setup config.
 
     Args:
-        setup: Setup to load
-        training_version: version of trainings associated with the desired setup script
+        setup: Setup to load.
+        training_version: version of trainings associated with the desired setup script.
 
     Returns:
         Imported setup config as module.
     """
-
-    # todo: read directories from a config file
-    setup_dir1 = "/nrs/cosem/cosem/training/{training_version:}/{setup:}".format(training_version=training_version,
-                                                                                 setup=setup)
-    # todo: this one should move
-    setup_dir2 = "/nearline/cosem/cosem/training/{training_version:}/FROM_NRS/{setup:}".format(
-        training_version=training_version, setup=setup)
-    setup_dir3 = "/nearline/cosem/cosem/training/{training_version:}/{setup:}".format(training_version=training_version,
-                                                                                      setup=setup)
-    if os.path.exists(setup_dir1):
-        location = setup_dir1
-    elif os.path.exists(setup_dir2):
-        location = setup_dir2
-    elif os.path.exists(setup_dir3):
-        location = setup_dir3
-    else:
-        raise FileNotFoundError("Setup config not found for {setup:}".format(setup=setup))
-
-    # setups can have names that are not python compatible (like include '.') so this trickery is necessary
-    spec = importlib.util.spec_from_file_location("unet_template", os.path.join(location, "unet_template.py"))
-    config = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(config)
-    return config
+    setup_dirs = config_loader.get_config()["organelles"]["training_setups_paths"].split(",")
+    for setup_dir_root in setup_dirs:
+        setup_dir = os.path.join(setup_dir_root, training_version, setup)
+        if os.path.exists(setup_dir):
+            # setups can have names that are not python compatible (like include '.') so this trickery is necessary
+            spec = importlib.util.spec_from_file_location("unet_template", os.path.join(setup_dir, "unet_template.py"))
+            config = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(config)
+            return config
+    raise FileNotFoundError("Setup config not found for {setup:}".format(setup=setup))
 
 
 def detect_8nm(setup: str,
                training_version: str = "v0003.2") -> bool:
     """
-    Check whether
+    Check whether a setup is trained on 8nm data.
 
     Args:
-        setup:
-        training_version:
+        setup: Setup for which to check for training on 8nm data.
+        training_version: version of trainings associated with the `setup`.
 
     Returns:
 
     """
     config = get_unet_setup(setup, training_version=training_version)
-    if tuple(config.voxel_size_input) == (8,8,8):
+    if tuple(config.voxel_size_input) == (8, 8, 8):
         return True
     else:
         return False

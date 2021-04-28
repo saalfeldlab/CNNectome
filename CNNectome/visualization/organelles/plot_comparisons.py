@@ -1,22 +1,22 @@
 from CNNectome.validation.organelles.run_evaluation import *
 from CNNectome.validation.organelles.segmentation_metrics import *
 from CNNectome.utils.hierarchy import short_names
+from CNNectome.validation.organelles.comparisons import compare
+from CNNectome.utils import config_loader, cosem_db
 import csv
+import collections
 import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 from operator import itemgetter
 import os
 from typing import Dict, List, Optional, Sequence, Union
 
-host = "cosem.int.janelia.org:27017"
-gt_version = 'v0003'
-training_version = 'v0003.2'
 fs = 10
 ratio = 1.6
-csv_folder = "/groups/cosem/cosem/computational_evaluation/{0:}/".format(training_version)
 fig_width_per_label = 0.32
 fig_height = 2.55
 sym_val = 'v'
@@ -25,24 +25,40 @@ sym_manual = 's'
 
 
 def sort_generic(labels: Sequence[str],
-                 sorting_metric: str = "dice") -> List[str]:
+                 sorting_metric: str = "dice",
+                 from_csv: bool = False,
+                 db: Optional[cosem_db.MongoCosemDB] = None,
+                 training_version: str = "v0003.2",
+                 tol_distance: int = 40,
+                 clip_distance: int = 200) -> List[str]:
     """
     Sort labels by their average test score.
 
     Args:
         labels: List of labels to be sorted.
-        sorting_metric: Metric to use for sorting. ("dice" or "mean_false_distance")
+        sorting_metric: Metric to use for sorting.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
 
     Returns:
         List of sorted labels.
-
     """
-    csv_files = {"dice": os.path.join(csv_folder, "comparisons/best4nm_across-setups_test_dice.csv"),
-                 "mean_false_distance": os.path.join(csv_folder, "comparisons/best4nm_across-setups_test_mfd.csv")}
-    reader = csv.DictReader(open(csv_files[sorting_metric], "r"))
-    results = []
-    for row in reader:
-        results.append(row)
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons",
+                                "best-4nm_across-setups_test_{0:}.csv".format(sorting_metric))
+        reader = csv.DictReader(open(csv_file, "r"))
+        results = []
+        for row in reader:
+            results.append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        results = compare("best-4nm", db, [sorting_metric], tol_distance=tol_distance,
+                          clip_distance=clip_distance, mode="across_setups", test=True)
+
     for result in results:
         result["label"] = short_names[result["label"]]
     avgs = dict()
@@ -65,7 +81,120 @@ def sort_generic(labels: Sequence[str],
     return labels
 
 
+def plot_generalization(metric: str, label: str,
+                        from_csv: bool = False,
+                        db: Optional[cosem_db.MongoCosemDB] = None,
+                        training_version: str = "v0003.2",
+                        tol_distance: int = 40,
+                        clip_distance: int = 200,
+                        filetype: str = "svg",
+                        transparent: bool = False,
+                        save: bool = False
+                        ) -> None:
+    """
+    Plot generalization metric.
+
+    Args:
+        metric: Metric to use for comparison.
+        label: Label for which to plot generalization matrix.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
+        filetype: Filetype for saving the figures.
+        transparent: Whether to save the figure with a transparent background.
+        save: whether to save the figure.
+    """
+    matplotlib.rcParams['font.sans-serif'] = "Arial"
+    matplotlib.rcParams['font.family'] = "sans-serif"
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons", "generalization_{0:}.csv".format(metric))
+        reader = csv.DictReader(open(csv_file, "r"))
+        all_results = []
+        for row in reader:
+            all_results.append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        all_results = compare("generalization", db, [metric], tol_distance=tol_distance,
+                              clip_distance=clip_distance)
+    remove_entries = []
+    for k, result in enumerate(all_results):
+        if result["label"] != label:
+            remove_entries.append(k)
+    all_results = [r for k, r in enumerate(all_results) if k not in remove_entries]
+
+    # crops = collections.OrderedDict([("jrc_hela-2", "113")
+    #                                 , ("jrc_jurkat-1", "112"),("jrc_hela-3", "111"), ("jrc_macrophage-2", "110")])
+    # setups = collections.OrderedDict(
+    #     [("jrc_hela-2", "setup61"),  ("jrc_jurkat-1", "setup64"), ("jrc_hela-3", "setup63"),
+    #      ("jrc_macrophage-2", "setup62"), ("combined", "setup03")])
+    crops = collections.OrderedDict([("jrc_hela-2", "113"),
+                                     ("jrc_hela-3", "111"),
+                                     ("jrc_jurkat-1", "112"),
+                                     ("jrc_macrophage-2", "110"),
+                                     ])
+    setups = collections.OrderedDict([("jrc_hela-2", "setup61"),
+                                      ("jrc_hela-3", "setup63"),
+                                      ("jrc_jurkat-1", "setup64"),
+                                      ("jrc_macrophage-2", "setup62"),
+                                      ("combined", "setup03")])
+    values = []
+    result_arr = np.zeros((4, 5))
+    fig, ax = plt.subplots()
+
+    for k, (crop_dataset, c) in enumerate(reversed(crops.items())):
+        for j, (setup_dataset, s) in enumerate(setups.items()):
+            for r in all_results:
+                if r["crop"] == c and r["setup"] == s:
+                    result_arr[k][j] = float(r["value"])
+                    print(float(r["value"]))
+                    break
+    vmin = 0
+    if label == "er":
+        cm = "Greens"
+    elif label == "mito":
+        cm = "Oranges"
+    elif label == "nucleus":
+        cm = "Purples"
+    elif label == "plasma_membrane":
+        #cm = "Greys"
+        colors = [(.8,.8,.8), (.1,.1,.1)]
+        n_bins = 255
+        cmap_name = "gray_to_black"
+        cm = mcolors.LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
+    else:
+        cm = "gray"
+        vmin = 0
+
+    im = ax.imshow(result_arr, vmin=vmin, vmax=1, cmap=cm)
+    cbar = ax.figure.colorbar(im, ax=ax)
+    cbar.ax.set_ylabel(display_name(metric), rotation=-90, va="bottom")
+    plt.yticks(list(range(0, 4)), list(reversed(crops.keys())), fontsize=fs)
+    plt.xticks(list(range(0, 5)), list(setups.keys()),  rotation=45, ha="right", fontsize=fs, rotation_mode="anchor")
+    ax.set_aspect("equal")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    plt.ylabel("validation block")
+    plt.xlabel("training dataset")
+    if save:
+        plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
+        plt.savefig(
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "generalization_{0:}_{1:}_{2:}.{3:}".format(metric, label, transparent, filetype)),
+            transparent=transparent)
+        plt.show()
+
+
 def plot_s1_vs_sub(metric: str,
+                   from_csv: bool = False,
+                   db: Optional[cosem_db.MongoCosemDB] = None,
+                   training_version: str = "v0003.2",
+                   tol_distance: int = 40,
+                   clip_distance: int = 200,
                    filetype: str = "svg",
                    transparent: bool = False,
                    save: bool = False) -> None:
@@ -73,27 +202,32 @@ def plot_s1_vs_sub(metric: str,
     Plot the comparison of predicting on simulated 8nm data by randomly subsampling or averaging.
 
     Args:
-        metric: Metric to use for comparison ("dice" or "mean_false_distance")
+        metric: Metric to use for comparison.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
-
-    Returns:
-        None.
     """
 
     fig_width_per_label = 0.279
     fig_height = 2.10505
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
-    if metric == "dice":
-        csv_file = os.path.join(csv_folder, "comparisons/s1vssub_per-setup_test_dice.csv")
-    elif metric == "mean_false_distance":
-        csv_file = os.path.join(csv_folder, "comparisons/s1vssub_per-setup_test_mfd.csv")
-    reader = csv.DictReader(open(csv_file, "r"))
-    all_results = []
-    for row in reader:
-        all_results.append(row)
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons", "s1-vs-sub_per-setup_test_{0:}.csv".format(metric))
+        reader = csv.DictReader(open(csv_file, "r"))
+        all_results = []
+        for row in reader:
+            all_results.append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        all_results = compare("s1-vs-sub", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance,
+                              mode="per_setup", test=True)
     labels = []
     for result in all_results:
         result["label_s1"] = short_names[result["label_s1"]]
@@ -168,13 +302,17 @@ def plot_s1_vs_sub(metric: str,
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
-            "/groups/cosem/cosem/computational_evaluation/v0003.2/comparisons/subsampled_vs_averaged_{0:}_{1:}.{2:}".format(
-                metric, transparent, filetype),
-            transparent=transparent)
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "s1-vs-ss_{0:}_{1:}.{2:}".format(metric, transparent, filetype)), transparent=transparent)
     plt.show()
 
 
 def plot_4nm_vs_8nm(metric: str,
+                    from_csv: bool = False,
+                    db: Optional[cosem_db.MongoCosemDB] = None,
+                    training_version: str = "v0003.2",
+                    tol_distance: int = 40,
+                    clip_distance: int = 200,
                     filetype: str = "svg",
                     transparent: bool = False,
                     save: bool = False) -> None:
@@ -182,7 +320,12 @@ def plot_4nm_vs_8nm(metric: str,
     Plot the comparison of predicting on simulated 8nm data by randomly subsampling or original 4nm data.
 
     Args:
-        metric: Metric to use for comparison ("dice" or "mean_false_distance")
+        metric: Metric to use for comparison.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
@@ -194,14 +337,17 @@ def plot_4nm_vs_8nm(metric: str,
     fig_height = 2.10505
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
-    if metric == "dice":
-        csv_file = os.path.join(csv_folder, "comparisons/4vs8ss_across-setups_test_dice.csv")
-    elif metric == "mean_false_distance":
-        csv_file = os.path.join(csv_folder, "comparisons/4vs8ss_across-setups_test_mfd.csv")
-    reader = csv.DictReader(open(csv_file, "r"))
-    all_results = []
-    for row in reader:
-        all_results.append(row)
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons", "4nm-vs-8nm_across-setups_test_{0:}.csv".format(metric))
+        reader = csv.DictReader(open(csv_file, "r"))
+        all_results = []
+        for row in reader:
+            all_results.append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        all_results = compare("4nm-vs-8nm", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance,
+                              mode="across_setups", test=True)
     labels = []
     for result in all_results:
         result["label_4nm"] = short_names[result["label_4nm"]]
@@ -275,13 +421,18 @@ def plot_4nm_vs_8nm(metric: str,
     plt.ylabel(display_name(metric))
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
-        plt.savefig("/groups/cosem/cosem/computational_evaluation/v0003.2/comparisons/4nm_vs_8nm_{0:}_{1:}.{2:}".format(
-            metric, transparent, filetype),
-            transparent=transparent)
+        plt.savefig(
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "4nm-vs-8nm_{0:}_{1:}.{2:}".format(metric, transparent, filetype)), transparent=transparent)
     plt.show()
 
 
 def plot_all_vs_common_vs_single(metric: str,
+                                 from_csv: bool = False,
+                                 db: Optional[cosem_db.MongoCosemDB] = None,
+                                 training_version: str = "v0003.2",
+                                 tol_distance: int = 40,
+                                 clip_distance: int = 200,
                                  filetype: str = "svg",
                                  transparent: bool = False,
                                  save: bool = False) -> None:
@@ -290,7 +441,12 @@ def plot_all_vs_common_vs_single(metric: str,
     or just a single or few labels.
 
     Args:
-        metric: Metric to use for comparison ("dice" or "mean_false_distance")
+        metric: Metric to use for comparison.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
@@ -300,14 +456,18 @@ def plot_all_vs_common_vs_single(metric: str,
     """
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
-    if metric == "dice":
-        csv_file = os.path.join(csv_folder, "comparisons/allvscommonvssingle4nm_test_dice.csv")
-    elif metric == "mean_false_distance":
-        csv_file = os.path.join(csv_folder, "comparisons/allvscommonvssingle4nm_test_mfd.csv")
-    reader = csv.DictReader(open(csv_file, "r"))
-    all_results = []
-    for row in reader:
-        all_results.append(row)
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons",
+                                "all-vs-common-vs-single_test_{0:}.csv".format(metric))
+        reader = csv.DictReader(open(csv_file, "r"))
+        all_results = []
+        for row in reader:
+            all_results.append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        all_results = compare("all-vs-common-vs-single", db, [metric], tol_distance=tol_distance,
+                              clip_distance=clip_distance, test=True)
     labels = []
     for result in all_results:
         result["label_all"] = short_names[result["label_all"]]
@@ -395,13 +555,19 @@ def plot_all_vs_common_vs_single(metric: str,
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
-            "/groups/cosem/cosem/computational_evaluation/v0003.2/comparisons/all_vs_common_vs_single_{0:}_{1:}.{2:}".format(
-                metric, transparent, filetype), transparent=transparent)
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "all-vs-common-vs-single_{0:}_{1:}.{2:}".format(metric, transparent, filetype)),
+            transparent=transparent)
     plt.show()
 
 
 def plot_datasets(metric: str,
                   add_manual: bool = False,
+                  from_csv: bool = False,
+                  db: cosem_db.MongoCosemDB = None,
+                  training_version: str = "v0003.2",
+                  tol_distance: int = 40,
+                  clip_distance: int = 200,
                   filetype: str = "svg",
                   transparent: bool = False,
                   save: bool = False) -> None:
@@ -412,6 +578,11 @@ def plot_datasets(metric: str,
     Args:
         metric: Metric to use for comparison ("dice" or "mean_false_distance")
         add_manual: Whether to include scores after manual evaluations in the plot.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
@@ -421,27 +592,36 @@ def plot_datasets(metric: str,
     """
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
-    if metric == "dice":
-        csv_file_test = os.path.join(csv_folder, "comparisons/best4nm_across-setups_test_dice.csv")
-        csv_file_validation = os.path.join(csv_folder, "comparisons/best4nm_across-setups_validation_dice.csv")
-        csv_file_manual = os.path.join(csv_folder, "comparisons/dicevsmanual_across-setups_test.csv")
-    elif metric == "mean_false_distance":
-        csv_file_test = os.path.join(csv_folder, "comparisons/best4nm_across-setups_test_mfd.csv")
-        csv_file_validation = os.path.join(csv_folder, "comparisons/best4nm_across-setups_validation_mfd.csv")
-        csv_file_manual = os.path.join(csv_folder, "comparisons/mfdvsmanual_across-setups_test.csv")
-    reader_test = csv.DictReader(open(csv_file_test, "r"))
-    reader_validation = csv.DictReader(open(csv_file_validation, "r"))
-    reader_manual = csv.DictReader(open(csv_file_manual, "r"))
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file_test = os.path.join(csv_folder, "comparisons", "best-4nm_across-setups_test_{0:}.csv".format(metric))
+        csv_file_validation = os.path.join(csv_folder, "comparisons",
+                                           "best-4nm_across-setups_validation_{0:}.csv".format(metric))
+        csv_file_manual = os.path.join(csv_folder, "comparisons",
+                                       "metrics_across-setups_test_{0:}-vs-manual.csv".format(metric))
+        reader_test = csv.DictReader(open(csv_file_test, "r"))
+        reader_validation = csv.DictReader(open(csv_file_validation, "r"))
+        reader_manual = csv.DictReader(open(csv_file_manual, "r"))
 
-    test_results = []
-    for row in reader_test:
-        test_results.append(row)
-    validation_results = []
-    for row in reader_validation:
-        validation_results.append(row)
-    manual_results = []
-    for row in reader_manual:
-        manual_results.append(row)
+        test_results = []
+        for row in reader_test:
+            test_results.append(row)
+        validation_results = []
+        for row in reader_validation:
+            validation_results.append(row)
+        manual_results = []
+        for row in reader_manual:
+            manual_results.append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        test_results = compare("best-4nm", db, [metric], tol_distance=tol_distance,
+                               clip_distance=clip_distance,
+                               test=True, mode="across_setups")
+        validation_results = compare("best-4nm", db, [metric], tol_distance=tol_distance,
+                                     clip_distance=clip_distance, test=False, mode="across_setups")
+        manual_results = compare("metrics", db, [metric, "manual"],
+                                 tol_distance=tol_distance, clip_distance=clip_distance, mode="across_setups",
+                                 test=True)
     labels = []
     crops = []
     for result in test_results:
@@ -588,12 +768,17 @@ def plot_datasets(metric: str,
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
-            os.path.join(csv_folder, "comparisons/datasets_{0:}_{1:}.{2:}".format(metric, transparent, filetype)),
-            transparent=transparent)
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "datasets_{0:}_{1:}.{2:}".format(metric, transparent, filetype)), transparent=transparent)
     plt.show()
 
 
 def plot_rawvsrefined_single(metric: str,
+                             from_csv: bool = False,
+                             db: cosem_db.MongoCosemDB = None,
+                             training_version: str = "v0003.2",
+                             tol_distance: int = 40,
+                             clip_distance: int = 200,
                              filetype: str = "svg",
                              transparent: bool = False,
                              save: bool = False) -> None:
@@ -601,7 +786,12 @@ def plot_rawvsrefined_single(metric: str,
     Plot the comparison of raw thresholded predictions and refined predictions for a single metric.
 
     Args:
-        metric: Metric to use for comparison ("dice", "precision", "recall" or "mean_false_distance")
+        metric: Metric to use for comparison.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
@@ -611,25 +801,17 @@ def plot_rawvsrefined_single(metric: str,
     """
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
-
-    csv_files = {"dice": os.path.join(csv_folder, "comparisons/rawvsrefined_dice.csv"),
-                 "mean_false_distance": os.path.join(csv_folder, "comparisons/rawvsrefined_mfd.csv"),
-                 "precision": os.path.join(csv_folder, "comparisons/rawvsrefined_precision.csv"),
-                 "recall": os.path.join(csv_folder, "comparisons/rawvsrefined_recall.csv")}
-
-    reader = csv.DictReader(open(csv_files[metric], "r"))
-    results = []
-    for row in reader:
-        results.append(row)
-    if metric == "precision" or metric == "recall":
-        sort_metric = "dice"
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons", "raw-vs-refined_{metric:}.csv".format(metric=metric))
+        reader = csv.DictReader(open(csv_file, "r"))
+        results = []
+        for row in reader:
+            results.append(row)
     else:
-        sort_metric = metric
-    sort_reader = csv.DictReader(open(csv_files[sort_metric], "r"))
-    for row in sort_reader:
-        for result in results:
-            if result["label_raw"] == row["label_raw"] and result["crop_raw"] == row["crop_raw"]:
-                result["value_sort"] = row["value_raw"]
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        results = compare("raw-vs-refined", db, [metric], tol_distance=tol_distance,
+                          clip_distance=clip_distance)
 
     labels = []
     for result in results:
@@ -724,20 +906,31 @@ def plot_rawvsrefined_single(metric: str,
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
-            "/groups/cosem/cosem/computational_evaluation/v0003.2/comparisons/raw_vs_refined_{0:}_{1:}.{2:}".format(
-                metric, transparent, filetype), transparent=transparent)
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "raw-vs-refined_{0:}_{1:}.{2:}".format(metric, transparent, filetype)),
+            transparent=transparent)
     plt.show()
 
 
-def plot_rawvsrefined(metrics: Sequence[str],
-                      filetype: str = "svg",
-                      transparent: bool = False,
-                      save: bool = False) -> None:
+def plot_raw_vs_refined(metrics: Sequence[str],
+                        from_csv: bool = False,
+                        db: cosem_db.MongoCosemDB = None,
+                        training_version: str = "v0003.2",
+                        tol_distance: int = 40,
+                        clip_distance: int = 200,
+                        filetype: str = "svg",
+                        transparent: bool = False,
+                        save: bool = False) -> None:
     """
     Plot the comparison of raw thresholded predictions and refined predictions for a number of metrics.
 
     Args:
-        metric: Metrics to use for comparison (options: "dice", "precision", "recall", "mean_false_distance")
+        metrics: Metrics to use for comparison.
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
@@ -750,26 +943,28 @@ def plot_rawvsrefined(metrics: Sequence[str],
         return
     matplotlib.rcParams['font.sans-serif'] = 'Arial'
     matplotlib.rcParams['font.family'] = 'sans-serif'
-
-    csv_files = {"dice": os.path.join(csv_folder, "comparisons/rawvsrefined_dice.csv"),
-                 "mean_false_distance": os.path.join(csv_folder, "comparisons/rawvsrefined_mfd.csv"),
-                 "precision": os.path.join(csv_folder, "comparisons/rawvsrefined_precision.csv"),
-                 "recall": os.path.join(csv_folder, "comparisons/rawvsrefined_recall.csv")}
     results = {}
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        csv_file = os.path.join(csv_folder, "comparisons", "raw-vs-refined_{metric:}.csv")
+        for metric in enumerate(metrics):
+            results[metric] = []
+            reader = csv.DictReader(open(csv_file.format(metric=metric), "r"))
+            for row in reader:
+                results[metric].append(row)
+    else:
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        for metric in metrics:
+            results[metric] = compare("raw-vs-refined", db, [metric], tol_distance=tol_distance,
+                                      clip_distance=clip_distance)
+    labels = []
     for n, metric in enumerate(metrics):
-        results[metric] = []
-        reader = csv.DictReader(open(csv_files[metric], "r"))
-        for row in reader:
-            results[metric].append(row)
-        if n == 0:
-            labels = []
         for result in results[metric]:
             result["label_raw"] = short_names[result["label_raw"]]
             result["label_refined"] = short_names[result["label_refined"]]
             result["value_raw"] = float(result["value_raw"])
             result["value_refined"] = float(result["value_refined"])
-            if n == 0:
-                labels.append(result["label_raw"])
+            labels.append(result["label_raw"])
     labels = list(set(labels))
     # avgs = dict()
     # for label in labels:
@@ -848,40 +1043,49 @@ def plot_rawvsrefined(metrics: Sequence[str],
                       handletextpad=.025)
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
-        plt.savefig(os.path.join(csv_folder, "comparisons/raw_vs_refined_{0:}_{1:}.{2:}".format('_'.join(metrics),
-                                                                                                transparent,
-                                                                                                filetype)),
-                    transparent=transparent)
+        plt.savefig(
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "raw-vs-refined_{0:}_{1:}.{2:}".format('_'.join(metrics), transparent, filetype)),
+            transparent=transparent)
     plt.show()
 
 
 def _assemble_metriccomparison_results(
         metric1: str,
-        metric2: str) -> Dict[str, Dict[str, Dict[str, List[Dict[str, Union[str, float]]]]]]:
+        metric2: str,
+        from_csv: bool = False,
+        db: Optional[cosem_db.MongoCosemDB] = None,
+        training_version: str = "v0003.2",
+        tol_distance: int = 40,
+        clip_distance: int = 200,
+) -> Dict[str, Dict[str, Dict[str, List[Dict[str, Union[str, float]]]]]]:
     results = dict()
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        across_setups_test = os.path.join(csv_folder, "comparisons",
+                                          "metrics_across-setups_test_{0:}".format("-vs-".join([metric1, metric2])))
+        across_setups_validation = os.path.join(csv_folder, "comparisons",
+                                                "metrics_across-setups_validation_{0:}".format(
+                                                    "-vs-".join([metric1, metric2])))
+        per_setup_test = os.path.join(csv_folder, "comparisons",
+                                      "metrics_per-setup_test_{0:}".format("-vs-".join([metric1, metric2])))
+        per_setup_validation = os.path.join(csv_folder, "comparisons",
+                                            "metrics_per-setup_validation_{0:}".format("-vs-".join([metric1, metric2])))
 
-    if metric1 == "dice" and metric2 == "manual":
-        fn = "dicevsmanual"
-    elif metric1 == "mean_false_distance" and metric2 == "manual":
-        fn = "mfdvsmanual"
-    elif metric1 == "mean_false_distance" and metric2 == "dice":
-        fn = "mfdvsdice"
-    elif metric1 == "dice" and metric2 == "mean_false_distance":
-        fn = "dicevsmfd"
-    elif metric1 == "manual":
-        raise ValueError("First specified metric needs to be measurable metric, i.e. not manual")
+        reader_across_setups_test = csv.DictReader(open(across_setups_test, "r"))
+        reader_across_setups_validation = csv.DictReader(open(across_setups_validation, "r"))
+        reader_per_setup_test = csv.DictReader(open(per_setup_test, "r"))
+        reader_per_setup_validation = csv.DictReader(open(per_setup_validation, "r"))
     else:
-        raise ValueError("Data not available for metrics {0:}/{1:}".format(metric1, metric2))
-
-    across_setups_test = os.path.join(csv_folder, "comparisons/{0:}_across-setups_test.csv".format(fn))
-    across_setups_validation = os.path.join(csv_folder, "comparisons/{0:}_across-setups_validation.csv".format(fn))
-    per_setup_test = os.path.join(csv_folder, "comparisons/{0:}_per-setup_test.csv".format(fn))
-    per_setup_validation = os.path.join(csv_folder, "comparisons/{0:}_per-setup_validation.csv".format(fn))
-
-    reader_across_setups_test = csv.DictReader(open(across_setups_test, "r"))
-    reader_across_setups_validation = csv.DictReader(open(across_setups_validation, "r"))
-    reader_per_setup_test = csv.DictReader(open(per_setup_test, "r"))
-    reader_per_setup_validation = csv.DictReader(open(per_setup_validation, "r"))
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        reader_across_setups_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                            clip_distance=clip_distance, mode="across_setups", test=True)
+        reader_across_setups_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                                  clip_distance=clip_distance, mode="across_setups", test=False)
+        reader_per_setup_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                        clip_distance=clip_distance, mode="per_setup", test=True)
+        reader_per_setup_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                              clip_distance=clip_distance, mode="per_setup", test=False)
 
     for row in reader_across_setups_test:
         if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw/s1":
@@ -1005,6 +1209,11 @@ def _assemble_metriccomparison_results(
 
 def plot_metric_comparison_by_label(metric1: str,
                                     metric2: str,
+                                    from_csv: bool = False,
+                                    db: cosem_db.MongoCosemDB = None,
+                                    training_version: str = "v0003.2",
+                                    tol_distance: int = 40,
+                                    clip_distance: int = 200,
                                     filetype: str = "svg",
                                     transparent: bool = False,
                                     save: bool = False) -> None:
@@ -1013,9 +1222,13 @@ def plot_metric_comparison_by_label(metric1: str,
     via `metric1`, comparing optimizing setup/iteration via `metric1` and `metric2`.
 
     Args:
-        metric1: Metric to use for comparison ("dice" or "mean_false_distance")
-        metric2: Metric to compare to, used as alternative for optimizing setup/iteration
-                 ("dice"/"mean_false_distance"/"manual").
+        metric1: Metric to use for comparison
+        metric2: Metric to compare to, used as alternative for optimizing setup/iteration ( can include "manual")
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
@@ -1026,7 +1239,9 @@ def plot_metric_comparison_by_label(metric1: str,
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
 
-    results = _assemble_metriccomparison_results(metric1, metric2)
+    results = _assemble_metriccomparison_results(metric1, metric2, from_csv=from_csv, db=db,
+                                                 training_version=training_version, tol_distance=tol_distance,
+                                                 clip_distance=clip_distance)
     labels = []
     for crop, value_by_crop in results.items():
         labels.extend(list(value_by_crop.keys()))
@@ -1156,17 +1371,20 @@ def plot_metric_comparison_by_label(metric1: str,
     plt.ylabel(display_name(metric1))
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
-
         plt.savefig(
-            os.path.join(csv_folder, "comparisons/metrics_by_label_{0:}vs{1:}_{2:}.{3:}".format(metric1, metric2,
-                                                                                                transparent,
-                                                                                                filetype)),
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "metrics-by-label_{0:}-vs-{1:}_{2:}.{3:}".format(metric1, metric2, transparent, filetype)),
             transparent=transparent)
     plt.show()
 
 
 def plot_metric_comparison(metric1: str,
                            metric2: str,
+                           from_csv: bool = False,
+                           db: cosem_db.MongoCosemDB = None,
+                           training_version: str = "v0003.2",
+                           tol_distance: int = 40,
+                           clip_distance: int = 200,
                            filetype: str = "svg",
                            transparent: bool = False,
                            label: Optional[str] = None,
@@ -1177,9 +1395,13 @@ def plot_metric_comparison(metric1: str,
     optimizing the configuration (setup/iteration).
 
     Args:
-        metric1: Metric to use for comparison ("dice" or "mean_false_distance")
-        metric2: Metric to compare to, used as alternative for optimizing setup/iteration
-                 ("dice"/"mean_false_distance"/"manual").
+        metric1: Metric to use for comparison.
+        metric2: Metric to compare to, used as alternative for optimizing setup/iteration (can include "manual").
+        from_csv: Read results from csv file in standardized location.
+        db: Database with evaluation results, needed if `from_csv` is `False`.
+        training_version: Version of trainings to compare.
+        tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
+        clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         label: Only plot results for this label. If None, plot all.
@@ -1190,29 +1412,32 @@ def plot_metric_comparison(metric1: str,
     """
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
+    if from_csv:
+        csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
+        across_setups_test = os.path.join(csv_folder, "comparisons",
+                                          "metrics_across-setups_test_{0:}".format("-vs-".join([metric1, metric2])))
+        across_setups_validation = os.path.join(csv_folder, "comparisons",
+                                                "metrics_across-setups_validation_{0:}".format(
+                                                    "-vs-".join([metric1, metric2])))
+        per_setup_test = os.path.join(csv_folder, "comparisons",
+                                      "metrics_per-setup_test_{0:}".format("-vs-".join([metric1, metric2])))
+        per_setup_validation = os.path.join(csv_folder, "comparisons",
+                                            "metrics_per-setup_validation_{0:}".format("-vs-".join([metric1, metric2])))
 
-    if metric1 == "dice" and metric2 == "manual":
-        fn = "dicevsmanual"
-    elif metric1 == "mean_false_distance" and metric2 == "manual":
-        fn = "mfdvsmanual"
-    elif metric1 == "mean_false_distance" and metric2 == "dice":
-        fn = "mfdvsdice"
-    elif metric1 == "dice" and metric2 == "mean_false_distance":
-        fn = "dicevsmfd"
-    elif metric1 == "manual":
-        raise ValueError("First specified metric needs to be measurable metric, i.e. not manual")
+        reader_across_setups_test = csv.DictReader(open(across_setups_test, "r"))
+        reader_across_setups_validation = csv.DictReader(open(across_setups_validation, "r"))
+        reader_per_setup_test = csv.DictReader(open(per_setup_test, "r"))
+        reader_per_setup_validation = csv.DictReader(open(per_setup_validation, "r"))
     else:
-        raise ValueError("Data not available for metrics {0:}/{1:}".format(metric1, metric2))
-    across_setups_test = os.path.join(csv_folder, "comparisons/{0:}_across-setups_test.csv".format(fn))
-    across_setups_validation = os.path.join(csv_folder, "comparisons/{0:}_across-setups_validation.csv".format(fn))
-    per_setup_test = os.path.join(csv_folder, "comparisons/{0:}_per-setup_test.csv".format(fn))
-    per_setup_validation = os.path.join(csv_folder, "comparisons/{0:}_per-setup_validation.csv".format(fn))
-
-    reader_across_setups_test = csv.DictReader(open(across_setups_test, "r"))
-    reader_across_setups_validation = csv.DictReader(open(across_setups_validation, "r"))
-    reader_per_setup_test = csv.DictReader(open(per_setup_test, "r"))
-    reader_per_setup_validation = csv.DictReader(open(per_setup_validation, "r"))
-
+        assert db is not None, "Need access to database if results aren't read from csv file."
+        reader_across_setups_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                            clip_distance=clip_distance, mode="across_setups", test=True)
+        reader_across_setups_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                                  clip_distance=clip_distance, mode="across_setups", test=False)
+        reader_per_setup_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                        clip_distance=clip_distance, mode="per_setup", test=True)
+        reader_per_setup_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
+                                              clip_distance=clip_distance, mode="per_setup", test=False)
     plt.figure(figsize=(fig_width_per_label * 2, fig_width_per_label * 2))
     ax = plt.gca()
     ax.set_axisbelow(True)
@@ -1331,46 +1556,82 @@ def plot_metric_comparison(metric1: str,
     plt.tight_layout()
     if save:
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
-        plt.savefig(os.path.join(csv_folder, "comparisons/datasets_{0:}vs{1:}_{2:}.{3:}".format(
-            metric1, metric2, transparent, filetype)), transparent=transparent)
+        plt.savefig(
+            os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "comparisons",
+                         "datasets_{0:}-vs-{1:}_{2:}.{3:}".format(metric1, metric2, transparent, filetype)),
+            transparent=transparent)
     plt.show()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser("Make paper comparison plots")
     parser.add_argument("plot", type=str, choices=["s1_vs_sub", "best_per_label", "4nm_vs_8nm",
-                                                   "all_vs_common_vs_single", "datasets", "metrics",
+                                                   "all_vs_common_vs_single", "generalization", "datasets", "metrics",
                                                    "metrics_by_label", "raw_vs_refined"])
+    # can be run for any of the metrics, but plot layout is generally optimized for dice and/or mean_false_distance,
+    # other metrics prob need some adaptations
     parser.add_argument("--metric", type=str, default=None, help="metric to evaluate",
                         choices=list(em.value for em in EvaluationMetrics) + ["manual"], nargs="+")
     parser.add_argument("--label", type=str, default=None, help="restrict metric comparison plot to one label")
     parser.add_argument("--manual", action="store_true", help="add manual results to datasets plot")
+    parser.add_argument("--from_csv", action="store_true", help="read results from csv files in standardized location")
+    parser.add_argument("--tol_distance", type=int, default=40,
+                        help="Parameter used for tolerated false distances for relevant metrics")
+    parser.add_argument("--clip_distance", type=int, default=200,
+                        help="Parameter used for clipped false distances for relevant metrics")
+    parser.add_argument("--training_version", type=str, default="v0003.2", help="Version of training")
+    parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth")
     parser.add_argument("--filetype", type=str, default="svg", help="format to save plot in")
     parser.add_argument("--transparent", action="store_true", help="whether to save with transparent background")
     parser.add_argument("--save", action="store_true", help="whether to save plot to file")
+
     args = parser.parse_args()
+    if not args.from_csv:
+        db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
+    else:
+        db = None
     if args.plot == "metrics":
         assert len(args.metric) == 2
-        plot_metric_comparison(args.metric[0], args.metric[1], args.filetype, transparent=args.transparent,
+        plot_metric_comparison(args.metric[0], args.metric[1], from_csv=args.from_csv, db=db,
+                               training_version=args.training_version, tol_distance=args.tol_distance,
+                               clip_distance=args.clip_distance, filetype=args.filetype, transparent=args.transparent,
                                label=args.label, save=args.save)
-    elif args.plot == "metrics_by_label":
+    elif args.plot == "metrics-by-label":
         assert len(args.metric) == 2
-        plot_metric_comparison_by_label(args.metric[0], args.metric[1], args.filetype, transparent=args.transparent,
-                                        save=args.save)
-    elif args.plot == "raw_vs_refined":
+        plot_metric_comparison_by_label(args.metric[0], args.metric[1], from_csv=args.from_csv, db=db,
+                                        training_version=args.training_version, tol_distance=args.tol_distance,
+                                        clip_distance=args.clip_distance, filetype=args.filetype,
+                                        transparent=args.transparent, save=args.save)
+    elif args.plot == "raw-vs-refined":
         pass
     else:
         args.metric = args.metric[0]
-    if args.plot == "s1_vs_sub":
-        plot_s1_vs_sub(args.metric, args.filetype, transparent=args.transparent, save=args.save)
-    elif args.plot == "4nm_vs_8nm":
-        plot_4nm_vs_8nm(args.metric, args.filetype, transparent=args.transparent, save=args.save)
-    elif args.plot == "all_vs_common_vs_single":
-        plot_all_vs_common_vs_single(args.metric, args.filetype, transparent=args.transparent, save=args.save)
+    if args.plot == "s1-vs-sub":
+        plot_s1_vs_sub(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
+                       tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
+                       transparent=args.transparent,
+                       save=args.save)
+    elif args.plot == "4nm-vs-8nm":
+        plot_4nm_vs_8nm(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
+                        tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
+                        transparent=args.transparent, save=args.save)
+    elif args.plot == "all-vs-common-vs-single":
+        plot_all_vs_common_vs_single(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
+                                     tol_distance=args.tol_distance, clip_distance=args.clip_distance,
+                                     filetype=args.filetype, transparent=args.transparent, save=args.save)
+    elif args.plot == "generalization":
+        plot_generalization(args.metric, args.label, from_csv=args.from_csv, db=db,
+                            training_version=args.training_version, tol_distance=args.tol_distance,
+                            clip_distance=args.clip_distance, filetype=args.filetype, transparent=args.transparent,
+                            save=args.save)
     elif args.plot == "datasets":
-        plot_datasets(args.metric, args.manual, args.filetype, transparent=args.transparent, save=args.save)
-    elif args.plot == "raw_vs_refined":
-        plot_rawvsrefined(args.metric, filetype=args.filetype, transparent=args.transparent, save=args.save)
+        plot_datasets(args.metric, args.manual, from_csv=args.from_csv, db=db, training_version=args.training_version,
+                      tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
+                      transparent=args.transparent, save=args.save)
+    elif args.plot == "raw-vs-refined":
+        plot_raw_vs_refined(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
+                            tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
+                            transparent=args.transparent, save=args.save)
 
 
 if __name__ == "__main__":

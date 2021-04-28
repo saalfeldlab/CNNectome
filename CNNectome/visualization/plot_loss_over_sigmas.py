@@ -32,7 +32,6 @@ def get_stat(func, directory, sigmas, n_iter=None):
 
 def plot_config():
     fig, ax = plt.subplots(figsize=(30, 20))
-
     params = {
         "font.family": "Nimbus Sans L",
         "font.size": 30.0,
@@ -52,10 +51,9 @@ def plot_config():
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     return colors
 
+
 def plot_sigmas(directories, n_iter, save_file=None, errors=True, max_sigma=None):
-
     colors = plot_config()
-
     for color, directory in zip(colors, directories):
         print(directory)
         sigmas = find_sigmas(directory)
@@ -126,7 +124,8 @@ if __name__ == "__main__":
         "--save_file",
         type=str,
         default=None,
-        help="If given plot will be saved here. Otherwise plot will only be saved if only a single directory is given (in that directory)."
+        help=("If given plot will be saved here. Otherwise plot will only be saved if only a single directory is "
+              "given (in that directory).")
     )
     parser.add_argument(
         "--no_errors",
@@ -139,4 +138,4 @@ if __name__ == "__main__":
         save_file = os.path.abspath(args.save_file)
     else:
         save_file = None
-    plot_sigmas(dirs, args.n_iter, save_file = save_file, errors=not(args.no_errors), max_sigma=args.max_sigma)
+    plot_sigmas(dirs, args.n_iter, save_file=save_file, errors=not (args.no_errors), max_sigma=args.max_sigma)

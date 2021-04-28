@@ -2,6 +2,7 @@ import zarr
 import numcodecs
 import os
 import logging
+from CNNectome.utils import config_loader
 
 offsets_minicrop = {
     "A+": (37, 1676, 1598),
@@ -66,11 +67,12 @@ def set_mask_to_zero(
 
 def main_seg():
     samples = ["A", "B", "C"]  # ['A', 'C', 'B+', 'C+']
-    filename_src = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5"
+    setups_path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post")
+    filename_src = os.path.join(setups_path, "cremi/{0:}.n5")
     dataset_src = "volumes/labels/neuron_ids_constis_slf1_sf750_cropped"
-    filename_mask = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5"
+    filename_mask = os.path.join(setups_path, "cremi/{0:}.n5")
     dataset_mask = "volumes/labels/neuron_ids_gt_cropped"
-    filename_tgt = "/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5"
+    filename_tgt = os.path.join(setups_path, "cremi/{0:}.n5")
     dataset_tgt = "volumes/labels/neuron_ids_constis_slf1_sf750_cropped_masked"
     for sample in samples:
         print(sample)

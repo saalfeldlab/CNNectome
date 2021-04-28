@@ -14,6 +14,7 @@ REQUIRED = [
     "tensorflow_gpu<1.15",
     "absl-py>=0.9",
     "appdirs",
+    "dnspython",
     "numpy",
     "scipy<1.6",
     "cython",
@@ -39,9 +40,9 @@ REQUIRED = [
 EXTRAS = {
     "synapse_postprocessing": [
         "luigi"
-    ],  # also needs simpleference, which is not installable via pip
+    ],
     "malis_loss": ["malis @ git+https://github.com/neptunes5thmoon/malis@fix_setup"],
-    "napari": [ "napari" ],
+    "napari": ["napari"],
 }
 
 DEPENDENCY_LINKS = [
@@ -80,7 +81,7 @@ setup(
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     dependency_links=DEPENDENCY_LINKS,
-    package_data={'CNNectome': ['VERSION']},
+    package_data={'CNNectome': ['etc/config_local.ini', 'VERSION']},
     include_package_data=True,
     license="BSD-2-Clause",
     classifiers=[

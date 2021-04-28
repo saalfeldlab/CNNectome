@@ -14,7 +14,6 @@ import json
 import os
 import numpy as np
 import logging
-import pymongo
 import typing
 
 

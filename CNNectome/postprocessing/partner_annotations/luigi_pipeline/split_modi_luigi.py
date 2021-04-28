@@ -2,6 +2,7 @@ import luigi
 import os
 import zarr
 import numpy as np
+from CNNectome.utils import config_loader
 from cremi.io import CremiFile
 from find_partners_luigi import FindPartners
 
@@ -48,7 +49,7 @@ class SplitModi(luigi.Task):
             print(s)
             filename = os.path.join(os.path.dirname(self.input().fn), s + ".h5")
             mask_filename = os.path.join(
-                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval",
+                config_loader.get_config()["synapses"]["cremieval_path"],
                 self.de,
                 s + ".n5",
             )

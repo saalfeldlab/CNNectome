@@ -4,52 +4,11 @@ import scipy.ndimage
 import numpy as np
 
 data_red = np.array(
-    [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
 )
 data = np.repeat(data_red, 20)
-sdt = scipy.ndimage.distance_transform_edt(
-    data, sampling=(0.05)
-) - scipy.ndimage.distance_transform_edt(np.logical_not(data), sampling=(0.05))
+sdt = scipy.ndimage.distance_transform_edt(data, sampling=(0.05)) - scipy.ndimage.distance_transform_edt(
+    np.logical_not(data), sampling=(0.05))
 stdt = np.tanh(sdt / 2.0)
 tanh = np.tanh(np.linspace(-3.0, 3.0))
 

@@ -165,8 +165,7 @@ if __name__ == "__main__":
     parser.add_argument("script", type=str, help="Pick script that should be run",
                         choices=["train", "build", "test_mem", "inference"], default="train")
     parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
-                                               "training network", choices=["training", "inference"],
-                        )
+                                               "training network", choices=["training", "inference"])
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
     parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
     parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")

@@ -131,10 +131,10 @@ def plot_val(db: MongoCosemDB,
         plt.close()
 
 
-def plot_all(db: MongoCosemDB,
-             path: str,
-             threshold: int = 127,
-             filetype: str = "pdf") -> None:
+def plot_val_all_setups(db: MongoCosemDB,
+                        path: str,
+                        threshold: int = 127,
+                        filetype: str = "pdf") -> None:
     """
     Plot validation graphs for all the setups and labels. Will be saved to files in `path`.
 
@@ -152,38 +152,78 @@ def plot_all(db: MongoCosemDB,
               "setup44", "setup45", "setup46", "setup47", "setup48", "setup49.1", "setup50", "setup56", "setup59",
               "setup61", "setup62", "setup63", "setup64"]
 
-    valcrops = db.get_all_validation_crops()
     for setup in setups:
-        labels = get_unet_setup(setup).labels
-        for lbl in labels:
-            in_crop = [check_label_in_crop(lbl, crop) for crop in valcrops]
-            if any(in_crop):
-                file = os.path.join(path, "{label:}_{setup:}.{filetype:}".format(label=lbl.labelname, setup=setup,
-                                                                                 filetype=filetype))
-                plot_val(db, setup, lbl.labelname, file, threshold=threshold)
+        plot_val_all_labels(db, setup, path, threshold, filetype)
+
+
+def plot_val_all_labels(db: MongoCosemDB,
+                        setup: str,
+                        path: str,
+                        threshold: int = 127,
+                        filetype: str = "pdf"):
+    """
+    Plot validation graphs for all labels corresponding to a specific setup. Will be saved to files in `path`.
+
+    Args:
+        db: Database with crop information and evaluation results.
+        setup: Setup to plot validation results for.
+        path: Path in which to save all the plots.
+        threshold: Threshold to be applied on top of raw predictions to generate binary segmentations for evaluation.
+        filetype: Filetype for saving plots.
+    """
+    valcrops = db.get_all_validation_crops()
+    labels = get_unet_setup(setup).labels
+    for lbl in labels:
+        in_crop = [check_label_in_crop(lbl, crop) for crop in valcrops]
+        if any(in_crop):
+            file = os.path.join(path, "{label:}_{setup:}.{filetype:}".format(label=lbl.labelname,
+                                                                             setup=setup, filetype=filetype))
+            plot_val(db, setup, lbl.labelname, file, threshold=threshold)
 
 
 def main() -> None:
     main_parser = argparse.ArgumentParser("Plot validation graphs")
     parser = main_parser.add_subparsers(dest="script", help="")
-    main_parser.add_argument("db_password", type=str, help="Password for database.")
-    main_parser.add_argument("db_username", type=str, help="Username for database.")
-    main_parser.add_argument("--threshold", type=int, default=127,
-                            help="Threshold to be applied on top of raw predictions to generate binary segmentations "
-                                 "for evaluation.")
-    all_parser = parser.add_parser("all")
-    all_parser.add_argument("--path", type=str, default='.', help="Path to save validation graph to.")
-    all_parser.add_argument("--filetype", type=str, default='pdf', help="Filetype for validation plot.")
 
-    single_parser = parser.add_parser("single")
+    all_parser = parser.add_parser("all_setups", help="Validation graphs for all default setups.")
+
+    all_parser.add_argument("--threshold", type=int, default=127,
+                            help=("Threshold to be applied on top of raw predictions to generate binary "
+                                  "segmentations for evaluation."))
+    all_parser.add_argument("--path", type=str, default='.', help="Path to save validation graphs to.")
+    all_parser.add_argument("--filetype", type=str, default='pdf', help="Filetype for validation plots.")
+    all_parser.add_argument("--training_version", type=str, default="v0003.2",
+                            help="Version of training for which to plot validation graphs.")
+    all_parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth to consider.")
+
+    setup_parser = parser.add_parser("all_labels", help="Validation graphs for all labels of a specific setup.")
+    setup_parser.add_argument("setup", type=str, help="Setup to make validation graphs for.")
+    setup_parser.add_argument("--path", type=str, default="Path to save validation graphs to.")
+    setup_parser.add_argument("--filetype", type=str, default="pdf", help="Filetype for validation plots.")
+    setup_parser.add_argument("--threshold", type=int, default=127,
+                              help=("Threshold to be applied on top of raw predictions to generate binary "
+                                    "segmentations for evaluation."))
+    setup_parser.add_argument("--training_version", type=str, default="v0003.2",
+                              help="Version of training for which to plot validation graphs.")
+    setup_parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth to consider.")
+
+    single_parser = parser.add_parser("single", help="Validation graph for a specific setup and label.")
     single_parser.add_argument("setup", type=str, help="Setup to make validation graph for.")
     single_parser.add_argument("label", type=str, help="Label to make validation graph for.")
     single_parser.add_argument("--file", type=str, help="File to save validation graph to. (Full path)")
+    single_parser.add_argument("--threshold", type=int, default=127,
+                               help=("Threshold to be applied on top of raw predictions to generate binary "
+                                     "segmentations for evaluation."))
+    single_parser.add_argument("--training_version", type=str, default="v0003.2",
+                               help="Version of training for which to plot validation graphs.")
+    single_parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth to consider.")
 
     args = main_parser.parse_args()
-    db = MongoCosemDB(args.db_username, args.db_password)
-    if args.script == "all":
-        plot_all(db, args.path, threshold=args.threshold, filetype=args.filetype)
+    db = MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
+    if args.script == "all_setups":
+        plot_val_all_setups(db, args.path, threshold=args.threshold, filetype=args.filetype)
+    elif args.script == "all_labels":
+        plot_val_all_labels(db, args.setup, args.path, threshold=args.threshold, filetype=args.filetype)
     else:
         plot_val(db, args.setup, args.label, args.file, threshold=args.threshold)
 

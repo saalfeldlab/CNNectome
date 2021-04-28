@@ -1,6 +1,7 @@
 import luigi
 import os
 import json
+from CNNectome.utils import config_loader
 from cremi.io import CremiFile
 from cremi.evaluation import SynapticPartners
 from split_modi_luigi import SplitModi
@@ -41,7 +42,7 @@ class PartnerReport(luigi.Task):
         self.set_progress_percentage(progress)
         for s in self.samples:
             truth = os.path.join(
-                "/groups/saalfeld/saalfeldlab/larissa/data/cremieval/",
+                config_loader.get_config()["synapses"]["cremieval_path"],
                 self.de,
                 s + "." + self.m + ".h5",
             )
