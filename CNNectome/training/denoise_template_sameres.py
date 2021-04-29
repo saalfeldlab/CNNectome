@@ -264,7 +264,7 @@ def main():
     inference_parser = subparser.add_parser("inference")
     inference_parser.add_argument("--ckpt", type=str, help="checkpoint file")
     inference_parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
-    inference_parser.add_argument("--input_ds", type=str, help="n5 dataset to predict from", default="volumes/raw")
+    inference_parser.add_argument("--input_ds", type=str, help="n5 dataset to predict from", default="volumes/raw/s0")
     inference_parser.add_argument("--output_file", type=str, help="n5 file to write inference output to",
                                   default="prediction.n5")
     inference_parser.add_argument("--coordinate", type=int, help="upper left coordinate of input block to predict from",

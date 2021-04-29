@@ -371,7 +371,7 @@ def main() -> None:
     parser.add_argument("n_cpus", type=int, help="Number of cpus to use per job")
     parser.add_argument("raw_data_path", type=str, help="Path to n5 container that contains raw data.")
     parser.add_argument("iteration", type=int, help="Iteration to pull inference for.")
-    parser.add_argument("--raw_ds", type=str, default="volumes/raw",
+    parser.add_argument("--raw_ds", type=str, default="volumes/raw/s0",
                         help="Dataset in n5 container (`raw_data_path`) for raw data.")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground",
                         help="Dataset in n5 container (`raw_data_path`) for mask data. Can be None if no mask exists.")

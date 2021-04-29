@@ -328,7 +328,7 @@ def _get_setup_queries(cropno: Sequence[Union[int, str]],
             if any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in
                    hierarchy[row["labelname"]].labelid):
                 # find the csv files with the list of setups compared for each label (4nm or 8nm)
-                if row["raw_dataset"] == "volumes/raw":
+                if row["raw_dataset"] == "volumes/raw/s0":
                     ff = open(os.path.join(csv_folder_manual, "compared_4nm_setups.csv"), "r")
                 elif row["raw_dataset"] == "volumes/subsampled/raw/0" or row["raw_dataset"] == "volumes/raw/s1":
                     ff = open(os.path.join(csv_folder_manual, "compared_8nm_setups.csv"), "r")

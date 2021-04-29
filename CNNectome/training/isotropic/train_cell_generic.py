@@ -198,7 +198,7 @@ def _make_crop_source(crop: Dict[str, Any],
         subsample_variant: If using raw data that has been subsampled from its original resolution,
                            `subsample_variant` is the name of the dataset in the group "volumes/subsampled/raw"
                            containing the subsampled raw data. If None, use the raw data at original resolution
-                           from "volumes/raw".
+                           from "volumes/raw/s0".
         gt_version: Version of groundtruth annotations, e.g. "v0003"
         labels: List of labels that the network needs to be trained for.
         ak_raw: array key for raw data
@@ -220,7 +220,7 @@ def _make_crop_source(crop: Dict[str, Any],
     blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
     blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
     if subsample_variant is None:
-        raw_ds = "volumes/raw"
+        raw_ds = "volumes/raw/s0"
     else:
         raw_ds = "volumes/subsampled/raw/{0:}".format(subsample_variant)
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])

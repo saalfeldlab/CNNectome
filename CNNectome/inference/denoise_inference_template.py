@@ -260,7 +260,7 @@ if __name__ == "__main__":
     parser.add_argument("n_cpus", type=int)
     parser.add_argument("raw_data_path", type=str)
     parser.add_argument("iteration", type=int)
-    parser.add_argument("--raw_ds", type=str, default="volumes/raw")
+    parser.add_argument("--raw_ds", type=str, default="volumes/raw/s0")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground")
     parser.add_argument("--setup_path", type=str, default='.')
     parser.add_argument("--output_path", type=str, default=None)

@@ -703,7 +703,7 @@ def plot_datasets(metric: str,
                     print(label)
                     if result["crop_manual"] == crop:
                         print(crop)
-                        if result["raw_dataset_manual"] == "volumes/raw":
+                        if result["raw_dataset_manual"] == "volumes/raw/s0":
                             print(result["raw_dataset_manual"])
                             x_values_manual.append(mid + idx * off)
                             y_values_manual.append(float(result["value_manual"]))
@@ -1090,7 +1090,7 @@ def _assemble_metriccomparison_results(
     for row in reader_across_setups_test:
         if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw/s1":
             continue
-        if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw":
+        if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw/s0":
             ff = open(os.path.join(csv_folder, "manual/compared_4nm_setups.csv"), "r")
         elif row["raw_dataset_{0:}".format(metric1)] == "volumes/subsampled/raw/0" or row[
             "raw_dataset_{0:}".format(metric1)] == "volumes/raw/s1":

@@ -116,5 +116,5 @@ def autodiscover_raw_datasets(setup: str,
     if is8:
         raw_datasets = ["volumes/raw/s1", "volumes/subsampled/raw/0"]
     else:
-        raw_datasets = ["volumes/raw"]
+        raw_datasets = ["volumes/raw/s0"]
     return raw_datasets

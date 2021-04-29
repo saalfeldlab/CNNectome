@@ -39,7 +39,7 @@ def plot_val(db: MongoCosemDB,
     if detect_8nm(setup):
         raw_datasets = ["volumes/subsampled/raw/0", "volumes/raw/s1"]
     else:
-        raw_datasets = ["volumes/raw"]
+        raw_datasets = ["volumes/raw/s0"]
 
     col = db.access("evaluation", db.training_version)
     # query all relevant results

@@ -67,7 +67,7 @@ def compare_4vs8(db: cosem_db.MongoCosemDB,
     else:
         raise ValueError("unknown mode {0:}".format(mode))
 
-    raw_ds = ["volumes/raw", "volumes/subsampled/raw/0"]
+    raw_ds = ["volumes/raw/s0", "volumes/subsampled/raw/0"]
     comparisons = analyze_evals.compare_setups(db, setups, labels, metric, raw_ds=raw_ds, crops=crops,
                                                tol_distance=tol_distance, clip_distance=clip_distance,
                                                threshold=threshold, mode=mode, test=test)
@@ -241,7 +241,7 @@ def compare_generalization(db: cosem_db.MongoCosemDB,
                            tol_distance: int = 40,
                            clip_distance: int = 200,
                            threshold: int = 200,
-                           raw_ds: Union[None, str, Sequence[str]] = "volumes/raw",
+                           raw_ds: Union[None, str, Sequence[str]] = "volumes/raw/s0",
                            ) -> List[List[Optional[Dict[str, Any]]]]:
     """
     Evaluate generalization experiments for er and mito.
