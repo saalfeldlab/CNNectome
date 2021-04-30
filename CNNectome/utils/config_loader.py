@@ -3,7 +3,6 @@ import pkg_resources
 import appdirs
 import shutil
 import configparser
-import logging
 import CNNectome
 
 
@@ -35,7 +34,7 @@ def create_user_config(cfg_file: str) -> None:
     source = pkg_resources.resource_filename("CNNectome", "etc/config_local.ini")
     os.makedirs(os.path.dirname(cfg_file), exist_ok=True)
     shutil.copyfile(source, cfg_file)
-    logging.info("Config file added here: {0:}".format(source))
+    print("Config file added here: {0:}".format(cfg_file))
 
 
 if __name__ == "__main__":

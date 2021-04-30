@@ -75,7 +75,7 @@ setup(
         'console_scripts': [
              'add_missing_n5_attributes = CNNectome.utils.add_missing_n5_attributes:main',
              'auto_evaluation = CNNectome.validation.organelles.auto_evaluation:main',
-             'init_CNNectome_config = CNNectome.utils.load_config:main'
+             'init_CNNectome_config = CNNectome.utils.config_loader:get_config'
         ],
     },
     install_requires=REQUIRED,
