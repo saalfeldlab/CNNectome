@@ -1,3 +1,4 @@
+from CNNectome.utils import config_loader
 import json
 import os
 import argparse
@@ -113,8 +114,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("n_job", type=int, help="Number of jobs inference was split over.")
     parser.add_argument("n_cpus", type=int, help="Number of cpus to use per job.")
-    parser.add_argument("raw_data_path", type=str, help="Path to n5 container that contains raw data.")
+    parser.add_argument("dataset_id", type=str, help="Path to n5 container that contains raw data.")
     parser.add_argument("iteration", type=int, help="Iteration to pull inference for.")
+    parser.add_argument("--raw_data_path", type=str, default="None",
+                        help=("Path to n5 container that contains raw data. Construct from config and dataset_id if "
+                              "None"))
     parser.add_argument("--raw_ds", type=str, default="volumes/raw/s0",
                         help="Dataset in n5 container (`raw_data_path`) for raw data.")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground",
@@ -130,7 +134,13 @@ def main() -> None:
     parser.add_argument("--safe_scale", type=bool, default=False)
     parser.add_argument("--resolution", type=int, nargs="+", default=None)
     args = parser.parse_args()
-    raw_data_path = args.raw_data_path
+    dataset_id = args.dataset_id
+    if args.raw_data_path == "None":
+        raw_data_path = os.path.join(config_loader.get_config()["organelles"]["data_path"], dataset_id,
+                                     dataset_id+".n5")
+    else:
+        raw_data_path = args.raw_data_path
+    assert os.path.exists(raw_data_path), "Path {raw_data:} does not exist".format(raw_data=raw_data_path)
     iteration = args.iteration
     setup_path = args.setup_path
     output_path = args.output_path

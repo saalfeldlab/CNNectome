@@ -6,6 +6,7 @@ import numpy as np
 import os
 import logging
 from CNNectome.utils.label import Label
+from CNNectome.utils import config_loader
 from CNNectome.utils.cosem_db import MongoCosemDB
 from scipy.ndimage.morphology import generate_binary_structure,binary_dilation, binary_erosion, distance_transform_edt
 from typing import Any, Dict, List, Optional, Tuple
@@ -65,7 +66,8 @@ def one_crop(crop: Dict[str, Any],
     Returns:
         Dictionaries of number of positive and negative annotations per label in this `crop`.
     """
-    n5file = zarr.open(str(crop["parent"]), mode="r")
+    data_dir = config_loader.get_config()["organelles"]["data_path"]
+    n5file = zarr.open(str(os.path.join(data_dir, crop["parent"])), mode="r")
     blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
     blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
     labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])

@@ -1,4 +1,5 @@
 from CNNectome.networks import ops3d
+from CNNectome.utils import config_loader
 import tensorflow as tf
 import json
 import logging
@@ -97,7 +98,7 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
     return factor, scale, shift
 
 
-def prepare_cell_inference(n_jobs, raw_data_path, sigma, raw_ds, setup_path, output_path, factor,
+def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, sigma, raw_ds, setup_path, output_path, factor,
                            min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
     # assert os.path.exists(setup_path), "Path to experiment directory does not exist"
     # sys.path.append(setup_path)
@@ -145,6 +146,7 @@ def prepare_cell_inference(n_jobs, raw_data_path, sigma, raw_ds, setup_path, out
             ds.attrs["offset"] = (0, 0, 0)
             ds.attrs["raw_data_path"] = raw_data_path
             ds.attrs["raw_ds"] = raw_ds
+            ds.attrs["parent_dataset_id"] = dataset_id
             ds.attrs["sigma"] = sigma
             ds.attrs["raw_scale"] = scale
             ds.attrs["raw_shift"] = shift
@@ -251,8 +253,9 @@ if __name__ == "__main__":
     parser.add_argument("action", type=str, choices=("prepare", "inference"))
     parser.add_argument("n_job", type=int)
     parser.add_argument("n_cpus", type=int)
-    parser.add_argument("raw_data_path", type=str)
+    parser.add_argument("dataset_id", type=str)
     parser.add_argument("sigma", type=float)
+    parser.add_argument("--raw_data_path", type=str, default="None")
     parser.add_argument("--raw_ds", type=str, default="volumes/raw/s0")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground")
     parser.add_argument("--setup_path", type=str, default='.')
@@ -266,7 +269,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args)
     action = args.action
-    raw_data_path = args.raw_data_path
+    dataset_id = args.dataset_id
+    if args.raw_data_path == "None":
+        raw_data_path = os.path.join(config_loader.get_config()["organelles"]["data_path"], dataset_id,
+                                     dataset_id+".n5")
+    else:
+        raw_data_path = args.raw_data_path
+    assert os.path.exists(raw_data_path), "Path {raw_data:} does not exist".format(raw_data=raw_data_path)
     output_path = args.output_path
     sigma = args.sigma
     n_job = args.n_job
@@ -285,7 +294,7 @@ if __name__ == "__main__":
     safe_scale = args.safe_scale
     finish_interrupted = args.finish_interrupted
     if action == "prepare":
-        prepare_cell_inference(n_job, raw_data_path, sigma, raw_ds, setup_path, output_path, factor,
+        prepare_cell_inference(n_job, raw_data_path, dataset_id, sigma, raw_ds, setup_path, output_path, factor,
                                min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted)
     # elif action == "run":
     #     input_shape_vc, output_shape_vc, chunk_shape_vc = prepare_cell_inference(n_job, raw_data_path, iteration,

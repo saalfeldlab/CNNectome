@@ -1,10 +1,13 @@
+from CNNectome.utils import config_loader
 from CNNectome.utils.hierarchy import hierarchy
 import os
 import zarr
 import numpy as np
 
+
 def get_label_ids_by_category(crop, category):
     return [l[0] for l in crop['labels'][category]]
+
 
 def get_all_annotated_label_ids(crop):
     return get_label_ids_by_category(crop, "present_annotated") + get_label_ids_by_category(crop, "absent_annotated")
@@ -46,7 +49,8 @@ def get_all_present_labelnames(crop):
 
 
 def get_offset_and_shape_from_crop(crop, gt_version="v0003"):
-    n5file = zarr.open(crop["parent"], mode="r")
+    n5file = zarr.open(os.path.join(config_loader.get_config()["organelles"]["data_path"], crop["parent"]),
+                       mode="r")
     label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/all".format(version=gt_version.lstrip("v"),
                                                                                 cropno=crop["number"])
     offset_wc = n5file[label_ds].attrs["offset"][::-1]
@@ -57,17 +61,16 @@ def get_offset_and_shape_from_crop(crop, gt_version="v0003"):
 
 def get_data_path(crop, s1):
     # todo: consolidate this with get_output_paths from inference template in a utils function
-    basename, n5_filename = os.path.split(crop['parent'])
-    _, cell_identifier = os.path.split(basename)
+    cell_id, n5_filename = os.path.split(crop['parent'])
     base_n5_filename, n5 = os.path.splitext(n5_filename)
     if s1:
         output_filename = base_n5_filename + '_s1_it{0:}' + n5
     else:
         output_filename = base_n5_filename + '_it{0:}' + n5
-    return os.path.join(cell_identifier, output_filename)
+    return os.path.join(cell_id, output_filename)
 
 
-def short_cell_id(crop):
+def alt_short_cell_id(crop):
     shorts = {
         'jrc_hela-2': "HeLa2",
         'jrc_hela-3': "HeLa3",
@@ -79,9 +82,3 @@ def short_cell_id(crop):
 
 def check_label_in_crop(label, crop):
     return any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in label.labelid)
-
-
-def get_cell_identifier(crop):
-    basename, n5_filename = os.path.split(crop["parent"])
-    _, cell_identifier = os.path.split(basename)
-    return cell_identifier

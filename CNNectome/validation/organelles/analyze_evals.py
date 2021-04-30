@@ -162,10 +162,9 @@ def _best_manual(db: cosem_db.MongoCosemDB,
 
     # read csv file containing results of manual evaluation, first for best iteration
     c = db.get_crop_by_number(str(cropno))
-    cell_identifier = get_cell_identifier(c)
     csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
                                      "manual")
-    csv_file_iterations = open(os.path.join(csv_folder_manual, cell_identifier + "_iteration.csv"), "r")
+    csv_file_iterations = open(os.path.join(csv_folder_manual, c["dataset_id"] + "_iteration.csv"), "r")
     fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
     reader = csv.DictReader(csv_file_iterations, fieldnames)
 
@@ -187,7 +186,7 @@ def _best_manual(db: cosem_db.MongoCosemDB,
         return best_manuals[0]
     else:  # if there's several matches check the setup results for overall best
         # read csv file containing results of manual evaluations, now for best setup per label/crop
-        csv_file_setups = open(os.path.join(csv_folder_manual, cell_identifier + "_setup.csv"), "r")
+        csv_file_setups = open(os.path.join(csv_folder_manual, c["dataset_id"] + "_setup.csv"), "r")
         reader = csv.DictReader(csv_file_setups, fieldnames)
         for row in reader:
             if row["labelname"] == label and row["setup"] in setups:
@@ -306,8 +305,8 @@ def _get_csv_files(csv_folder_manual: str, domain: str, cropno: Sequence[Union[i
     else:
         csv_result_files = []
         for cno in cropno:
-            cell_identifier = get_cell_identifier(db.get_crop_by_number(cno))
-            csv_result_files.append(os.path.join(csv_folder_manual, cell_identifier + "_{0:}.csv".format(domain)))
+            crop = db.get_crop_by_number(cno)
+            csv_result_files.append(os.path.join(csv_folder_manual, crop["dataset_id"] + "_{0:}.csv".format(domain)))
     return csv_result_files
 
 
@@ -425,8 +424,8 @@ def get_refined_comparisons(db: cosem_db.MongoCosemDB,
             cropno = [cropno]
         csv_result_files = []
         for cno in cropno:
-            cell_identifier = get_cell_identifier(db.get_crop_by_number(cno))
-            csv_result_files.append(os.path.join(csv_folder_refined, cell_identifier + "_setup.csv"))
+            crop = db.get_crop_by_number(cno)
+            csv_result_files.append(os.path.join(csv_folder_refined, crop["dataset_id"] + "_setup.csv"))
 
     # collect entries from those csv files
     queries = []

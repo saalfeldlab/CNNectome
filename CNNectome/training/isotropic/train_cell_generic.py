@@ -3,7 +3,7 @@ from gunpowder.tensorflow import *
 from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, IntensityCrop, Sum, CropArray
 from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
-
+import CNNectome.utils.config_loader
 import CNNectome.utils.label
 import CNNectome.utils.cosem_db
 import fuse
@@ -11,6 +11,7 @@ import tensorflow as tf
 import math
 import time
 import json
+import os
 import numpy as np
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union, Sequence, Tuple
@@ -175,6 +176,7 @@ def _get_label(name: str, labels: List[CNNectome.utils.label.Label]) -> Optional
 
 
 def _make_crop_source(crop: Dict[str, Any],
+                      data_dir: Optional[str],
                       subsample_variant: Optional[
                          Union[int, str]],
                       gt_version: str,
@@ -195,6 +197,7 @@ def _make_crop_source(crop: Dict[str, Any],
 
     Args:
         crop: Instance of an entry in the crop database.
+        data_dir: Path to directory where data is stored. If None, read from config file.
         subsample_variant: If using raw data that has been subsampled from its original resolution,
                            `subsample_variant` is the name of the dataset in the group "volumes/subsampled/raw"
                            containing the subsampled raw data. If None, use the raw data at original resolution
@@ -215,7 +218,9 @@ def _make_crop_source(crop: Dict[str, Any],
     Returns:
         Gunpowder  batch provider tree for grabbing batches from the specified crop.
     """
-    n5file = zarr.open(ensure_str(crop["parent"]), mode='r')
+    if data_dir is None:
+        data_dir = CNNectome.utils.config_loader.get_config()["organelles"]["data_path"]
+    n5file = zarr.open(ensure_str(os.path.join(data_dir, crop["parent"])), mode='r')
     blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
     blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
     blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
@@ -232,9 +237,9 @@ def _make_crop_source(crop: Dict[str, Any],
     # We should really only be adding this with the above if statement, but need it for now because we need to
     # construct masks from it as separate labelsets contain zeros
     logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-        cropno=crop["number"], file=crop["parent"], ds=label_ds.format(label="all"), ak=ak_labels))
+        cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=label_ds.format(label="all"), ak=ak_labels))
     all_srcs.append(
-        ZarrSource(crop["parent"],
+        ZarrSource(os.path.join(data_dir, crop["parent"]),
                    {ak_labels: label_ds.format(label="all")}
                    )
         + Pad(ak_labels, Coordinate(output_size) + crop_width)
@@ -249,8 +254,8 @@ def _make_crop_source(crop: Dict[str, Any],
         else:
             ds = label_ds.format(label="all")
         logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-            cropno=crop["number"], file=crop["parent"], ds=ds, ak=label.gt_key))
-        all_srcs.append(ZarrSource(crop["parent"], {label.gt_key: ds}) +
+            cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=ds, ak=label.gt_key))
+        all_srcs.append(ZarrSource(os.path.join(data_dir, crop["parent"]), {label.gt_key: ds}) +
                         Pad(label.gt_key, Coordinate(output_size) + crop_width))
 
     # add mask source per label
@@ -259,8 +264,8 @@ def _make_crop_source(crop: Dict[str, Any],
         labelmask_ds = labelmask_ds.format(label=label.labelname)
         if labelmask_ds in n5file:  # specified mask available:
             logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-                cropno=crop["number"], file=crop["parent"], ds=labelmask_ds, ak=label.mask_key))
-            labelmask_srcs.append(ZarrSource(crop["parent"],
+                cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=labelmask_ds, ak=label.mask_key))
+            labelmask_srcs.append(ZarrSource(os.path.join(data_dir, crop["parent"]),
                                              {label.mask_key: labelmask_ds}
                                              )
                                   + Pad(label.mask_key, Coordinate(output_size) + crop_width))
@@ -293,10 +298,10 @@ def _make_crop_source(crop: Dict[str, Any],
 
     # add raw source
     logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-        cropno=crop["number"], file=crop["parent"], ds=raw_ds, ak=ak_raw))
+        cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=raw_ds, ak=ak_raw))
     raw_src = (
         ZarrSource(
-            crop["parent"],
+            os.path.join(data_dir, crop["parent"]),
             {ak_raw: raw_ds},
             array_specs={ak_raw: ArraySpec(voxel_size=voxel_size_input)})
         + Pad(ak_raw, Coordinate(input_size), 0)
@@ -305,10 +310,10 @@ def _make_crop_source(crop: Dict[str, Any],
 
     # add gt mask source
     logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-        cropno=crop["number"], file=crop["parent"], ds=mask_ds, ak=ak_mask))
+        cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=mask_ds, ak=ak_mask))
     mask_src = (
         ZarrSource(
-            crop["parent"],
+            os.path.join(data_dir, crop["parent"]),
             {ak_mask: mask_ds},
             array_specs={ak_mask: ArraySpec(interpolatable=False, voxel_size=voxel_size)}
         )
@@ -401,6 +406,7 @@ def train_until(
     output_shape: Union[np.ndarray, List[int]],
     loss_name: str,
     balance_global: bool = False,
+    data_dir: Optional[str] = None,
     prioritized_label: Optional[CNNectome.utils.label.Label] = None,
     dataset: Optional[str] = None,
     prob_prioritized: float = 0.5,
@@ -427,6 +433,7 @@ def train_until(
         loss_name: Name of loss used as stored in net io names json file.
         balance_global: If Ture, use globabl balancing, i.e. weigh loss for each label using its `frac_pos` and
                         `frac_neg` attributes.
+        data_dir: Path to directory where data is stored. If None, read from config file.
         prioritized_label: Label to use for prioritizing sampling from crops that contain examples of it. If None
                            (default), sample from each crop equally.
         dataset: Only consider crops that come from the specified dataset. If None (default), use all othwerwise
@@ -467,8 +474,8 @@ def train_until(
     collection = db.access("crops", db.gt_version)
     db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
-        db_filter['parent'] = dataset
-    skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1}
+        db_filter['dataset_id'] = dataset
+    skip = {"_id": 0, "number": 1, "labels": 1, "dataset_id": 1, "parent":1, "dimensions": 1}
 
     net_io_names, start_iteration, inputs, outputs = _network_setup()
 
@@ -519,9 +526,10 @@ def train_until(
             logging.info("Adding crop number {0:}".format(crop["number"]))
             if voxel_size_input != voxel_size:
                 for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
-                    crop_srcs.append(_make_crop_source(crop, subsample_variant, gt_version, labels, ak_raw, ak_labels,
-                                                       ak_labels_downsampled, ak_mask, input_size, output_size,
-                                                       voxel_size_input, voxel_size, crop_width, keep_thr))
+                    crop_srcs.append(
+                        _make_crop_source(crop, data_dir, subsample_variant, gt_version, labels, ak_raw, ak_labels,
+                                          ak_labels_downsampled, ak_mask, input_size, output_size, voxel_size_input,
+                                          voxel_size, crop_width, keep_thr))
                     crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
                     crop_prioritized = is_prioritized(crop, prioritized_label)
@@ -530,9 +538,9 @@ def train_until(
                         [crop_prioritized] * int(np.prod(voxel_size_input/voxel_size))
                     )
             else:
-                crop_srcs.append(
-                    _make_crop_source(crop, None, gt_version, labels, ak_raw, ak_labels, ak_labels_downsampled, ak_mask,
-                                      input_size, output_size, voxel_size_input, voxel_size, crop_width, keep_thr))
+                crop_srcs.append(_make_crop_source(crop, data_dir, None, gt_version, labels, ak_raw, ak_labels,
+                                                   ak_labels_downsampled, ak_mask, input_size, output_size,
+                                                   voxel_size_input, voxel_size, crop_width, keep_thr))
                 crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
                     crop_prioritized = is_prioritized(crop, prioritized_label)

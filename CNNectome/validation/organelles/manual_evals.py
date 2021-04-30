@@ -1,5 +1,6 @@
 import csv
 import os
+import argparse
 from CNNectome.utils import cosem_db, crop_utils, config_loader
 from CNNectome.validation.organelles.segmentation_metrics import *
 from CNNectome.validation.organelles.run_evaluation import construct_pred_path, pred_path_without_iteration
@@ -34,8 +35,7 @@ def query_score(cropno, labelname, threshold=127, setup=None, s1=False, clip_dis
                 tol_distance=40, training_version="v0003.2", gt_version="v0003"):
     db = cosem_db.MongoCosemDB(training_version=training_version, gt_version=gt_version)
     c = db.get_crop_by_number(cropno)
-    cell_identifier = crop_utils.get_cell_identifier(c)
-    labelname, setup, iteration, s1 = get_best_manual(cell_identifier, labelname, setup=setup, s1=s1,
+    labelname, setup, iteration, s1 = get_best_manual(c["dataset_id"], labelname, setup=setup, s1=s1,
                                                       training_version=db.training_version)
     path = construct_pred_path(setup, iteration, c, s1, training_version=db.training_version)
     threshold = threshold
@@ -79,16 +79,15 @@ def get_differences(cropno, metrics, domain="setup", threshold=127, clip_distanc
     metric_params["clip_distance"] = clip_distance
     metric_params["tol_distance"] = tol_distance
 
-    cell_identifier = crop_utils.get_cell_identifier(c)
     csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
                               "manual")
 
     if domain == "setup":
-        csv_file = os.path.join(csv_folder, cell_identifier+"_setup.csv")
+        csv_file = os.path.join(csv_folder, c["dataset_id"]+"_setup.csv")
         f = open(csv_file, "r")
         fieldnames = ["labelname", "setup", "iteration", "s1"]
     elif domain == "iteration":
-        csv_file = os.path.join(csv_folder, cell_identifier+"_iteration.csv")
+        csv_file = os.path.join(csv_folder, c["dataset_id"]+"_iteration.csv")
         f = open(csv_file, "r")
         fieldnames = ["setup", "labelname", "iteration", "s1"]
     else:
@@ -145,8 +144,6 @@ def get_differences(cropno, metrics, domain="setup", threshold=127, clip_distanc
 
 
 if __name__ == "__main__":
-    import CNNectome.utils.cosem_db
-    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("label", type=str)
     parser.add_argument("crop", type=int)
@@ -156,5 +153,5 @@ if __name__ == "__main__":
     parser.add_argument("--gt_version", type=str, default="v0003")
     args = parser.parse_args()
 
-    db = CNNectome.utils.cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
+    db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
     print(get_best_automatic(db, args.crop, args.label, args.metric, {}, setup=args.setup))

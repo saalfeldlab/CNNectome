@@ -1,4 +1,5 @@
 import sys
+from CNNectome.utils import config_loader
 from simpleference.inference.inference import run_inference_zarr_multi_crop
 from simpleference.inference.util import *
 from simpleference.backends.gunpowder.tensorflow.backend import TensorflowPredict
@@ -113,6 +114,7 @@ def get_contrast_adjustment(rf: zarr.hierarchy.Group,
 
 def prepare_cell_inference(n_jobs: int,
                            raw_data_path: str,
+                           dataset_id: str,
                            iteration: int,
                            raw_ds: str,
                            mask_ds: Optional[str],
@@ -134,6 +136,7 @@ def prepare_cell_inference(n_jobs: int,
     Args:
         n_jobs: Number of jobs to split inference over.
         raw_data_path: Path to n5 container that contains raw data.
+        parent_dataset_id: Identifier of parent dataset.
         iteration: Iteration to pull inference for.
         raw_ds: Dataset in n5 container (`raw_data_path`) for raw data.
         mask_ds: Dataset in n5 container (`raw_data_path`) for mask data. Can be None if no mask exists.
@@ -208,6 +211,7 @@ def prepare_cell_inference(n_jobs: int,
             ds.attrs["offset"] = (0, 0, 0)
             ds.attrs["raw_data_path"] = raw_data_path
             ds.attrs["raw_ds"] = raw_ds
+            ds.attrs["parent_dataset_id"] = dataset_id
             ds.attrs["iteration"] = iteration
             ds.attrs["raw_scale"] = scale
             ds.attrs["raw_shift"] = shift
@@ -369,8 +373,11 @@ def main() -> None:
     parser.add_argument("action", type=str, choices=("prepare", "inference"))
     parser.add_argument("n_job", type=int, help="Number of jobs (prepare) or id of inference job (inference)")
     parser.add_argument("n_cpus", type=int, help="Number of cpus to use per job")
-    parser.add_argument("raw_data_path", type=str, help="Path to n5 container that contains raw data.")
+    parser.add_argument("dataset_id", type=str, help="Identifer of parent dataset.")
     parser.add_argument("iteration", type=int, help="Iteration to pull inference for.")
+    parser.add_argument("--raw_data_path", type=str, default="None",
+                        help=("Path to n5 container that contains raw data. Construct from config and dataset_id if "
+                              "None"))
     parser.add_argument("--raw_ds", type=str, default="volumes/raw/s0",
                         help="Dataset in n5 container (`raw_data_path`) for raw data.")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground",
@@ -393,7 +400,13 @@ def main() -> None:
     args = parser.parse_args()
     print(args)
     action = args.action
-    raw_data_path = args.raw_data_path
+    dataset_id = args.dataset_id
+    if args.raw_data_path == "None":
+        raw_data_path = os.path.join(config_loader.get_config()["organelles"]["data_path"], dataset_id,
+                                     dataset_id+".n5")
+    else:
+        raw_data_path = args.raw_data_path
+    assert os.path.exists(raw_data_path), "Path {raw_data:} does not exist".format(raw_data=raw_data_path)
     output_path = args.output_path
     iteration = args.iteration
     n_job = args.n_job
@@ -416,8 +429,8 @@ def main() -> None:
     safe_scale = args.safe_scale
     finish_interrupted = args.finish_interrupted
     if action == "prepare":
-        prepare_cell_inference(n_job, raw_data_path, iteration, raw_ds, mask_ds, setup_path, output_path, factor,
-                               min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted,
+        prepare_cell_inference(n_job, raw_data_path, dataset_id, iteration, raw_ds, mask_ds, setup_path, output_path,
+                               factor, min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted,
                                resolution=resolution)
     elif action == "inference":
         single_job_inference(n_job, raw_data_path, iteration, raw_ds,

@@ -78,7 +78,7 @@ class MongoCosemDB(CosemDB):
 
     def get_validation_crop_by_cell_id(self, cell_id):
         crop_db = self.access('crops', self.gt_version)
-        filter = {"completion": -1, "parent": {"$regex": cell_id}, "alias": {"$regex": "Validation"}}
+        filter = {"completion": -1, "dataset_id": cell_id, "alias": {"$regex": "Validation"}}
         crop = crop_db.find_one(filter)
         return crop
 
@@ -139,7 +139,8 @@ class CosemCSV(object):
     def __init__(self, csv_folder):
         self.folder = csv_folder
         self.fieldnames = ["path", "dataset", "setup", "iteration", "label", "crop", "raw_dataset",
-                           "parent_path", "threshold", "refined", "metric", "metric_params", "value"]
+                           "parent_path", "parent_dataset_id", "threshold", "refined", "metric", "metric_params",
+                           "value"]
 
     def read_evaluation_result(self, query):
         with open(os.path.join(self.folder, query["label"] + '.csv', "r")) as f:

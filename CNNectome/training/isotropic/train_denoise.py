@@ -14,6 +14,7 @@ import os
 import numpy as np
 import logging
 import CNNectome.utils.cosem_db
+from CNNectome.utils import config_loader
 
 
 def network_setup(net_name, trainable=True):
@@ -141,23 +142,15 @@ def batch_generator(
     voxel_size_mask = Coordinate((16, 16, 16))
     input_size = Coordinate(input_shape) * voxel_size
     output_size = Coordinate(output_shape) * voxel_size
-
+    if data_path is None:
+        data_path = config_loader.get_config()["organelles"]["data_path"]
     db = CNNectome.utils.cosem_db.MongoCosemDB(gt_version=gt_version)
     collection = db.access("crops", db.gt_version)
     db_filter = {"completion": {"$gte": completion_min}}
-    skip = {"_id": 0, "parent":1}
+    skip = {"_id": 0, "parent": 1}
     raw_datasets = set()
     for crop in collection.find(db_filter, skip):
-        raw_datasets.add(crop["parent"])
-
-    raw_datasets = list(raw_datasets)
-    prefix = os.path.commonprefix(raw_datasets)
-
-    if data_path is not None:
-        for k, raw_ds in enumerate(raw_datasets):
-            raw_datasets[k] = raw_ds.replace(prefix, data_path)
-
-
+        raw_datasets.add(os.path.join(data_path, crop["parent"]))
 
     # construct batch request
     request = BatchRequest()

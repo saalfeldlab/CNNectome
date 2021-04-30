@@ -18,12 +18,6 @@ def downsample(arr, factor=2):
     return arr[(slice(None, None, factor),) * arr.ndim]
 
 
-def get_parent(prediction_path, label):
-    n5file = zarr.open(prediction_path, mode="r")
-    pred = n5file[label.labelname]
-    return pred.attrs["raw_data_path"]
-
-
 def add_constant(seg, resolution, label):
     inner_distance = scipy.ndimage.distance_transform_edt(scipy.ndimage.morphology.binary_erosion(seg, border_value=1,
                                                                                                   structure=scipy.ndimage.generate_binary_structure(seg.ndim, seg.ndim)), sampling=resolution)
@@ -33,8 +27,10 @@ def add_constant(seg, resolution, label):
     return gt_seg
 
 
-def read_gt(crop, label, gt_version="v0003"):
-    n5file = zarr.open(crop["parent"], mode="r")
+def read_gt(crop, label, gt_version="v0003", data_path=None):
+    if data_path is None:
+        data_path = config_loader.get_config()["organelles"]["data_path"]
+    n5file = zarr.open(os.path.join(data_path, crop["parent"]), mode="r")
     blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
     if label.separate_labelset:
@@ -122,7 +118,7 @@ def construct_pred_path(setup, iteration, crop, s1, training_version="v0003.2"):
 
 def construct_refined_path(crop):
     default_refined_path = config_loader.get_config()["organelles"]["refined_seg_path"]
-    short_cell_id = crop_utils.short_cell_id(crop)
+    short_cell_id = crop_utils.alt_short_cell_id(crop)
     refined_path = os.path.join(default_refined_path, short_cell_id+'.n5')
     return refined_path
 
@@ -158,6 +154,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
     n5 = zarr.open(pred_path, mode="r")
     raw_dataset = n5[pred_ds].attrs["raw_ds"]
     parent_path = n5[pred_ds].attrs["raw_data_path"]
+    parent_dataset_id = n5[pred_ds].attrs["parent_dataset_id"]
     for metric in metrics:
         metric_specific_params = filter_params(metric_params, metric)
         # check db
@@ -165,7 +162,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
             query = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                      "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
                      "metric_params": metric_specific_params, "raw_dataset": raw_dataset, "parent_path": parent_path,
-                     "refined": refined}
+                     "parent_dataset_id": parent_dataset_id, "refined": refined}
             db_entry = db.read_evaluation_result(query)
             if db_entry is not None:
                 if overwrite:
@@ -202,7 +199,7 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
                 document = {"path": pred_path, "dataset": pred_ds, "setup": setup, "iteration": iteration,
                             "label": label.labelname, "crop": crop["number"], "threshold": threshold, "metric": metric,
                             "metric_params": metric_specific_params, "value": score, "raw_dataset": raw_dataset,
-                            "parent_path": parent_path, "refined": refined}
+                            "parent_path": parent_path, "parent_dataset_id": parent_dataset_id, "refined": refined}
                 db.write_evaluation_result(document)
                 csvh.write_evaluation_result(document)
 
@@ -278,19 +275,15 @@ def main(alt_args=None):
     else:
         assert args.setup is not None
 
-    num_validations = max(len(list(always_iterable(args.setup))),
-                      len(list(always_iterable(args.iteration))),  len(list(always_iterable(args.label))),
-                      len(list(always_iterable(args.pred_path))), len(list(always_iterable(args.pred_ds))),
-                      len(list(always_iterable(args.threshold))), 1)
-    iterator = itertools.product(
-        zip(range(num_validations),
-             repeat_last(always_iterable(args.setup)),
-            repeat_last(always_iterable(args.iteration)),
-            repeat_last(always_iterable(args.label)),
-            repeat_last(always_iterable(args.pred_path)),
-            repeat_last(always_iterable(args.pred_ds)),
-            repeat_last(always_iterable(args.threshold))),
-        always_iterable(crops))
+    num_validations = max(len(list(always_iterable(args.setup))), len(list(always_iterable(args.iteration))),
+                          len(list(always_iterable(args.label))), len(list(always_iterable(args.pred_path))),
+                          len(list(always_iterable(args.pred_ds))), len(list(always_iterable(args.threshold))), 1)
+    iterator = itertools.product(zip(range(num_validations), repeat_last(always_iterable(args.setup)),
+                                     repeat_last(always_iterable(args.iteration)),
+                                     repeat_last(always_iterable(args.label)),
+                                     repeat_last(always_iterable(args.pred_path)),
+                                     repeat_last(always_iterable(args.pred_ds)),
+                                     repeat_last(always_iterable(args.threshold))), always_iterable(crops))
 
     print("\nWill run the following validations:\n")
     validations = []
@@ -371,25 +364,27 @@ def main(alt_args=None):
             n5 = zarr.open(pred_path, mode="r")
             raw_ds = n5[ds].attrs["raw_ds"]
             parent_path = n5[ds].attrs["raw_data_path"]
-            validations.append([pred_path, ds, this_setup, iter, hierarchy[ll], crop, raw_ds, parent_path, thr])
+            parent_dataset_id = n5[ds].attrs["parent_dataset_id"]
+            validations.append([pred_path, ds, this_setup, iter, hierarchy[ll], crop, raw_ds, parent_path,
+                                parent_dataset_id, thr])
 
-    tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m)) for
-            (pp, d, s, i, ll, c, r_ds, parent, t), m in itertools.product(validations, metric)]
+    tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, p_id, t, m, filter_params(metric_params, m)) for
+            (pp, d, s, i, ll, c, r_ds, parent, p_id, t), m in itertools.product(validations, metric)]
     print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop", "Raw Dataset",
-                                   "Parent Path", "Threshold", "Metric", "Metric Params"]))
+                                   "Parent Path", "Parent Id", "Threshold", "Metric", "Metric Params"]))
 
     if not args.dry_run:
         print("\nRunning Evaluations:")
         for val_params in validations:
-            pp, d, s, i, ll, c , r_ds, parent, t = val_params
+            pp, d, s, i, ll, c , r_ds, parent, p_id, t = val_params
             results = run_validation(pp, d, s, i, ll, c, t, metric, metric_params, db, csvhandler, args.save,
                                      args.overwrite, args.refined, gt_version=args.gt_version)
             val_params.append(results)
         print("\nResults Summary:")
-        tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, t, m, filter_params(metric_params, m), v) for
-                (pp, d, s, i, ll, c, r_ds, parent, t, r) in validations for m, v in r.items()]
+        tabs = [(pp, d, s, i, ll.labelname, c['number'], r_ds, parent, p_id, t, m, filter_params(metric_params, m), v) for
+                (pp, d, s, i, ll, c, r_ds, parent, p_id, t, r) in validations for m, v in r.items()]
         print(tabulate.tabulate(tabs, ["Path", "Dataset", "Setup", "Iteration", "Label", "Crop",
-                                       "Raw Dataset", "Parent Path", "Threshold", "Metric",
+                                       "Raw Dataset", "Parent Path", "Parent Id", "Threshold", "Metric",
                                        "Metric Params", "Value"]))
 
 
