@@ -3,7 +3,7 @@ from CNNectome.networks.mk_unet import make_net
 from CNNectome.networks.mk_blurgraph import make_graph_trainable, make_graph
 from CNNectome.networks import unet_class
 from CNNectome.training.isotropic.train_denoise import train_until, evaluate_blur
-from CNNectome.validation.single_block_inference import single_block_inference
+from CNNectome.inference.single_block_inference import single_block_inference
 from gunpowder import Coordinate
 import tensorflow.compat.v1 as tf
 import json
