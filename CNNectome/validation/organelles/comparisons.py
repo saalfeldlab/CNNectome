@@ -506,6 +506,13 @@ def compare(comparison_task: str,
         csv_file = save
     elif save:
         csv_file = comparison_task
+        if comparison_task == "best-8nm":
+            if raw_ds == "volumes/raw/s1":
+                csv_file += "_s1"
+            elif raw_ds == "volumes/subsampled/raw/0":
+                csv_file += "_sub"
+            else:
+                csv_file += "_" + raw_ds.replace("/", "-")
         if comparison_task not in ["raw-vs-refined", "all-vs-common-vs-single", "generalization"]:
             csv_file += "_" + mode
         if comparison_task not in ["raw-vs-refined", "generalization"]:
