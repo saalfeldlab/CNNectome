@@ -329,7 +329,7 @@ def _make_crop_source(crop: Dict[str, Any],
                )
 
     # contrast adjustment
-    contr_adj = n5file["volumes/raw"].attrs["contrastAdjustment"]
+    contr_adj = n5file["volumes/raw/s0"].attrs["contrastAdjustment"]
     scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
     shift = - scale * float(contr_adj["min"])
     logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
