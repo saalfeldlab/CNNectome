@@ -221,8 +221,8 @@ def _make_crop_source(crop: Dict[str, Any],
     if data_dir is None:
         data_dir = CNNectome.utils.config_loader.get_config()["organelles"]["data_path"]
     n5file = zarr.open(ensure_str(os.path.join(data_dir, crop["parent"])), mode='r')
-    blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
-    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
+    blueprint_label_ds = "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
+    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
     blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
     if subsample_variant is None:
         raw_ds = "volumes/raw/s0"

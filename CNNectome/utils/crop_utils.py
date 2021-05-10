@@ -51,7 +51,7 @@ def get_all_present_labelnames(crop):
 def get_offset_and_shape_from_crop(crop, gt_version="v0003"):
     n5file = zarr.open(os.path.join(config_loader.get_config()["organelles"]["data_path"], crop["parent"]),
                        mode="r")
-    label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/all".format(version=gt_version.lstrip("v"),
+    label_ds = "volumes/groundtruth/{version:}/crop{cropno:}/labels/all".format(version=gt_version.lstrip("v"),
                                                                                 cropno=crop["number"])
     offset_wc = n5file[label_ds].attrs["offset"][::-1]
     offset = tuple(np.array(offset_wc)/4.)

@@ -31,7 +31,7 @@ def read_gt(crop, label, gt_version="v0003", data_path=None):
     if data_path is None:
         data_path = config_loader.get_config()["organelles"]["data_path"]
     n5file = zarr.open(os.path.join(data_path, crop["parent"]), mode="r")
-    blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
+    blueprint_label_ds = "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
     if label.separate_labelset:
         label_ds_name = label.labelname
@@ -39,7 +39,7 @@ def read_gt(crop, label, gt_version="v0003", data_path=None):
         label_ds_name = "all"
     gt_seg = n5file[label_ds.format(label=label_ds_name)]
     resolution = gt_seg.attrs["resolution"]
-    # blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
+    # blueprint_labelmask_ds = "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
     # labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
     # labelmask_ds.format(label=label_ds_name)
     # if labelmask_ds in n5file:

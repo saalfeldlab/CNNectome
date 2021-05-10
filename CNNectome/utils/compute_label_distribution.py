@@ -68,8 +68,8 @@ def one_crop(crop: Dict[str, Any],
     """
     data_dir = config_loader.get_config()["organelles"]["data_path"]
     n5file = zarr.open(str(os.path.join(data_dir, crop["parent"])), mode="r")
-    blueprint_label_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/labels/{{label:}}"
-    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/Crop{cropno:}/masks/{{label:}}"
+    blueprint_label_ds = "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
+    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
     labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
     pos = dict()
