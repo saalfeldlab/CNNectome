@@ -225,7 +225,10 @@ def _make_crop_source(crop: Dict[str, Any],
     blueprint_labelmask_ds = "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
     blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
     if subsample_variant is None:
-        raw_ds = "volumes/raw/s0"
+        if "volumes/raw/s0" in n5file:
+            raw_ds = "volumes/raw/s0"
+        else:
+            raw_ds = "volumes/raw"
     else:
         raw_ds = "volumes/subsampled/raw/{0:}".format(subsample_variant)
     label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
@@ -329,7 +332,11 @@ def _make_crop_source(crop: Dict[str, Any],
                )
 
     # contrast adjustment
-    contr_adj = n5file["volumes/raw/s0"].attrs["contrastAdjustment"]
+    if "volumes/raw/s0" in n5file:
+        contr_info_ds = "volumes/raw/s0"
+    else:
+        contr_info_ds = "volumes/raw"
+    contr_adj = n5file[contr_info_ds].attrs["contrastAdjustment"]
     scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
     shift = - scale * float(contr_adj["min"])
     logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
