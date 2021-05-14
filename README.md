@@ -36,10 +36,8 @@ Find links to all the code involved in this poject at [github.com/janelia-cosem/
 
 ### Training
 
-The training data for organelle segmentation can be downloaded from 
-[this s3 bucket](s3://janelia-cosem-publications/tree/heinrich-2021a/) (use 
-[this quilt link](https://open.quiltdata.com/b/janelia-cosem-publications/tree/heinrich-2021a/) for 
-browsing contents) - specifically you need the raw data and groundtruth blocks for `jrc_hela-2`, `jrc_hela-3`, 
+The training data for organelle segmentation can be downloaded from [s3://janelia-cosem-publications/heinrich-2021a/](https://open.quiltdata.com/b/janelia-cosem-publications/tree/heinrich-2021a/) 
+ - specifically you need the raw data and groundtruth blocks for `jrc_hela-2`, `jrc_hela-3`, 
 `jrc_jurkat-1`, `jrc_macrophage-2` and `jrc_sum159-1`. Their directories should be located in ***data_path***. Further, 
 some of the metadata for the groundtruth blocks is organized in a mongo database. Since you only need read access here, 
 you can use the public facing instance of our database 
@@ -61,7 +59,7 @@ their metadata in ***database-public***.
 
 In order to reproduce the comparisons presented in the paper, in addition to ***database-public*** and 
 ***training_setups_paths***, you'll need to download the results of the manual evaluation procedures from 
-[the s3 bucket](s3://janelia-cosem-publications/tree/heinrich-2021a/evaluations). ***evaluation_path*** should point 
+the s3 bucket: [s3://janelia-cosem-publications/heinrich-2021a/evaluations](https://open.quiltdata.com/b/janelia-cosem-publications/tree/heinrich-2021a/evaluations). ***evaluation_path*** should point 
 directly to that directory. \
 The scripts for running and visualizing the comparisons are in 
 `CNNectome/validation/organelles/comparisons.py` and `CNNectome/visualization/organelles/plot_comparisons.py`, 
