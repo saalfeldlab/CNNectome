@@ -484,7 +484,7 @@ def train_until(
         db_filter['dataset_id'] = dataset
     skip = {"_id": 0, "number": 1, "labels": 1, "dataset_id": 1, "parent":1, "dimensions": 1}
 
-    net_io_names, start_iteration, inputs, outputs = _network_setup()
+    net_io_names, start_iteration, inputs, outputs = _network_setup(max_iteration, ak_raw, ak_mask, labels)
 
     # construct batch request
     request = BatchRequest()
