@@ -8,15 +8,15 @@ if [ $1 -gt 20 ]; then
   exit 1
 fi
 
-./submit_inference.sh $1 2 jrc_hela-2 $2 --mask_ds volumes/masks/validation/0003
-./submit_inference.sh $1 2 jrc_hela-3 $2 --mask_ds volumes/masks/validation/0003
-./submit_inference.sh $1 2 jrc_macrophage-2 $2 --mask_ds volumes/masks/validation/0003
-./submit_inference.sh $1 2 jrc_jurkat-2 $2 --mask_ds volumes/masks/validation/0003
+./submit_inference.sh $1 2 jrc_hela-2 $2 --mask_ds volumes/masks/validation/0003  --raw_ds volumes/raw
+./submit_inference.sh $1 2 jrc_hela-3 $2 --mask_ds volumes/masks/validation/0003 --raw_ds volumes/raw
+./submit_inference.sh $1 2 jrc_macrophage-2 $2 --mask_ds volumes/masks/validation/0003 --raw_ds volumes/raw
+./submit_inference.sh $1 2 jrc_jurkat-1 $2 --mask_ds volumes/masks/validation/0003 --raw_ds volumes/raw
 
 completehela2=`check_inference_complete $1 2 jrc_hela-2 $2 --mask_ds volumes/masks/validation/0003`
 completehela3=`check_inference_complete $1 2 jrc_hela-3 $2 --mask_ds volumes/masks/validation/0003`
 completemac=`check_inference_complete $1 2 jrc_macrophage-2 $2 --mask_ds volumes/masks/validation/0003`
-completejurkat=`check_inference_complete $1 2 jrc_jurkat-2 $2 --mask_ds volumes/masks/validation/0003`
+completejurkat=`check_inference_complete $1 2 jrc_jurkat-1 $2 --mask_ds volumes/masks/validation/0003`
 
 if [ $completehela2 -eq 1 ] && [ $completehela3 -eq 1 ] && [ $completemac -eq 1 ] && [ $completejurkat -eq 1 ]; then
   echo "Submitting evaluation"

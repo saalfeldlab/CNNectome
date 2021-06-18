@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# input arguments: num_gpus_per_inference_job iteration db_username db_password
+# input arguments: num_gpus_per_inference_job iteration
 set -e
 
 if [ $1 -gt 20 ]; then
@@ -12,10 +12,10 @@ fi
 ./submit_inference.sh $1 2 jrc_hela-3 $2 --raw_ds volumes/subsampled/raw/0 --mask_ds volumes/masks/validation/0003
 ./submit_inference.sh $1 2 jrc_macrophage-2 $2 --raw_ds volumes/subsampled/raw/0 --mask_ds volumes/masks/validation/0003
 ./submit_inference.sh $1 2 jrc_jurkat-1 $2 --raw_ds volumes/subsampled/raw/0 --mask_ds volumes/masks/validation/0003
-./submit_inference.sh $1 2 jrc_hela-2 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_hela-2/jrc_hela-2_s1_it$2.n5
-./submit_inference.sh $1 2 jrc_hela-3 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_hela-3/jrc_hela-3_s1_it$2.n5
-./submit_inference.sh $1 2 jrc_macrophage-2 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_macrophage-2/jrc_macrophage-2_s1_it$2.n5
-./submit_inference.sh $1 2 jrc_jurkat-1 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_jurkat-1/jrc_jurkat-1_s1_it$2.n5
+./submit_inference.sh $1 2 jrc_hela-2 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_hela-2/jrc_hela-2_s1_it$2.n5 --raw_data_path /nrs/cosem/heinrichl/scale-pyramids/jrc_hela-2/jrc_hela-2.n5
+./submit_inference.sh $1 2 jrc_hela-3 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_hela-3/jrc_hela-3_s1_it$2.n5 --raw_data_path /nrs/cosem/heinrichl/scale-pyramids/jrc_hela-3/jrc_hela-3.n5
+./submit_inference.sh $1 2 jrc_macrophage-2 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_macrophage-2/jrc_macrophage-2_s1_it$2.n5 --raw_data_path /nrs/cosem/heinrichl/scale-pyramids/jrc_macrophage-2/jrc_macrophage-2.n5
+./submit_inference.sh $1 2 jrc_jurkat-1 $2 --raw_ds volumes/raw/s1 --mask_ds volumes/masks/validation/0003 --output_path jrc_jurkat-1/jrc_jurkat-1_s1_it$2.n5 --raw_data_path /nrs/cosem/heinrichl/scale-pyramids/jrc_jurkat-1/jrc_jurkat-1.n5
 
 
 completehela2=`check_inference_complete $1 2 jrc_hela-2 $2 --raw_ds volumes/subsampled/raw/0 --mask_ds volumes/masks/validation/0003`
@@ -40,7 +40,7 @@ if [ $completehela2 -eq 1 ] && [ $completehela3 -eq 1 ] && [ $completemac -eq 1 
                 -B /scratch/$USER:/tmp,/groups/saalfeld,/nrs/saalfeld,/groups/turaga,/groups/cosem/cosem,/nrs/cosem \
                 --pwd $PWD \
                 /groups/saalfeld/home/heinrichl/singularity-builds/cnnectome.sif \
-                /bin/bash --norc -c "export OMP_NUM_THREADS=1; umask 0002; auto_evaluation $2 $3 $4";
+                /bin/bash --norc -c "export OMP_NUM_THREADS=1; umask 0002; auto_evaluation $2";
   exit 0
 else
   COUNTER=${5-0}
