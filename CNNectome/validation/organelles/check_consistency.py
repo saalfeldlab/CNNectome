@@ -359,8 +359,10 @@ def main() -> None:
                         help="Threshold to have been applied on top of raw predictions.")
     parser.add_argument("--training_version", type=str, default="v0003.2", help="Version of training")
     parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth")
+    parser.add_argument("--check_private_db", action="store_true")
     args = parser.parse_args()
-    db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
+    db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version, 
+        write_access=args.check_private_db)
     metric_params = {"tol_distance": args.tol_distance,
                      "clip_distance": args.clip_distance}
     if args.type == "completeness":
