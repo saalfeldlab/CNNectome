@@ -168,7 +168,6 @@ def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, iteration, raw_ds,
     return input_shape_vc, output_shape_vc, chunk_shape_vc
 
 
-
 def preprocess(data, scale=2, shift=-1., factor=None):
     return clip(scale_shift(normalize(data, factor=factor), scale, shift))
 

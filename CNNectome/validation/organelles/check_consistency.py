@@ -366,7 +366,7 @@ def main() -> None:
     parser.add_argument("--check_private_db", action="store_true")
     args = parser.parse_args()
     db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version, 
-        write_access=args.check_private_db)
+                               write_access=args.check_private_db)
     metric_params = {"tol_distance": args.tol_distance,
                      "clip_distance": args.clip_distance}
     if args.type == "completeness":
