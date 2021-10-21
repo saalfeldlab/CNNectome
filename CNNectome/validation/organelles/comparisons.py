@@ -569,11 +569,12 @@ def main() -> None:
     parser.add_argument("--save", type=functools.partial(type_or_bool, type=str), default="False",
                         help=("True to save to a standardized csv file, or path to a custom csv file. False for not "
                               "saving."))
+    parser.add_argument("--check_private_db", action="store_true")
     args = parser.parse_args()
     if args.mode == "all" and args.comparison != "metrics":
         raise ValueError("Mode all can only be used for metrics comparison.")
-    db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
-
+    db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version, 
+                               write_access=args.check_private_db)
     compare(args.comparison, db, args.metric, crops=args.crops, save=args.save, tol_distance=args.tol_distance,
             clip_distance=args.clip_distance, threshold=args.threshold, mode=args.mode, raw_ds=args.raw_ds,
             test=args.test)

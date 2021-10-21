@@ -259,7 +259,8 @@ def plot_s1_vs_sub(metric: str,
     # avgs_tuples = [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
-    labels = sort_generic(labels)
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     x_values = []
     y_values = []
@@ -381,7 +382,9 @@ def plot_4nm_vs_8nm(metric: str,
     # avgs_tuples = [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
-    labels = sort_generic(labels)
+
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     x_values = []
     y_values = []
@@ -521,7 +524,9 @@ def plot_all_vs_common_vs_single(metric: str,
     # avgs_tuples = [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
-    labels = sort_generic(labels)
+
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     x_values = []
     y_values = []
@@ -690,7 +695,8 @@ def plot_datasets(metric: str,
         result["label_manual"] = short_names[result["label_manual"]]
     labels = list(set(labels))
     crops = ["113", "111", "112", "110"]
-    labels = sort_generic(labels)
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
 
     x_values_test = []
     x_values_validation = []
@@ -906,7 +912,9 @@ def plot_rawvsrefined_single(metric: str,
     # avgs_tuples = [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
-    labels = sort_generic(labels)
+
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     colors = {
         "111": "#7570b3",  # lavender
@@ -1051,7 +1059,9 @@ def plot_raw_vs_refined(metrics: Sequence[str],
     # avgs_tuples =  [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metrics[0])]
-    labels = sort_generic(labels)
+
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     colors = {
         "111": "#7570b3",  # lavender
@@ -1355,7 +1365,9 @@ def plot_metric_comparison_by_label(metric1: str,
     # avgs_tuples = [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting("dice")]
-    labels = sort_generic(labels)
+
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+                          tol_distance=tol_distance, clip_distance=clip_distance)
 
     max_datapoints = 0
     for crop, value_by_crop in results.items():
