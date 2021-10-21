@@ -51,7 +51,8 @@ def convergence_iteration(query: Dict[str, Any],
     Returns:
         The converged or maximum evaluated iteration and a flag indicating whether this represents a converged
         training. 0 for not converged training, 1 for converged trainings, 2 for trainings that have not reached above
-        threshold predictions by 500k iterations.
+        threshold predictions by 500k iterations, 3 for trainings that have not reached the convergence criterion but
+        2,000,000 iterations.
 
     Raises:
         ValueError if no evaluations are found for given query.
@@ -75,6 +76,7 @@ def convergence_iteration(query: Dict[str, Any],
     for met in metrics:
         qy = query.copy()
         qy["metric"] = met
+        qy["iteration"]["$lte"] = 2000000
         results.append(list(col.aggregate([{"$match": qy}, {"$sort": {"iteration": 1}}])))
 
     # check for convergence criterion
@@ -101,6 +103,8 @@ def convergence_iteration(query: Dict[str, Any],
                         this_one[m_no] = True
         if all(this_one):
             return results[0][k]["iteration"], 1
+    if max_evaluated_iteration(query, db) >= 2000000:
+        return 2000000, 3
     return results[0][-1]["iteration"], 0
 
 
