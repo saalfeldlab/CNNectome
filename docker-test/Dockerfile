@@ -39,12 +39,16 @@ RUN ${PYTHON} --version && ${PIP} install cython
 #    git checkout ${MALIS_REVISION} && \
 #    ${PYTHON} setup.py build_ext --inplace
 
-ENV CNNECTOME_BRANCH=v2.0
-ENV CNNECTOME_REPOSITORY=https://github.com/saalfeldlab/CNNectome.git
-RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}@${CNNECTOME_BRANCH}
+#ENV CNNECTOME_BRANCH=v2.0
+#ENV CNNECTOME_REPOSITORY=https://github.com/saalfeldlab/CNNectome.git
+#RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}@${CNNECTOME_BRANCH}
+ENV CNNECTOME_ROOT=${PREFIX}/src/cnnectome
+ADD /groups/saalfeld/home/heinrichl/dev/CNNectome ${CNNECTOME_ROOT}
+WORKDIR ${CNNECTOME_ROOT}
+RUN ${PIP} install .
 
-ENV PYTHONPATH "/groups/saalfeld/home/heinrichl/dev/CNNectome":$PYTHONPATH
-ENV PYTHONPATH "/groups/saalfeld/home/heinrichl/dev/simpleference":$PYTHONPATH
-ENV PYTHONPATH "/groups/saalfeld/home/heinrichl/dev/gunpowder":$PYTHONPATH
-ENV PYTHONPATH :"/groups/saalfeld/home/heinrichl/dev/corditea":$PYTHONPATH
+ENV PYTHONPATH="/groups/saalfeld/home/heinrichl/dev/CNNectome:$PYTHONPATH"
+ENV PYTHONPATH="/groups/saalfeld/home/heinrichl/dev/simpleference:$PYTHONPATH"
+ENV PYTHONPATH="/groups/saalfeld/home/heinrichl/dev/gunpowder:$PYTHONPATH"
+ENV PYTHONPATH="/groups/saalfeld/home/heinrichl/dev/corditea:$PYTHONPATH"
 WORKDIR /run
