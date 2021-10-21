@@ -136,7 +136,7 @@ def prepare_cell_inference(n_jobs: int,
     Args:
         n_jobs: Number of jobs to split inference over.
         raw_data_path: Path to n5 container that contains raw data.
-        parent_dataset_id: Identifier of parent dataset.
+        dataset_id: Identifier of parent dataset.
         iteration: Iteration to pull inference for.
         raw_ds: Dataset in n5 container (`raw_data_path`) for raw data.
         mask_ds: Dataset in n5 container (`raw_data_path`) for mask data. Can be None if no mask exists.
