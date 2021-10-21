@@ -25,7 +25,7 @@ def max_evaluated_iteration(query: Dict[str, Any],
     """
     col = db.access("evaluation", db.training_version)
     max_it = col.aggregate([{"$match": query},
-                            {"$sort": {"iteration": 1}},
+                            {"$sort": {"iteration": -1}},
                             {"$limit": 1},
                             {"$project": {"iteration": 1, "_id": 0}}])
     max_it = [m for m in max_it][0]
