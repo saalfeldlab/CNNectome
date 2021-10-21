@@ -420,7 +420,7 @@ def compare(comparison_task: str,
             db: cosem_db.MongoCosemDB,
             metric: Sequence[str],
             crops: Optional[Sequence[Union[str, int]]] = None,
-            save: Optional[str] = None,
+            save: Union[str, bool] = False,
             tol_distance: int = 40,
             clip_distance: int = 200,
             threshold: int = 127,
@@ -525,7 +525,7 @@ def compare(comparison_task: str,
                                 "comparisons", csv_file)
     else:
         return results
-    print("Saving to {csv_file:}".format(csv_file))
+    print("Saving to {csv_file:}".format(csv_file=csv_file))
     compare_writer = csv.writer(open(csv_file, "w"))
     compare_writer.writerow(fields)
     for row in rows:
@@ -573,7 +573,8 @@ def main() -> None:
     if args.mode == "all" and args.comparison != "metrics":
         raise ValueError("Mode all can only be used for metrics comparison.")
     db = cosem_db.MongoCosemDB(training_version=args.training_version, gt_version=args.gt_version)
-    compare(args.comparison, db, args.metric, crops=args.crops, save=args.csv, tol_distance=args.tol_distance,
+
+    compare(args.comparison, db, args.metric, crops=args.crops, save=args.save, tol_distance=args.tol_distance,
             clip_distance=args.clip_distance, threshold=args.threshold, mode=args.mode, raw_ds=args.raw_ds,
             test=args.test)
 
