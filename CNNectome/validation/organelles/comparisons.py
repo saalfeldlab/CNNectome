@@ -563,7 +563,7 @@ def main() -> None:
                              "`across-setups`) or only between equivalent setups (`per-setup`)",
                         default="across-setups")
     parser.add_argument("--test", action="store_true", help="use cross validation for automatic evaluations")
-    parser.add_argument("--raw_ds", type=str, help="filter for raw dataset", default="volumes/raw")
+    parser.add_argument("--raw_ds", type=str, help="filter for raw dataset", default="volumes/raw/s0")
     parser.add_argument("--training_version", type=str, default="v0003.2", help="Version of training")
     parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth")
     parser.add_argument("--save", type=functools.partial(type_or_bool, type=str), default="False",

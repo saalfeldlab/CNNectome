@@ -1224,7 +1224,7 @@ def _assemble_metriccomparison_results(
             continue
         # if row["value_{0:}".format(metric1)] == "" or row["value_{0:}".format(metric2)] == "":
         #     continue
-        if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw":
+        if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw/s0":
             ff = open(os.path.join(csv_folder, "manual/compared_4nm_setups.csv"), "r")
         elif row["raw_dataset_{0:}".format(metric1)] == "volumes/subsampled/raw/0" or row["raw_dataset_{0:}".format(
                 metric1)] == "volumes/raw/s1":
