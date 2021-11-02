@@ -5,6 +5,11 @@ import SimpleITK as sitk
 import lazy_property
 import cremi.evaluation
 
+class EvaluatorError(Exception):
+    def __init__(self, array_name, values):
+        message = f"Array {array_name:} should only contain values 0, 1 but found {values:}"
+        super().__init__(message)
+    
 
 class EvaluationMetrics(str, Enum):
     dice = 'dice'
@@ -145,15 +150,33 @@ def limits(argument):
 
 
 class Evaluator(object):
-    def __init__(self, truth_binary, test_binary, truth_empty, test_empty, metric_params, resolution):
+    def __init__(self, truth_binary, test_binary, truth_empty, test_empty, metric_params, resolution, mask):
+
         self.truth = truth_binary.astype(np.uint8)
         self.test = test_binary.astype(np.uint8)
         self.truth_empty = truth_empty
         self.test_empty = test_empty
-        self.cremieval = cremi_scores.CremiEvaluator(truth_binary, test_binary,
+        self.mask = mask
+        if mask is not None:
+            self.mask = self.mask.astype(np.uint8)
+            self.truth = (self.truth*mask).astype(np.uint8)
+            self.test = (self.test*mask).astype(np.uint8)
+
+        truth_values = set(np.unique(self.truth))
+        if not truth_values.issubset({0,1}):
+            raise EvaluatorError("truth_array", truth_values)
+        test_values = set(np.unique(self.test))
+        if not test_values.issubset({0,1}):
+            raise EvaluatorError("test_array", test_values)
+        if mask is not None:
+            mask_values = set(np.unique(self.mask))
+            if not mask_values.issubset({0,1}):
+                raise EvaluatorError("mask", mask_values)
+        self.cremieval = cremi_scores.CremiEvaluator(self.truth, self.test,
                                                      sampling=resolution,
                                                      clip_distance=metric_params['clip_distance'],
-                                                     tol_distance=metric_params['tol_distance'])
+                                                     tol_distance=metric_params['tol_distance'],
+                                                     mask=self.mask)
         self.resolution = resolution
 
     @lazy_property.LazyProperty
@@ -206,7 +229,11 @@ class Evaluator(object):
         if self.truth_empty or self.test_empty:
             return np.nan
         else:
-            return (self.false_discovery_rate() * np.sum(self.test != 0)) / np.sum(self.truth == 0)
+            if self.mask is not None:
+                negatives = np.sum(self.truth[self.mask!=0] == 0)
+            else:
+                negatives = np.sum(self.truth == 0)
+            return (self.false_discovery_rate() * np.sum(self.test != 0)) / negatives
 
     def false_discovery_rate(self):
         if (not self.truth_empty) or (not self.test_empty):
@@ -245,7 +272,15 @@ class Evaluator(object):
         if self.truth_empty or self.test_empty:
             return np.nan
         else:
-            voi_split, voi_merge = cremi.evaluation.voi(self.test + 1, self.truth + 1, ignore_groundtruth=[])
+            if self.mask is not None:
+                test_voi = self.test + self.mask # add 1 in valid area, keep values of 0 in invalid area
+                truth_voi = self.truth + self.mask
+            else:
+                test_voi = self.test + 1
+                truth_voi = self.truth + 1
+            voi_split, voi_merge = cremi.evaluation.voi(test_voi, truth_voi, 
+                                                        ignore_groundtruth=[0], 
+                                                        ignore_reconstruction=[0])
             return voi_split + voi_merge
 
     def mean_false_distance(self):

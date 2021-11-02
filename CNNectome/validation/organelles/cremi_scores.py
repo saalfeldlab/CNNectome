@@ -2,25 +2,30 @@ import numpy as np
 import scipy.ndimage
 import lazy_property
 BG = 0
-
+MASK_OUTSIDE = 0
 
 class CremiEvaluator(object):
-    def __init__(self, truth, test, sampling=(1, 1, 1), clip_distance=200, tol_distance=40):
+    def __init__(self, truth, test, sampling=(1, 1, 1), clip_distance=200, tol_distance=40, mask=None):
         self.test = test
         self.truth = truth
         self.sampling = sampling
         self.clip_distance = clip_distance
         self.tol_distance = tol_distance
+        self.mask = mask
 
     @lazy_property.LazyProperty
     def test_mask(self):
         # todo: more involved masking
         test_mask = self.test == BG
+        if self.mask is not None:
+            test_mask = np.logical_or(test_mask, self.mask==MASK_OUTSIDE)
         return test_mask
 
     @lazy_property.LazyProperty
     def truth_mask(self):
         truth_mask = self.truth == BG
+        if self.mask is not None:
+            truth_mask = np.logical_or(truth_mask, self.mask==MASK_OUTSIDE)
         return truth_mask
 
     @lazy_property.LazyProperty
@@ -45,7 +50,10 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def false_positive_rate_with_tolerance(self):
-        condition_negative = np.sum(self.truth_mask)
+        if self.mask is not None:
+            condition_negative = np.sum(np.logical_and(self.truth_mask, self.mask))
+        else:
+            condition_negative = np.sum(self.truth_mask)
         return float(self.false_positives_with_tolerance) / float(condition_negative)
 
     @lazy_property.LazyProperty
