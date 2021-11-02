@@ -8,10 +8,10 @@ import os
 def run_new_crop(cropno, gt_version="v0003", training_version="v0003.2", tol_distance=40, clip_distance=200):
     db = cosem_db.MongoCosemDB(write_access=True, gt_version=gt_version, training_version=training_version)
     eval_results_csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"],
-                                           training_version,
+                                           training_version, gt_version,
                                            "evaluation_results")
     csvhandler = cosem_db.CosemCSV(eval_results_csv_folder)
-    col = db.access("evaluation", db.training_version)
+    col = db.access("evaluation", (db.training_version, db.gt_version))
     for k, entry in enumerate(col.find({"crop": {"$ne": str(cropno)}, "label": {"$ne": "ribosomes"}}, batch_size=100)):
         print(".", end="", flush=True)
         setup = entry["setup"]

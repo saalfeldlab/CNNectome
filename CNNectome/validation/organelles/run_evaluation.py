@@ -248,7 +248,7 @@ def main(alt_args=None):
     args = parser.parse_args(alt_args)
     db = cosem_db.MongoCosemDB(write_access=True, training_version=args.training_version, gt_version=args.gt_version)
     eval_results_csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"],
-                                           db.training_version, "evaluation_results")
+                                           db.training_version, db.gt_version, "evaluation_results")
     csvhandler = cosem_db.CosemCSV(eval_results_csv_folder)
     if args.overwrite and not args.save:
         raise ValueError("Overwriting should only be set if save is also set")

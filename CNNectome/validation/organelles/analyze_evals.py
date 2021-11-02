@@ -107,7 +107,7 @@ def _best_automatic(db: cosem_db.MongoCosemDB,
     aggregator.append({"$project": projection})
 
     # run the aggregation on the evaluation database
-    col = db.access("evaluation", db.training_version)
+    col = db.access("evaluation", (db.training_version, db.gt_version))
     best_config = list(col.aggregate(aggregator))
 
     if len(best_config) == 0:  # if no results are found, return at this point

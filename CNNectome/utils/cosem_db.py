@@ -4,7 +4,7 @@ import os
 import csv
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 from CNNectome.utils import config_loader
 
 
@@ -69,6 +69,8 @@ class MongoCosemDB(CosemDB):
         return client
 
     def access(self, db_name, collection):
+        if isinstance(collection, Iterable):
+            collection = ".".join(collection)
         return self.client[db_name][collection]
 
     def get_crop_by_number(self, number: Union[int, str]):
@@ -99,14 +101,14 @@ class MongoCosemDB(CosemDB):
         return crops
 
     def find(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
-        eval_db = self.access("evaluation", self.training_version)
+        eval_db = self.access("evaluation", (self.training_version, self.gt_version))
         result = []
         for qu in eval_db.find(query):
             result.append(qu)
         return result
 
     def read_evaluation_result(self, query):
-        eval_db = self.access('evaluation', self.training_version)
+        eval_db = self.access('evaluation', (self.training_version, self.gt_version))
         num = eval_db.count_documents(query)
         if num > 1:
             raise ValueError("Query for reading evaluation results matched more than one database entry, consider "
@@ -116,16 +118,16 @@ class MongoCosemDB(CosemDB):
         return eval
 
     def delete_evaluation_result(self, query):
-        eval_db = self.access('evaluation', self.training_version)
+        eval_db = self.access('evaluation', (self.training_version, self.gt_version))
         eval = eval_db.delete_many(query)
 
     def write_evaluation_result(self, document):
-        eval_db = self.access('evaluation', self.training_version)
+        eval_db = self.access('evaluation', (self.training_version, self.gt_version))
         id = eval_db.insert_one(document.copy())
         return id
 
     def update_evaluation_result(self, query, value):
-        eval_db = self.access('evaluation', self.training_version)
+        eval_db = self.access('evaluation', (self.training_version, self.gt_version))
         document = query.copy()
         document["value"] = value
         num = eval_db.count_documents(query)

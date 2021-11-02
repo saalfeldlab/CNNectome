@@ -23,7 +23,7 @@ def max_evaluated_iteration(query: Dict[str, Any],
     Returns:
         Maximum iteration for `query`.
     """
-    col = db.access("evaluation", db.training_version)
+    col = db.access("evaluation", (db.training_version, db.gt_version))
     max_it = col.aggregate([{"$match": query},
                             {"$sort": {"iteration": -1}},
                             {"$limit": 1},
@@ -59,7 +59,7 @@ def convergence_iteration(query: Dict[str, Any],
     """
     query["iteration"] = {"$mod": [25000, 0]}
     metrics = ("dice", "mean_false_distance")
-    col = db.access("evaluation", db.training_version)
+    col = db.access("evaluation", (db.training_version, db.gt_version))
 
     # check whether anything has been evaluated for this query type
     query_any = query.copy()
@@ -161,7 +161,7 @@ def above_threshold(db: cosem_db.MongoCosemDB,
     qy["metric"] = "mean_false_distance"
     qy["value"] = {"$gt": 0}
     qy["iteration"] = {"$mod": [25000, 0], "$lte": by}
-    eval_col = db.access("evaluation", db.training_version)
+    eval_col = db.access("evaluation", (db.training_version, db.gt_version))
     return not(eval_col.find_one(qy) is None)
 
 
@@ -242,7 +242,7 @@ def check_completeness(db: cosem_db.MongoCosemDB,
     if len(label_to_cropnos) == 0:
         return True
 
-    eval_col = db.access("evaluation", db.training_version)
+    eval_col = db.access("evaluation", (db.training_version, db.gt_version))
     will_return = True
     iterations_col = []
     for met in segmentation_metrics.EvaluationMetrics:

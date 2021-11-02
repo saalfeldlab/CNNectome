@@ -41,7 +41,7 @@ def plot_val(db: MongoCosemDB,
     else:
         raw_datasets = ["volumes/raw/s0"]
 
-    col = db.access("evaluation", db.training_version)
+    col = db.access("evaluation", (db.training_version, db.gt_version))
     # query all relevant results
     query = {"setup": setup,
              "label": labelname,
@@ -69,7 +69,7 @@ def plot_val(db: MongoCosemDB,
             for metric in ["dice", "mean_false_distance"]:
                 query["metric"] = metric
 
-                col = db.access("evaluation", db.training_version)
+                col = db.access("evaluation", (db.training_version, db.gt_version))
 
                 scores = list(col.aggregate([
                     {"$match": query},
