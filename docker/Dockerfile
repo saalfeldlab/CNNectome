@@ -3,16 +3,16 @@ LABEL maintainer heinrichl@janelia.hhmi.org
 
 # basic ubuntu packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        cmake \
-        git \
-        libmlpack-dev \
-        python3.6 \
-        python3-numpy \
-        python3-setuptools \
-        python3-pip \
-        libboost-all-dev \
-        wget && \
+    build-essential \
+    cmake \
+    git \
+    libmlpack-dev \
+    python3.6 \
+    python3-numpy \
+    python3-setuptools \
+    python3-pip \
+    libboost-all-dev \
+    wget && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PIP=pip
@@ -39,7 +39,7 @@ RUN ${PYTHON} --version && ${PIP} install cython
 #    ${PYTHON} setup.py build_ext --inplace
 
 
-ENV CNNECTOME_BRANCH=v2.0
+ENV CNNECTOME_BRANCH=master
 ENV CNNECTOME_REPOSITORY=https://github.com/saalfeldlab/CNNectome.git
 RUN ${PIP} install cnnectome[synapse_postprocessing]@git+${CNNECTOME_REPOSITORY}@${CNNECTOME_BRANCH}
 
