@@ -11,7 +11,7 @@ AUTHOR = "Larissa Heinrich"
 REQUIRES_PYTHON = ">=3.6"
 
 REQUIRED = [
-    "tensorflow_gpu<1.15",
+    "tensorflow_gpu<2.6",
     "absl-py>=0.9",
     "appdirs",
     "dnspython",
