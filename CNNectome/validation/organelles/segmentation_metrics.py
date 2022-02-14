@@ -43,6 +43,7 @@ def display_name(metric):
         EvaluationMetrics.mean_false_distance: "Mean False Distance",
         EvaluationMetrics.mean_false_positive_distance: "Mean False Positive Distance",
         EvaluationMetrics.mean_false_negative_distance: "Mean False Negative Distance",
+        EvaluationMetrics.mean_false_distance_clipped: 'Mean False Distance (Clipped)',
         EvaluationMetrics.mean_false_positive_distance_clipped: "Mean False Positive Distance (Clipped)",
         EvaluationMetrics.mean_false_negative_distance_clipped: "Mean False Negative Distance (Clipped)",
         EvaluationMetrics.precision_with_tolerance: "Precision with Tolerance Distance",
