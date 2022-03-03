@@ -51,7 +51,7 @@ def single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, i
 
 
     # prepare input and output definition for model
-    with open('{0:}_io_names.json'.format(net_name))as f:
+    with open('net_io_names.json'.format(net_name))as f:
         net_io_names = json.load(f)
     network_input_key = net_io_names[input]
     network_output_keys = []
