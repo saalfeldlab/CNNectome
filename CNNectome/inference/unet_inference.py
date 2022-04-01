@@ -102,7 +102,7 @@ def get_contrast_adjustment(rf: zarr.hierarchy.Group,
             logging.warning(
                 ("min_sc and max_sc not specified and contrastAdjustment not found in attributes of {0:}, will "
                  "continue with default contrast (min {1:}, max{2:}").format(
-                    os.path.join(rf, raw_ds), min_sc, max_sc
+                    os.path.join(rf.store.dir_path(), raw_ds), min_sc, max_sc
                 )
             )
 
