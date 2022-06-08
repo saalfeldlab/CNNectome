@@ -68,8 +68,15 @@ class MongoCosemDB(CosemDB):
         client = pymongo.MongoClient(self.uri)
         return client
 
-    def access(self, db_name, collection):
-        if isinstance(collection, Iterable):
+    def access(self, db_name, collection=None):
+        if collection is None:
+            if db_name == "evaluation":
+                collection = (self.training_version, self.gt_version)
+            elif db_name == "crops":
+                collection = self.gt_version
+            else:
+                raise ValueError(f"No default value for collection for database {db_name:}")
+        if isinstance(collection, Iterable) and not isinstance(collection, str):
             collection = ".".join(collection)
         return self.client[db_name][collection]
 

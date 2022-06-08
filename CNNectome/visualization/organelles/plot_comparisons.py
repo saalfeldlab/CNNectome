@@ -29,6 +29,7 @@ def sort_generic(labels: Sequence[str],
                  from_csv: bool = False,
                  db: Optional[cosem_db.MongoCosemDB] = None,
                  training_version: str = "v0003.2",
+                 gt_version: str = "v0003",
                  tol_distance: int = 40,
                  clip_distance: int = 200) -> List[str]:
     """
@@ -48,7 +49,7 @@ def sort_generic(labels: Sequence[str],
     """
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons",
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version,
                                 "best-4nm_across-setups_test_{0:}.csv".format(sorting_metric))
         reader = csv.DictReader(open(csv_file, "r"))
         results = []
@@ -85,6 +86,7 @@ def plot_generalization(metric: str, label: str,
                         from_csv: bool = False,
                         db: Optional[cosem_db.MongoCosemDB] = None,
                         training_version: str = "v0003.2",
+                        gt_version: str = "gt_version",
                         tol_distance: int = 40,
                         clip_distance: int = 200,
                         filetype: str = "svg",
@@ -101,6 +103,7 @@ def plot_generalization(metric: str, label: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figures.
@@ -112,7 +115,7 @@ def plot_generalization(metric: str, label: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons", "generalization_{0:}.csv".format(metric))
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version, "generalization_{0:}.csv".format(metric))
         reader = csv.DictReader(open(csv_file, "r"))
         all_results = []
         for row in reader:
@@ -132,11 +135,20 @@ def plot_generalization(metric: str, label: str,
     # setups = collections.OrderedDict(
     #     [("jrc_hela-2", "setup61"),  ("jrc_jurkat-1", "setup64"), ("jrc_hela-3", "setup63"),
     #      ("jrc_macrophage-2", "setup62"), ("combined", "setup03")])
-    crops = collections.OrderedDict([("jrc_hela-2", "113"),
+    if gt_version == "v0003":
+        crops = collections.OrderedDict([("jrc_hela-2", "113"),
                                      ("jrc_hela-3", "111"),
                                      ("jrc_jurkat-1", "112"),
                                      ("jrc_macrophage-2", "110"),
                                      ])
+    elif gt_version == "v0004":
+        crops = collections.OrderedDict([("jrc_hela-2", "155"),
+                                     ("jrc_hela-3", "111"),
+                                     ("jrc_jurkat-1", "112"),
+                                     ("jrc_macrophage-2", "110"),
+                                     ])
+    else:
+        raise ValueError("Undefined gt_version")                                
     setups = collections.OrderedDict([("jrc_hela-2", "setup61"),
                                       ("jrc_hela-3", "setup63"),
                                       ("jrc_jurkat-1", "setup64"),
@@ -160,7 +172,7 @@ def plot_generalization(metric: str, label: str,
                     break
     if to_csv is not None:
         csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
-                                "figures", to_csv)
+                                "figures", gt_version, to_csv)
         fields = ["evaluation_dataset", "training_dataset", "value"]
         csv_writer = csv.DictWriter(open(csv_file, "w"), fieldnames=fields)
         csv_writer.writeheader()
@@ -198,6 +210,7 @@ def plot_generalization(metric: str, label: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "generalization_{0:}_{1:}_{2:}.{3:}".format(metric, label, transparent, filetype)),
             transparent=transparent)
         plt.show()
@@ -207,6 +220,7 @@ def plot_s1_vs_sub(metric: str,
                    from_csv: bool = False,
                    db: Optional[cosem_db.MongoCosemDB] = None,
                    training_version: str = "v0003.2",
+                   gt_version: str = "v0003",
                    tol_distance: int = 40,
                    clip_distance: int = 200,
                    filetype: str = "svg",
@@ -220,6 +234,7 @@ def plot_s1_vs_sub(metric: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -233,7 +248,7 @@ def plot_s1_vs_sub(metric: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons", "s1-vs-sub_per-setup_test_{0:}.csv".format(metric))
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version, "s1-vs-sub_per-setup_test_{0:}.csv".format(metric))
         reader = csv.DictReader(open(csv_file, "r"))
         all_results = []
         for row in reader:
@@ -259,7 +274,7 @@ def plot_s1_vs_sub(metric: str,
     # avgs_tuples = [(v, k) for k, v in avgs.items()]
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     x_values = []
@@ -318,6 +333,7 @@ def plot_s1_vs_sub(metric: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "s1-vs-ss_{0:}_{1:}.{2:}".format(metric, transparent, filetype)), transparent=transparent)
     plt.show()
 
@@ -326,6 +342,7 @@ def plot_4nm_vs_8nm(metric: str,
                     from_csv: bool = False,
                     db: Optional[cosem_db.MongoCosemDB] = None,
                     training_version: str = "v0003.2",
+                    gt_version: str = "v0003",
                     tol_distance: int = 40,
                     clip_distance: int = 200,
                     filetype: str = "svg",
@@ -340,6 +357,7 @@ def plot_4nm_vs_8nm(metric: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -356,7 +374,8 @@ def plot_4nm_vs_8nm(metric: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons", "4nm-vs-8nm_across-setups_test_{0:}.csv".format(metric))
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version,
+                                "4nm-vs-8nm_across-setups_test_{0:}.csv".format(metric))
         reader = csv.DictReader(open(csv_file, "r"))
         all_results = []
         for row in reader:
@@ -383,7 +402,7 @@ def plot_4nm_vs_8nm(metric: str,
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
 
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     x_values = []
@@ -393,6 +412,7 @@ def plot_4nm_vs_8nm(metric: str,
     color_dict = {"4nm network": "#1b9e77", "8nm network": "#d95f02"}
     crop_ds = {"111": "jrc_hela-3",
                "113": "jrc_hela-2",
+               "155": "jrc_hela-2",
                "110": "jrc_macrophage-2",
                "112": "jrc_jurkat-1"}
     csv_results = []
@@ -412,7 +432,7 @@ def plot_4nm_vs_8nm(metric: str,
                 csv_results.append(csv_entry)
     if to_csv is not None:
         csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
-                                "figures", to_csv)
+                                "figures", gt_version, to_csv)
         fields = ["label", "dataset", "4nm_network", "8nm_network"]
         csv_writer = csv.DictWriter(open(csv_file, "w"), fieldnames=fields)
         csv_writer.writeheader()
@@ -458,6 +478,7 @@ def plot_4nm_vs_8nm(metric: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "4nm-vs-8nm_{0:}_{1:}.{2:}".format(metric, transparent, filetype)), transparent=transparent)
     plt.show()
 
@@ -466,6 +487,7 @@ def plot_all_vs_common_vs_single(metric: str,
                                  from_csv: bool = False,
                                  db: Optional[cosem_db.MongoCosemDB] = None,
                                  training_version: str = "v0003.2",
+                                 gt_version: str = "v0003",
                                  tol_distance: int = 40,
                                  clip_distance: int = 200,
                                  filetype: str = "svg",
@@ -481,6 +503,7 @@ def plot_all_vs_common_vs_single(metric: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -495,7 +518,7 @@ def plot_all_vs_common_vs_single(metric: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons",
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version,
                                 "all-vs-common-vs-single_test_{0:}.csv".format(metric))
         reader = csv.DictReader(open(csv_file, "r"))
         all_results = []
@@ -525,7 +548,7 @@ def plot_all_vs_common_vs_single(metric: str,
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
 
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     x_values = []
@@ -535,6 +558,7 @@ def plot_all_vs_common_vs_single(metric: str,
     color_dict = {"all": "#1b9e77", "many": "#d95f02", "few": "#e6ab02"}
     crop_ds = {"111": "jrc_hela-3",
                "113": "jrc_hela-2",
+               "155": "jrc_hela-2",
                "110": "jrc_macrophage-2",
                "112": "jrc_jurkat-1"}
     csv_results = []
@@ -569,7 +593,7 @@ def plot_all_vs_common_vs_single(metric: str,
 
     if to_csv is not None:
         csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
-                                "figures", to_csv)
+                                "figures", gt_version, to_csv)
         fields = ["label", "dataset", "all", "many", "few"]
         csv_writer = csv.DictWriter(open(csv_file, "w"), fieldnames=fields)
         csv_writer.writeheader()
@@ -613,6 +637,7 @@ def plot_all_vs_common_vs_single(metric: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "all-vs-common-vs-single_{0:}_{1:}.{2:}".format(metric, transparent, filetype)),
             transparent=transparent)
     plt.show()
@@ -623,6 +648,7 @@ def plot_datasets(metric: str,
                   from_csv: bool = False,
                   db: cosem_db.MongoCosemDB = None,
                   training_version: str = "v0003.2",
+                  gt_version: str = "v0003",
                   tol_distance: int = 40,
                   clip_distance: int = 200,
                   filetype: str = "svg",
@@ -639,6 +665,7 @@ def plot_datasets(metric: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -653,10 +680,11 @@ def plot_datasets(metric: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file_test = os.path.join(csv_folder, "comparisons", "best-4nm_across-setups_test_{0:}.csv".format(metric))
-        csv_file_validation = os.path.join(csv_folder, "comparisons",
+        csv_file_test = os.path.join(csv_folder, "comparisons", gt_version,
+                            "best-4nm_across-setups_test_{0:}.csv".format(metric))
+        csv_file_validation = os.path.join(csv_folder, "comparisons", gt_version,
                                            "best-4nm_across-setups_validation_{0:}.csv".format(metric))
-        csv_file_manual = os.path.join(csv_folder, "comparisons",
+        csv_file_manual = os.path.join(csv_folder, "comparisons", gt_version,
                                        "metrics_across-setups_test_{0:}-vs-manual.csv".format(metric))
         reader_test = csv.DictReader(open(csv_file_test, "r"))
         reader_validation = csv.DictReader(open(csv_file_validation, "r"))
@@ -673,14 +701,12 @@ def plot_datasets(metric: str,
             manual_results.append(row)
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
-        test_results = compare("best-4nm", db, [metric], tol_distance=tol_distance,
-                               clip_distance=clip_distance,
+        test_results = compare("best-4nm", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance,
                                test=True, mode="across_setups")
-        validation_results = compare("best-4nm", db, [metric], tol_distance=tol_distance,
-                                     clip_distance=clip_distance, test=False, mode="across_setups")
-        manual_results = compare("metrics", db, [metric, "manual"],
-                                 tol_distance=tol_distance, clip_distance=clip_distance, mode="across_setups",
-                                 test=True)
+        validation_results = compare("best-4nm", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance, 
+                                     test=False, mode="across_setups")
+        manual_results = compare("metrics", db, [metric, "manual"], tol_distance=tol_distance, 
+                                 clip_distance=clip_distance, mode="across_setups", test=True)
     labels = []
     crops = []
     for result in test_results:
@@ -694,8 +720,13 @@ def plot_datasets(metric: str,
     for result in manual_results:
         result["label_manual"] = short_names[result["label_manual"]]
     labels = list(set(labels))
-    crops = ["113", "111", "112", "110"]
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    if gt_version == "v0003":
+        crops = ["113", "111", "112", "110"]
+    elif gt_version == "v0004":
+        crops = ["155", "111", "112", "110"]
+    else:
+        raise ValueError("undefined gt_version")
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
 
     x_values_test = []
@@ -706,20 +737,25 @@ def plot_datasets(metric: str,
     y_values_manual = []
     colors = {"111": "#7570b3",  # lavender
               "113": "#66a61e",  # green
+              "155": "#66a61e",  # green
               "110": "#e7298a",  # pink
               "112": "#a6761d"  # ockery
               }
     crop_ds = {"111": "jrc_hela-3",
                "113": "jrc_hela-2",
+               "155": "jrc_hela-2",
                "110": "jrc_macrophage-2",
                "112": "jrc_jurkat-1"}
-
-    patches = [
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"], label=crop_ds["113"]),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"], label=crop_ds["111"]),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"], label=crop_ds["112"]),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"], label=crop_ds["110"]),
-    ]
+    if gt_version == "v0003":
+        patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"], label=crop_ds["113"]),]
+    elif gt_version == "v0004":
+        patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["155"], label=crop_ds["155"]),]
+    else:
+        raise ValueError("undefined gt_version")
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"], label=crop_ds["111"]))
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"], label=crop_ds["112"]))
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"], label=crop_ds["110"]))
+    
     colors_test = []
     colors_validation = []
     colors_manual = []
@@ -803,7 +839,7 @@ def plot_datasets(metric: str,
     ax = plt.gca()
     if to_csv is not None:
         csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
-                                "figures", to_csv)
+                                "figures", gt_version, to_csv)
         fields = ["label", "dataset", "test", "validation"]
         if add_manual:
             fields.append("manual")
@@ -848,6 +884,7 @@ def plot_datasets(metric: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "datasets_{0:}_{1:}.{2:}".format(metric, transparent, filetype)), transparent=transparent)
     plt.show()
 
@@ -856,6 +893,7 @@ def plot_rawvsrefined_single(metric: str,
                              from_csv: bool = False,
                              db: cosem_db.MongoCosemDB = None,
                              training_version: str = "v0003.2",
+                             gt_version: str = "v0003",
                              tol_distance: int = 40,
                              clip_distance: int = 200,
                              filetype: str = "svg",
@@ -869,6 +907,7 @@ def plot_rawvsrefined_single(metric: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -882,7 +921,8 @@ def plot_rawvsrefined_single(metric: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons", "raw-vs-refined_{metric:}.csv".format(metric=metric))
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version, 
+                                "raw-vs-refined_{metric:}.csv".format(metric=metric))
         reader = csv.DictReader(open(csv_file, "r"))
         results = []
         for row in reader:
@@ -913,12 +953,13 @@ def plot_rawvsrefined_single(metric: str,
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metric)]
 
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     colors = {
         "111": "#7570b3",  # lavender
         "113": "#66a61e",  # green
+        "155": "#66a61e",  # green
         "110": "#e7298a",  # pink
         "112": "#a6761d"  # ockery
     }
@@ -971,13 +1012,17 @@ def plot_rawvsrefined_single(metric: str,
                 ax.scatter([mid + off], [refined], facecolor="white", edgecolor=colors[result[
                     "crop_raw"]], s=fs * ratio)
     plt.ylabel(display_name(metric))
-    patches = [
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"], label="jrc_hela-2"),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"], label="jrc_hela-3"),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"], label="jrc_jurkat-1"),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"],
-                      label="jrc_macrophage-2"),
-    ]
+    if gt_version == "v0003":
+        
+        patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"], label="jrc_hela-2"),]
+    elif gt_version == "v0004":
+        patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["155"], label="jrc_hela-2"),]
+    else:
+        raise ValueError("undefined gt_version")
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"], label="jrc_hela-3"))
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"], label="jrc_jurkat-1"))
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"],
+                      label="jrc_macrophage-2"))
 
     ax.scatter([], [], c="k", marker="o", label="raw", s=fs * ratio)
     ax.scatter([], [], facecolor="white", edgecolor="k", marker="o", label="refined", s=fs * ratio)
@@ -988,6 +1033,7 @@ def plot_rawvsrefined_single(metric: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "raw-vs-refined_{0:}_{1:}.{2:}".format(metric, transparent, filetype)),
             transparent=transparent)
     plt.show()
@@ -997,6 +1043,7 @@ def plot_raw_vs_refined(metrics: Sequence[str],
                         from_csv: bool = False,
                         db: cosem_db.MongoCosemDB = None,
                         training_version: str = "v0003.2",
+                        gt_version: str = "v0003",
                         tol_distance: int = 40,
                         clip_distance: int = 200,
                         filetype: str = "svg",
@@ -1011,6 +1058,7 @@ def plot_raw_vs_refined(metrics: Sequence[str],
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -1029,7 +1077,7 @@ def plot_raw_vs_refined(metrics: Sequence[str],
     results = {}
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        csv_file = os.path.join(csv_folder, "comparisons", "raw-vs-refined_{metric:}.csv")
+        csv_file = os.path.join(csv_folder, "comparisons", gt_version, "raw-vs-refined_{metric:}.csv")
         for metric in metrics:
             results[metric] = []
             reader = csv.DictReader(open(csv_file.format(metric=metric), "r"))
@@ -1060,17 +1108,19 @@ def plot_raw_vs_refined(metrics: Sequence[str],
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting(metrics[0])]
 
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
     mids = list(range(1, 1 + len(labels)))
     colors = {
         "111": "#7570b3",  # lavender
         "113": "#66a61e",  # green
+        "155": "#66a61e",  # green
         "110": "#e7298a",  # pink
         "112": "#a6761d"  # ockery
     }
     crop_ds = {"111": "jrc_hela-3",
                "113": "jrc_hela-2",
+               "155": "jrc_hela-2",
                "110": "jrc_macrophage-2",
                "112": "jrc_jurkat-1"}
     off = 0.25
@@ -1120,23 +1170,27 @@ def plot_raw_vs_refined(metrics: Sequence[str],
                     csv_results.append(csv_entry)
         if to_csv is not None:
             csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
-                                    "figures", to_csv)
+                                    "figures", gt_version, to_csv)
             fields = ["label", "metric", "dataset", "raw", "refined"]
             csv_writer = csv.DictWriter(open(csv_file, "w"), fieldnames=fields)
             csv_writer.writeheader()
             csv_writer.writerows(csv_results)
         ax.set_ylabel(display_name(metric))
         if ax_no == 0:
-            patches = [
-                mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"],
-                              label="jrc_hela-2"),
-                mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"],
-                              label="jrc_hela-3"),
-                mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"],
-                              label="jrc_jurkat-1"),
-                mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"],
-                              label="jrc_macrophage-2"),
-            ]
+            if gt_version == "v0003":
+                patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"],
+                              label="jrc_hela-2")]
+            elif gt_version == "v0004":
+                patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["155"],
+                              label="jrc_hela-2")]
+            else:
+                raise ValueError("Undefined gt_version")
+            patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"],
+                              label="jrc_hela-3"))
+            patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"],
+                              label="jrc_jurkat-1"))
+            patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"],
+                              label="jrc_macrophage-2"))
             ax.scatter([], [], c="k", marker="o", label="raw", s=fs * ratio)
             ax.scatter([], [], facecolor="white", edgecolor="k", marker="o", label="refined", s=fs * ratio)
             handles, legend_labels = ax.get_legend_handles_labels()
@@ -1146,6 +1200,7 @@ def plot_raw_vs_refined(metrics: Sequence[str],
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
+                         gt_version,
                          "raw-vs-refined_{0:}_{1:}.{2:}".format('_'.join(metrics), transparent, filetype)),
             transparent=transparent)
     plt.show()
@@ -1157,20 +1212,21 @@ def _assemble_metriccomparison_results(
         from_csv: bool = False,
         db: Optional[cosem_db.MongoCosemDB] = None,
         training_version: str = "v0003.2",
+        gt_version: str = "v0003",
         tol_distance: int = 40,
         clip_distance: int = 200,
 ) -> Dict[str, Dict[str, Dict[str, List[Dict[str, Union[str, float]]]]]]:
     results = dict()
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        across_setups_test = os.path.join(csv_folder, "comparisons",
+        across_setups_test = os.path.join(csv_folder, "comparisons", gt_version,
                                           "metrics_across-setups_test_{0:}.csv".format("-vs-".join([metric1, metric2])))
-        across_setups_validation = os.path.join(csv_folder, "comparisons",
+        across_setups_validation = os.path.join(csv_folder, "comparisons", gt_version,
                                                 "metrics_across-setups_validation_{0:}.csv".format(
                                                     "-vs-".join([metric1, metric2])))
-        per_setup_test = os.path.join(csv_folder, "comparisons",
+        per_setup_test = os.path.join(csv_folder, "comparisons", gt_version,
                                       "metrics_per-setup_test_{0:}.csv".format("-vs-".join([metric1, metric2])))
-        per_setup_validation = os.path.join(csv_folder, "comparisons",
+        per_setup_validation = os.path.join(csv_folder, "comparisons", gt_version,
                                             "metrics_per-setup_validation_{0:}.csv".format(
                                                 "-vs-".join([metric1, metric2]))
                                             )
@@ -1315,12 +1371,14 @@ def plot_metric_comparison_by_label(metric1: str,
                                     from_csv: bool = False,
                                     db: cosem_db.MongoCosemDB = None,
                                     training_version: str = "v0003.2",
+                                    gt_version: str = "v0003",
                                     tol_distance: int = 40,
                                     clip_distance: int = 200,
                                     filetype: str = "svg",
                                     transparent: bool = False,
                                     save: bool = False,
-                                    to_csv: Optional[str] = None) -> None:
+                                    to_csv: Optional[str] = None,
+                                    crops: Optional[Sequence[str]] = None) -> None:
     """
     Plot comparison of different metrics. For each label and dataset plot all available results. Results are reported
     via `metric1`, comparing optimizing setup/iteration via `metric1` and `metric2`.
@@ -1331,12 +1389,14 @@ def plot_metric_comparison_by_label(metric1: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
         transparent: Whether to save the figure with a transparent background.
         save: whether to save the figure.
         to_csv: unless None, csv file with raw data shown in figure will be saved here.
+        crops: crops to include in the plot, if None all validation crops for specified gt_version are used
 
     Returns:
         None.
@@ -1345,8 +1405,8 @@ def plot_metric_comparison_by_label(metric1: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
 
     results = _assemble_metriccomparison_results(metric1, metric2, from_csv=from_csv, db=db,
-                                                 training_version=training_version, tol_distance=tol_distance,
-                                                 clip_distance=clip_distance)
+                                                 training_version=training_version, gt_version=gt_version,
+                                                 tol_distance=tol_distance, clip_distance=clip_distance)
     labels = []
     for crop, value_by_crop in results.items():
         labels.extend(list(value_by_crop.keys()))
@@ -1366,7 +1426,7 @@ def plot_metric_comparison_by_label(metric1: str,
     # labels = [l for _, l in sorted(avgs_tuples)]
     # labels = labels[::sorting("dice")]
 
-    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version,
+    labels = sort_generic(labels, db=db, from_csv=from_csv, training_version=training_version, gt_version=gt_version,
                           tol_distance=tol_distance, clip_distance=clip_distance)
 
     max_datapoints = 0
@@ -1379,23 +1439,37 @@ def plot_metric_comparison_by_label(metric1: str,
     offsets = sorted(np.arange(spacing / 2, 1, spacing) - 0.5, key=lambda x: np.abs(x))
     mids = list(range(1, 1 + len(labels)))
 
-    fig, axs = plt.subplots(4, sharex=True, sharey=True, figsize=(fig_width_per_label * len(labels), fig_height * 4))
+    
+    crops_no_to_cell = {"113": "jrc_hela-2",
+                        "155": "jrc_hela-2",
+                        "111": "jrc_hela-3",
+                        "112": "jrc_jurkat-1",
+                        "110": "jrc_macrophage-2"}
+    colors = {"111": "#7570b3",  # lavender
+              "113": "#66a61e",  # green
+              "155": "#66a61e",  # green
+              "110": "#e7298a",  # pink
+              "112": "#a6761d"  # ockery
+              }
+    if crops is None:
+        if gt_version =="v0003":
+            crops = ["113", "111", "112", "110"]
+        elif gt_version == "v0004":
+            crops = ["155", "111", "112", "110"]
+        else:
+            raise ValueError("undefined gt_version and crops")
+        crop_in_save = ""
+    else:
+        crop_in_save = "_"+ "_".join(crops)
+    fig, axs = plt.subplots(len(crops), sharex=True, sharey=True, figsize=(fig_width_per_label * len(labels), fig_height * len(crops)))
+    if not isinstance(axs, Iterable):
+        axs = np.array([axs])
     for ax in axs:
         ax.set_axisbelow(True)
         ax.spines["top"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["left"].set_visible(False)
-    crops_no_to_cell = {"113": "jrc_hela-2",
-                        "111": "jrc_hela-3",
-                        "112": "jrc_jurkat-1",
-                        "110": "jrc_macrophage-2"}
-    colors = {"111": "#7570b3",  # lavender
-              "113": "#66a61e",  # green
-              "110": "#e7298a",  # pink
-              "112": "#a6761d"  # ockery
-              }
-    crops = ["113", "111", "112", "110"]
     for ax in axs:
         for mid in mids[:-1]:
             ax.axvline(mid + 0.5, linestyle=(0, (1, 5)), color="gray", linewidth=.5)
@@ -1459,7 +1533,7 @@ def plot_metric_comparison_by_label(metric1: str,
                                label=crops_no_to_cell[crop]), ]
         if to_csv is not None:
             csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
-                                    "figures", to_csv)
+                                    "figures", gt_version, to_csv)
             fields = ["dataset", "label", "validation", metric_label]
             csv_writer = csv.DictWriter(open(csv_file, "w"), fieldnames=fields)
             csv_writer.writeheader()
@@ -1494,7 +1568,8 @@ def plot_metric_comparison_by_label(metric1: str,
         plt.subplots_adjust(left=0, bottom=0, top=1, right=1, hspace=0.15)
         plt.savefig(
             os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version, "figures",
-                         "metrics-by-label_{0:}-vs-{1:}_{2:}.{3:}".format(metric1, metric2, transparent, filetype)),
+                         gt_version, "metrics-by-label_{0:}-vs-{1:}{2:}_{3:}.{4:}".format(metric1, metric2, 
+                         crop_in_save, transparent, filetype)),
             transparent=transparent
         )
     plt.show()
@@ -1505,6 +1580,7 @@ def plot_metric_comparison(metric1: str,
                            from_csv: bool = False,
                            db: cosem_db.MongoCosemDB = None,
                            training_version: str = "v0003.2",
+                           gt_version: str = "v0003",
                            tol_distance: int = 40,
                            clip_distance: int = 200,
                            filetype: str = "svg",
@@ -1522,6 +1598,7 @@ def plot_metric_comparison(metric1: str,
         from_csv: Read results from csv file in standardized location.
         db: Database with evaluation results, needed if `from_csv` is `False`.
         training_version: Version of trainings to compare.
+        gt_version: Version of groundtruth for comparisons.
         tol_distance: tolerance distance when using metric with tolerance distance, otherwise not used.
         clip_distance: clip distance when using metric with clip distance, otherwise not used.
         filetype: Filetype for saving the figure.
@@ -1536,14 +1613,14 @@ def plot_metric_comparison(metric1: str,
     matplotlib.rcParams['font.family'] = "sans-serif"
     if from_csv:
         csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version)
-        across_setups_test = os.path.join(csv_folder, "comparisons",
+        across_setups_test = os.path.join(csv_folder, "comparisons", gt_version,
                                           "metrics_across-setups_test_{0:}.csv".format("-vs-".join([metric1, metric2])))
         across_setups_validation = os.path.join(csv_folder, "comparisons",
                                                 "metrics_across-setups_validation_{0:}.csv".format(
                                                     "-vs-".join([metric1, metric2])))
-        per_setup_test = os.path.join(csv_folder, "comparisons",
+        per_setup_test = os.path.join(csv_folder, "comparisons", gt_version,
                                       "metrics_per-setup_test_{0:}.csv".format("-vs-".join([metric1, metric2])))
-        per_setup_validation = os.path.join(csv_folder, "comparisons",
+        per_setup_validation = os.path.join(csv_folder, "comparisons", gt_version,
                                             "metrics_per-setup_validation_{0:}.csv".format(
                                                 "-vs-".join([metric1, metric2])
                                             ))
@@ -1569,7 +1646,7 @@ def plot_metric_comparison(metric1: str,
     if sorting(metric1) == 1:
         ax.invert_yaxis()
     plt.grid(axis="both", color="gray", linestyle=(0, (1, 5)), linewidth=.5)
-    colors = {"110": "#7570b3", "111": "#66a61e", "112": "#e7298a", "113": "#a6761d"}
+    colors = {"110": "#7570b3", "111": "#66a61e", "112": "#e7298a", "113": "#a6761d","155": "#a6761d"}
 
     test_results = []
     for row in reader_across_setups_test:
@@ -1651,13 +1728,17 @@ def plot_metric_comparison(metric1: str,
 
     ax.scatter(x_values_validation, y_values_validation, c=colors, s=fs * ratio, marker=sym_val)
 
-    patches = [
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"], label="jrc_hela-2"),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"], label="jrc_hela-3"),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"], label="jrc_jurkat-1"),
-        mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"],
-                      label="jrc_macrophage-2"),
-    ]
+    if gt_version == "v0003":
+        patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["113"], label="jrc_hela-2"),]
+    elif gt_version == "v0004":
+        patches = [mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["155"], label="jrc_hela-2"),]
+    else:
+        raise ValueError("undefined gt_version")
+    
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["111"], label="jrc_hela-3"))
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["112"], label="jrc_jurkat-1"))
+    patches.append(mlines.Line2D([], [], marker="s", markersize=fs * 0.6, linewidth=0, color=colors["110"],
+                      label="jrc_macrophage-2"))
     test_label = "test/manual" if metric2 == "manual" else "test/test"
     validation_label = "validation/manual" if metric2 == "manual" else "validation/validation"
     ax.scatter([], [], c="k", marker=sym_test, label=test_label, s=fs * ratio)
@@ -1709,6 +1790,8 @@ def main() -> None:
     parser.add_argument("--transparent", action="store_true", help="whether to save with transparent background")
     parser.add_argument("--save", action="store_true", help="whether to save plot to file")
     parser.add_argument("--to_csv", type=str, default=None, help="Csv file to save raw data values to")
+    parser.add_argument("--crops", type=str, default=None, nargs="+", 
+                        help="crops to include in crops (only implemented for metrics-by-label)")
 
     args = parser.parse_args()
     print(args)
@@ -1719,46 +1802,47 @@ def main() -> None:
     if args.plot == "metrics":
         assert len(args.metric) == 2
         plot_metric_comparison(args.metric[0], args.metric[1], from_csv=args.from_csv, db=db,
-                               training_version=args.training_version, tol_distance=args.tol_distance,
-                               clip_distance=args.clip_distance, filetype=args.filetype, transparent=args.transparent,
-                               label=args.label, save=args.save)
+                               training_version=args.training_version, gt_version=args.gt_version,
+                               tol_distance=args.tol_distance, clip_distance=args.clip_distance, 
+                               filetype=args.filetype, transparent=args.transparent, label=args.label, save=args.save)
     elif args.plot == "metrics-by-label":
         assert len(args.metric) == 2
         plot_metric_comparison_by_label(args.metric[0], args.metric[1], from_csv=args.from_csv, db=db,
-                                        training_version=args.training_version, tol_distance=args.tol_distance,
-                                        clip_distance=args.clip_distance, filetype=args.filetype,
-                                        transparent=args.transparent, save=args.save, to_csv=args.to_csv)
+                                        training_version=args.training_version, gt_version=args.gt_version,
+                                        tol_distance=args.tol_distance, clip_distance=args.clip_distance, 
+                                        filetype=args.filetype, transparent=args.transparent, save=args.save, 
+                                        to_csv=args.to_csv, crops=args.crops)
     elif args.plot == "raw-vs-refined":
         pass
     else:
         args.metric = args.metric[0]
     if args.plot == "s1-vs-sub":
         plot_s1_vs_sub(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
-                       tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
-                       transparent=args.transparent,
-                       save=args.save)
+                       gt_version=args.gt_version, tol_distance=args.tol_distance, clip_distance=args.clip_distance, 
+                       filetype=args.filetype, transparent=args.transparent, save=args.save)
     elif args.plot == "4nm-vs-8nm":
         plot_4nm_vs_8nm(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
-                        tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
-                        transparent=args.transparent, save=args.save, to_csv=args.to_csv)
+                        gt_version=args.gt_version, tol_distance=args.tol_distance, clip_distance=args.clip_distance, 
+                        filetype=args.filetype, transparent=args.transparent, save=args.save, to_csv=args.to_csv)
     elif args.plot == "all-vs-common-vs-single":
         plot_all_vs_common_vs_single(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
-                                     tol_distance=args.tol_distance, clip_distance=args.clip_distance,
-                                     filetype=args.filetype, transparent=args.transparent, save=args.save,
-                                     to_csv=args.to_csv)
+                                     gt_version=args.gt_version, tol_distance=args.tol_distance, 
+                                     clip_distance=args.clip_distance, filetype=args.filetype, 
+                                     transparent=args.transparent, save=args.save, to_csv=args.to_csv)
     elif args.plot == "generalization":
         plot_generalization(args.metric, args.label, from_csv=args.from_csv, db=db,
-                            training_version=args.training_version, tol_distance=args.tol_distance,
-                            clip_distance=args.clip_distance, filetype=args.filetype, transparent=args.transparent,
-                            save=args.save, to_csv=args.to_csv)
+                            training_version=args.training_version, gt_version=args.gt_version,
+                            tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype, 
+                            transparent=args.transparent, save=args.save, to_csv=args.to_csv)
     elif args.plot == "datasets":
         plot_datasets(args.metric, args.manual, from_csv=args.from_csv, db=db, training_version=args.training_version,
-                      tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
-                      transparent=args.transparent, save=args.save, to_csv=args.to_csv)
+                      gt_version=args.gt_version, tol_distance=args.tol_distance, clip_distance=args.clip_distance, 
+                      filetype=args.filetype, transparent=args.transparent, save=args.save, to_csv=args.to_csv)
     elif args.plot == "raw-vs-refined":
         plot_raw_vs_refined(args.metric, from_csv=args.from_csv, db=db, training_version=args.training_version,
-                            tol_distance=args.tol_distance, clip_distance=args.clip_distance, filetype=args.filetype,
-                            transparent=args.transparent, save=args.save, to_csv=args.to_csv)
+                            gt_version=args.gt_version, tol_distance=args.tol_distance, 
+                            clip_distance=args.clip_distance, filetype=args.filetype, transparent=args.transparent, 
+                            save=args.save, to_csv=args.to_csv)
 
 
 if __name__ == "__main__":
