@@ -368,7 +368,7 @@ def plot_4nm_vs_8nm(metric: str,
     Returns:
         None.
     """
-    fig_width_per_label = 0.279
+    fig_width_per_label = 0.416
     fig_height = 2.10505
     matplotlib.rcParams['font.sans-serif'] = "Arial"
     matplotlib.rcParams['font.family'] = "sans-serif"
@@ -409,7 +409,7 @@ def plot_4nm_vs_8nm(metric: str,
     y_values = []
     colors = []
     off = 0.25
-    color_dict = {"4nm network": "#1b9e77", "8nm network": "#d95f02"}
+    color_dict = {"4 nm network": "#1b9e77", "8 nm network": "#d95f02"}
     crop_ds = {"111": "jrc_hela-3",
                "113": "jrc_hela-2",
                "155": "jrc_hela-2",
@@ -424,11 +424,11 @@ def plot_4nm_vs_8nm(metric: str,
                 x_values.append(mid - off)
                 y_values.append(float(result["value_4nm"]))
                 csv_entry["4nm_network"] = y_values[-1]
-                colors.append(color_dict["4nm network"])
+                colors.append(color_dict["4 nm network"])
                 x_values.append(mid + off)
                 y_values.append(float(result["value_8nm"]))
                 csv_entry["8nm_network"] = y_values[-1]
-                colors.append(color_dict["8nm network"])
+                colors.append(color_dict["8 nm network"])
                 csv_results.append(csv_entry)
     if to_csv is not None:
         csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], training_version,
@@ -465,7 +465,7 @@ def plot_4nm_vs_8nm(metric: str,
     ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=fs, rotation_mode="anchor")
     if metric == "mean_false_distance":
         ax.set_yscale('log')
-    plt.legend(frameon=False, prop={"size": fs}, labelspacing=.1, handletextpad=.025)
+    plt.legend(frameon=False, prop={"size": fs}, labelspacing=.1, handletextpad=.025, loc="lower left")
     plt.xlim([0.5, max(mids) + 0.5])
     if metric == "dice":
         plt.ylim([-.02, 1.02])
