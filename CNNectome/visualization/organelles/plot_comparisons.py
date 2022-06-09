@@ -799,8 +799,10 @@ def plot_datasets(metric: str,
                     csv_entry["validation"] = y_values_validation[-1]
                     colors_validation.append(colors[crop])
 
+            found_manual = False
             for result in manual_results:
                 #print(label, result["label_manual"])
+                
                 if result["label_manual"] == label:
                     #print(label)
                     if result["crop_manual"] == crop:
@@ -810,8 +812,17 @@ def plot_datasets(metric: str,
                             x_values_manual.append(mid + idx * off)
                             y_values_manual.append(float(result["value_manual"]))
                             colors_manual.append(colors[crop])
-                            if add_manual:
-                                csv_entry["manual"] = y_values_manual[-1]
+                            found_manual = True
+                            break
+            if not found_manual:
+                x_values_manual.append(mid + idx * off)
+                if metric == "dice":
+                    y_values_manual.append(0.0)
+                else:
+                    raise ValueError("No default value for metric {metric}")
+                colors_manual.append(colors[crop])
+            if add_manual:
+               csv_entry["manual"] = y_values_manual[-1]
             csv_results.append(csv_entry)
 
 
