@@ -14,6 +14,7 @@ REQUIRED = [
     "tensorflow_gpu<1.15",
     "absl-py>=0.9",
     "appdirs",
+    "bidict",
     "dnspython",
     "numpy",
     "scipy<1.6",
