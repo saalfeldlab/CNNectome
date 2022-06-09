@@ -525,7 +525,7 @@ def compare_refined(db: cosem_db.MongoCosemDB,
                                             metric)
         qu["refined"] = True
         refined = db.find(qu)
-        assert len(refined) == 1
+        assert len(refined) == 1, f"len(refined)={len(refined)}, qu: {qu}"
         refined = refined[0]
         qu["refined"] = False
         qu["threshold"] = threshold
