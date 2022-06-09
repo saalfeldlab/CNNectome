@@ -166,7 +166,11 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
     n5 = zarr.open(pred_path, mode="r")
     raw_dataset = n5[pred_ds].attrs["raw_ds"]
     parent_path = n5[pred_ds].attrs["raw_data_path"]
-    parent_dataset_id = n5[pred_ds].attrs["parent_dataset_id"]
+    try:
+        parent_dataset_id = n5[pred_ds].attrs["parent_dataset_id"]
+    except KeyError:
+        print("Using dataset id from crop")
+        parent_dataset_id = crop["dataset_id"]
     for metric in metrics:
         metric_specific_params = filter_params(metric_params, metric)
         # check db
@@ -345,7 +349,7 @@ def main(alt_args=None):
                 iter = autodetect_iteration(pred_path, ds)
                 if iter is None:
                     raise ValueError(
-                        "Please sepcify iteration, it is not contained in the prediction metadata."
+                        f"Please sepcify iteration, it is not contained in the prediction metadata for {pred_path} {ds}."
                     )
             if setup is None:
                 this_setup = autodetect_setup(pred_path, ds)
@@ -377,7 +381,10 @@ def main(alt_args=None):
             n5 = zarr.open(pred_path, mode="r")
             raw_ds = n5[ds].attrs["raw_ds"]
             parent_path = n5[ds].attrs["raw_data_path"]
-            parent_dataset_id = n5[ds].attrs["parent_dataset_id"]
+            try:
+                parent_dataset_id = n5[ds].attrs["parent_dataset_id"]
+            except KeyError as e:
+                parent_dataset_id = crop["dataset_id"]
             validations.append([pred_path, ds, this_setup, iter, hierarchy[ll], crop, raw_ds, parent_path,
                                 parent_dataset_id, thr])
 
