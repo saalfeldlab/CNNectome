@@ -522,7 +522,7 @@ def compare(comparison_task: str,
                 csv_file += "_validation"
         csv_file += "_" + "-vs-".join(metric) + ".csv"
         csv_file = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
-                                "comparisons", csv_file)
+                                "comparisons", db.gt_version, csv_file)
     else:
         return results
     print("Saving to {csv_file:}".format(csv_file=csv_file))

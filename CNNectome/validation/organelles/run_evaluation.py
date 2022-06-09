@@ -85,6 +85,18 @@ def read_prediction(prediction_path, pred_ds, offset, shape):
     sl = tuple(slice(int(o), int(o+s), None) for o, s in zip(offset, shape))
     return pred[sl], resolution
 
+def read_mask(offset, shape, parent_dataset_id, gt_version, crop):
+    if crop["completion"] == -1:
+        mask_type="validation"
+    else:
+        mask_type="groundtruth"
+    n5file = zarr.open(
+        os.path.join(config_loader.get_config()["organelles"]["data_path"], f"{parent_dataset_id:}",
+                     f"{parent_dataset_id:}.n5"), 
+        "r")
+    mask = n5file[f"volumes/masks/{mask_type:}/{gt_version:}"]
+    sl = tuple(slice(int(o), int(o+s), None) for o, s in zip(offset, shape))
+    return mask[sl]
 
 def reconstruct_cytosol_prediction(prediction_path, offset, shape, thr=127):
     cytosol_binary = np.zeros(shape, dtype=np.bool)
@@ -186,10 +198,11 @@ def run_validation(pred_path, pred_ds, setup, iteration, label, crop, threshold,
                 prediction, resolution = read_prediction(pred_path, pred_ds, offset, shape)
                 test_binary = apply_threshold(prediction, thr=threshold)
         gt_seg, label_resolution = read_gt(crop, label, gt_version)
+        mask = read_mask(offset, shape, parent_dataset_id, gt_version.lstrip("v"), crop)
         gt_binary = extract_binary_class(gt_seg, label_resolution, label)
 
-        pred_empty = np.sum(test_binary) == 0
-        evaluator = Evaluator(gt_binary, test_binary, gt_empty, pred_empty, metric_params, resolution)
+        pred_empty = np.sum(test_binary*mask) == 0
+        evaluator = Evaluator(gt_binary, test_binary, gt_empty, pred_empty, metric_params, resolution, mask)
         remaining_metrics = list(set(metrics) - set(results.keys()))
         for metric in remaining_metrics:
             metric_specific_params = filter_params(metric_params, metric)
