@@ -1,12 +1,13 @@
-import CNNectome.validation.organelles.analyze_evals as analyze_evals
-import CNNectome.validation.organelles.segmentation_metrics as segmentation_metrics
-from CNNectome.utils import config_loader, cosem_db, crop_utils, hierarchy
-import csv
 import argparse
-import tabulate
+import csv
 import functools
 import os
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import CNNectome.validation.organelles.analyze_evals as analyze_evals
+import CNNectome.validation.organelles.segmentation_metrics as segmentation_metrics
+import tabulate
+from CNNectome.utils import config_loader, cosem_db, crop_utils, hierarchy
 
 
 def compare_4vs8(db: cosem_db.MongoCosemDB,

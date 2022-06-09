@@ -1,15 +1,17 @@
-from CNNectome.utils.crop_utils import get_label_ids_by_category, get_cell_identifier, check_label_in_crop
-from CNNectome.utils.setup_utils import autodiscover_labels
-from CNNectome.validation.organelles.check_consistency import max_iteration_for_analysis
-from CNNectome.validation.organelles.run_evaluation import *
-from CNNectome.utils import cosem_db
-from CNNectome.utils import config_loader
 import csv
 import os
 import re
-from CNNectome.utils.hierarchy import hierarchy
-import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import numpy as np
+from CNNectome.utils import config_loader, cosem_db
+from CNNectome.utils.crop_utils import (check_label_in_crop,
+                                        get_label_ids_by_category)
+from CNNectome.utils.hierarchy import hierarchy
+from CNNectome.utils.setup_utils import autodiscover_labels
+from CNNectome.validation.organelles.check_consistency import \
+    max_iteration_for_analysis
+from CNNectome.validation.organelles.run_evaluation import *
 
 
 def _best_automatic(db: cosem_db.MongoCosemDB,

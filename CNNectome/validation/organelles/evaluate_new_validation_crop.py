@@ -1,13 +1,10 @@
-from CNNectome.validation.organelles.run_evaluation import *
-from CNNectome.utils import config_loader
-from CNNectome.utils.hierarchy import *
 import argparse
 import json
 import os
 
-
-
-
+from CNNectome.utils import config_loader
+from CNNectome.utils.hierarchy import *
+from CNNectome.validation.organelles.run_evaluation import *
 
 def run_new_crop(new_cropno, ref_cropno, gt_version="v0003", training_version="v0003.2", tol_distance=40, 
                  clip_distance=200, setup=None):

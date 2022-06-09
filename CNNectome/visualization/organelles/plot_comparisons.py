@@ -1,19 +1,21 @@
-from CNNectome.validation.organelles.run_evaluation import *
-from CNNectome.validation.organelles.segmentation_metrics import *
+import collections
+import csv
+import os
+from collections.abc import Iterable
+from operator import itemgetter
+from typing import Dict, List, Optional, Sequence, Union
+
+import matplotlib
+import matplotlib.colors as mcolors
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+from CNNectome.utils import config_loader, cosem_db
 from CNNectome.utils.hierarchy import short_names
 from CNNectome.validation.organelles.comparisons import compare
-from CNNectome.utils import config_loader, cosem_db
-import csv
-import collections
-import matplotlib
-import matplotlib.patches as mpatches
-import matplotlib.lines as mlines
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import numpy as np
-from operator import itemgetter
-import os
-from typing import Dict, List, Optional, Sequence, Union
+from CNNectome.validation.organelles.run_evaluation import *
+from CNNectome.validation.organelles.segmentation_metrics import *
 
 fs = 10
 ratio = 1.6
