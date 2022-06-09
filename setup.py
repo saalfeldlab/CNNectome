@@ -11,10 +11,9 @@ AUTHOR = "Larissa Heinrich"
 REQUIRES_PYTHON = ">=3.6"
 
 REQUIRED = [
-    "tensorflow_gpu<1.15",
+#    "tensorflow_gpu<1.15",
     "absl-py>=0.9",
     "appdirs",
-    "bidict",
     "dnspython",
     "numpy",
     "scipy<1.6",
@@ -45,6 +44,7 @@ EXTRAS = {
     "malis_loss": ["malis @ git+https://github.com/neptunes5thmoon/malis@fix_setup"],
     "napari": ["napari"],
     "dev": ["pytest", "jupyter"],
+    "tf": "tensroflow_gpu<1.15"
 }
 
 DEPENDENCY_LINKS = [

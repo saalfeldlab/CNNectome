@@ -5,40 +5,9 @@ import argparse
 import json
 import os
 
-import zarr
 
 
-def check_mask_attr(n5_path, dataset, valid_masks):
-    f = zarr.open(n5_path, "r")
-    try:
-        mask_ds = f[dataset].attrs["mask_ds"]
-    except KeyError as e:
-        return e
-    return mask_ds in valid_masks
 
-def construct_legacy_pred_path(setup, iteration, crop, s1, training_version="v0003.2"):
-    rel_output = os.path.join(*legacy_dataset_names(new=crop["dataset_id"]))
-    rel_output = rel_output +"_s1" if s1 else rel_output
-    rel_output = rel_output + f"_it{iteration:}.n5"
-    
-    for tsp in config_loader.get_config()["organelles"]["training_setups_paths"].split(","):
-        setup_path = os.path.join(tsp, training_version, setup)
-        if os.path.exists(setup_path):
-            pred_path = os.path.join(setup_path, rel_output)
-            return pred_path
-    raise FileNotFoundError("Have not found location for setup {0:}".format(setup))
-
-def find_pred_path(setup, iteration, new_crop, s1, training_version):
-    path_new = construct_pred_path(setup, iteration, new_crop, s1, training_version=training_version)
-    if os.path.exists(path_new):
-        return path_new
-    legacy_path = construct_legacy_pred_path(setup, iteration, new_crop, s1, training_version=training_version)
-    if os.path.exists(legacy_path):
-        return legacy_path
-    else:
-        cropno = new_crop["number"]
-        s1_str = " on s1" if s1 else ""
-        raise FileNotFoundError(f"No prediction found for setup {setup:}@{iteration:} for crop {cropno:}{s1_str:}")
 
 def run_new_crop(new_cropno, ref_cropno, gt_version="v0003", training_version="v0003.2", tol_distance=40, 
                  clip_distance=200, setup=None):
@@ -54,7 +23,7 @@ def run_new_crop(new_cropno, ref_cropno, gt_version="v0003", training_version="v
     if setup is not None:
         filter["setup"] = setup
     all_refs = [docu for docu in col.find(filter)]
-    #with col.find(filter, batch_size=100, no_cursor_timeout=True) as cursor:
+    
     for k, entry in enumerate(all_refs):
         print(".", end="", flush=True)
         setup = entry["setup"]
@@ -62,19 +31,13 @@ def run_new_crop(new_cropno, ref_cropno, gt_version="v0003", training_version="v
         s1 = "s1" in entry["raw_dataset"]
         
 
-        try:
-            pred_path = find_pred_path(setup, iteration, crop, s1, training_version=training_version)
-        except FileNotFoundError:
-             no_prediction.add({k: entry[k] for k in ["setup", "iteration", "label", "raw_dataset"]})
-             continue
-        # ds = zarr.open(pred_path, "r")[entry["label"]]
-        # try: 
-        #     if ds.attrs["mask_ds"] not in valid_masks:
-        #         print()
-        #         continue
-        # except KeyError:
-        #     print()
-        #     continue
+
+        pred_path = entry["path"]
+        if not os.path.exists(pred_path):
+            missing_pred = tuple(entry[k] for k in ["setup", "iteration", "label", "raw_dataset"])
+            no_prediction.add(missing_pred)
+            print(f"Missing prediction: {missing_pred:}")
+            continue
             
         test_query = {"path": pred_path, "dataset": entry["dataset"], "setup": setup, "iteration": iteration,
                     "label": entry["label"], "crop": str(new_cropno), "threshold": entry["threshold"],

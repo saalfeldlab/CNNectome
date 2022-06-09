@@ -3,7 +3,6 @@ from CNNectome.utils.hierarchy import hierarchy
 import os
 import zarr
 import numpy as np
-from bidict import namedbidict
 
 
 def get_label_ids_by_category(crop, category):
@@ -79,20 +78,6 @@ def alt_short_cell_id(crop):
         'jrc_jurkat-1': "Jurkat"
     }
     return shorts[crop["dataset_id"]]
-
-def legacy_dataset_names(old=None, new=None):
-    assert (old is None and new is not None) or (old is not None and new is None)
-    DatasetNameMap = namedbidict("DatasetNameMap", "old", "new")
-    legacy_names = DatasetNameMap()
-    legacy_names.old_for["jrc_hela-2"] = ("HeLa_Cell2_4x4x4nm", "HeLa_Cell2_4x4x4nm")
-    legacy_names.old_for["jrc_hela-3"] = ("HeLa_Cell3_4x4x4nm", "HeLa_Cell3_4x4x4nm")
-    legacy_names.old_for["jrc_mac-2"] = ("Macrophage_FS80_Cell2_4x4x4nm", "Cryo_FS80_Cell2_4x4x4nm")
-    legacy_names.old_for["jrc_jurkat-1"] = ("Jurkat_Cell1_4x4x4nm", "Jurkat_Cell1_FS96-Area1_4x4x4nm")
-    legacy_names.old_for["jrc_sum159-1"] = ("TWalther_WT45_Cell2_4x4x4nm", "Cryo_20171009_WT45_Cell2_4x4x4nm")
-    if old is None:
-        return legacy_names.old_for[new]
-    else:
-        return legacy_names.new_for[old]
 
 def check_label_in_crop(label, crop):
     return any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in label.labelid)
