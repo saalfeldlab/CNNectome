@@ -58,7 +58,7 @@ def sort_generic(labels: Sequence[str],
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
         results = compare("best-4nm", db, [sorting_metric], tol_distance=tol_distance,
-                          clip_distance=clip_distance, mode="across_setups", test=True)
+                          clip_distance=clip_distance, mode="across-setups", test=True)
 
     for result in results:
         result["label"] = short_names[result["label"]]
@@ -256,7 +256,7 @@ def plot_s1_vs_sub(metric: str,
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
         all_results = compare("s1-vs-sub", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance,
-                              mode="per_setup", test=True)
+                              mode="per-setup", test=True)
     labels = []
     for result in all_results:
         result["label_s1"] = short_names[result["label_s1"]]
@@ -383,7 +383,7 @@ def plot_4nm_vs_8nm(metric: str,
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
         all_results = compare("4nm-vs-8nm", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance,
-                              mode="across_setups", test=True)
+                              mode="across-setups", test=True)
     labels = []
     for result in all_results:
         result["label_4nm"] = short_names[result["label_4nm"]]
@@ -702,11 +702,11 @@ def plot_datasets(metric: str,
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
         test_results = compare("best-4nm", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance,
-                               test=True, mode="across_setups")
+                               test=True, mode="across-setups")
         validation_results = compare("best-4nm", db, [metric], tol_distance=tol_distance, clip_distance=clip_distance, 
-                                     test=False, mode="across_setups")
+                                     test=False, mode="across-setups")
         manual_results = compare("metrics", db, [metric, "manual"], tol_distance=tol_distance, 
-                                 clip_distance=clip_distance, mode="across_setups", test=True)
+                                 clip_distance=clip_distance, mode="across-setups", test=True)
     labels = []
     crops = []
     for result in test_results:
@@ -1238,13 +1238,13 @@ def _assemble_metriccomparison_results(
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
         reader_across_setups_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                            clip_distance=clip_distance, mode="across_setups", test=True)
+                                            clip_distance=clip_distance, mode="across-setups", test=True)
         reader_across_setups_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                                  clip_distance=clip_distance, mode="across_setups", test=False)
+                                                  clip_distance=clip_distance, mode="across-setups", test=False)
         reader_per_setup_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                        clip_distance=clip_distance, mode="per_setup", test=True)
+                                        clip_distance=clip_distance, mode="per-setup", test=True)
         reader_per_setup_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                              clip_distance=clip_distance, mode="per_setup", test=False)
+                                              clip_distance=clip_distance, mode="per-setup", test=False)
 
     for row in reader_across_setups_test:
         if row["raw_dataset_{0:}".format(metric1)] == "volumes/raw/s1":
@@ -1632,13 +1632,13 @@ def plot_metric_comparison(metric1: str,
     else:
         assert db is not None, "Need access to database if results aren't read from csv file."
         reader_across_setups_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                            clip_distance=clip_distance, mode="across_setups", test=True)
+                                            clip_distance=clip_distance, mode="across-setups", test=True)
         reader_across_setups_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                                  clip_distance=clip_distance, mode="across_setups", test=False)
+                                                  clip_distance=clip_distance, mode="across-setups", test=False)
         reader_per_setup_test = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                        clip_distance=clip_distance, mode="per_setup", test=True)
+                                        clip_distance=clip_distance, mode="per-setup", test=True)
         reader_per_setup_validation = compare("metrics", db, [metric1, metric2], tol_distance=tol_distance,
-                                              clip_distance=clip_distance, mode="per_setup", test=False)
+                                              clip_distance=clip_distance, mode="per-setup", test=False)
     plt.figure(figsize=(fig_width_per_label * 2, fig_width_per_label * 2))
     ax = plt.gca()
     ax.set_axisbelow(True)

@@ -46,7 +46,7 @@ def _best_automatic(db: cosem_db.MongoCosemDB,
 
     # find max iterations and put corresponding conditions in query
     conditions = []
-    for setup in setups:  # several setups if both iteration and setup are being optimized ("across_setups")
+    for setup in setups:  # several setups if both iteration and setup are being optimized ("across-setups")
 
         max_its = []
 
@@ -373,7 +373,7 @@ def _get_iteration_queries(cropno: Sequence[Union[int, str]], db: cosem_db.Mongo
 
 def get_manual_comparisons(db: cosem_db.MongoCosemDB,
                            cropno: Union[None, str, int, Sequence[Union[str, int]]] = None,
-                           mode: str = "across_setups") -> \
+                           mode: str = "across-setups") -> \
         List[Union[Dict[str, str], Dict[str, Union[str, Sequence[str]]]]]:
     """
     Read best configurations optimized manually from corresponding csv files and translate into dictionary that can be
@@ -382,7 +382,7 @@ def get_manual_comparisons(db: cosem_db.MongoCosemDB,
     Args:
         db: Database with crop information
         cropno: Specific crop numbers or list of crop numbers that should be included in queries.
-        mode: "per_setup" for queries specifying the optimized manual iteration for each setup, "across_setups"
+        mode: "per-setup" for queries specifying the optimized manual iteration for each setup, "across-setups"
         (default) for queries specifying the optimized manual iteration and setup for each label and "all" for both.
 
     Returns: List of corresponding queries.
@@ -390,9 +390,9 @@ def get_manual_comparisons(db: cosem_db.MongoCosemDB,
 
     if isinstance(cropno, int) or isinstance(cropno, str):
         cropno = [cropno]
-    if mode == "across_setups":
+    if mode == "across-setups":
         all_queries = _get_setup_queries(cropno, db)
-    elif mode == "per_setup":
+    elif mode == "per-setup":
         all_queries = _get_iteration_queries(cropno, db)
     elif mode == "all":
         all_queries = _get_iteration_queries(cropno, db) + _get_setup_queries(cropno, db)
@@ -547,7 +547,7 @@ def compare_setups(db: cosem_db.MongoCosemDB,
                    tol_distance: int = 40,
                    clip_distance: int = 200,
                    threshold: int = 127,
-                   mode: str = "across_setups",
+                   mode: str = "across-setups",
                    test: bool = False) -> List[List[Optional[Dict[str, Any]]]]:
     """
     Flexibly query comparisons from the evaluation database. `setups_compare` and optionally `raw_ds` define sets of
@@ -556,7 +556,7 @@ def compare_setups(db: cosem_db.MongoCosemDB,
     Args:
         db: Database with crop information and evaluation results.
         setups_compare: List of list of setups to compare.
-        labels: List of labels. In a `mode` = "per_setup" evaluation, these are paired with the entries of the entries
+        labels: List of labels. In a `mode` = "per-setup" evaluation, these are paired with the entries of the entries
                 in each list of `setups_compare`.
         metric: Metric to evaluate for comparing the setups.
         raw_ds: List of raw datasets to consider for querying pulled predictions, can be None if it doesn't matter.
@@ -564,8 +564,8 @@ def compare_setups(db: cosem_db.MongoCosemDB,
         tol_distance: Tolerance distance when using a metric with tolerance distance, otherwise not used
         clip_distance: Clip distance when using a metric with clip distance, otherwise not used.
         threshold: Threshold applied on top of distance predictions to generate binary segmentation.
-        mode: "across_setups" or "per"setup" depending on whether the configuration that should be optimized is both
-              the setup and the iteration ("across_setups") or just the iteration for a given setup ("per_setup"_
+        mode: "across-setups" or "per"setup" depending on whether the configuration that should be optimized is both
+              the setup and the iteration ("across-setups") or just the iteration for a given setup ("per-setup"_
         test: whether to run in test mode
 
     Returns:
@@ -576,7 +576,7 @@ def compare_setups(db: cosem_db.MongoCosemDB,
     if crops is None:
         crops = [c["number"] for c in db.get_all_validation_crops()]
 
-    if mode == "across_setups":  # for one label find best result across setups
+    if mode == "across-setups":  # for one label find best result across setups
         for cropno in crops:
             for lbl in labels:
                 comp = []
@@ -590,7 +590,7 @@ def compare_setups(db: cosem_db.MongoCosemDB,
                                     clip_distance=clip_distance, threshold=threshold, test=test)
                     )
                 comparisons.append(comp)
-    elif mode == "per_setup":  # find best result for each combination of setup and label
+    elif mode == "per-setup":  # find best result for each combination of setup and label
         for cropno in crops:
             comps = [[] for _ in labels]
             for k, setups in enumerate(setups_compare):
