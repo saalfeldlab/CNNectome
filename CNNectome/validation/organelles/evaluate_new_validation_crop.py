@@ -6,8 +6,9 @@ from CNNectome.utils import config_loader
 from CNNectome.utils.hierarchy import *
 from CNNectome.validation.organelles.run_evaluation import *
 
+
 def run_new_crop(new_cropno, ref_cropno, gt_version="v0003", training_version="v0003.2", tol_distance=40, 
-                 clip_distance=200, setup=None):
+                 clip_distance=200, setup=None, file_with_missing=None):
     db = cosem_db.MongoCosemDB(write_access=True, gt_version=gt_version, training_version=training_version)
     eval_results_csv_folder = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"],
                                            training_version, gt_version,
@@ -19,9 +20,21 @@ def run_new_crop(new_cropno, ref_cropno, gt_version="v0003", training_version="v
     filter = {"crop": str(ref_cropno), "refined": False}
     if setup is not None:
         filter["setup"] = setup
-    all_refs = [docu for docu in col.find(filter)]
+    if file_with_missing is not None:
+        with open(file_with_missing, "r") as f:
+            missing_predictions= json.load(f)
+        refs = []
+        for pred in missing_predictions:
+            pred_setup, pred_iteration, pred_label, pred_raw_dataset = pred
+            filter["setup"] = pred_setup
+            filter["iteration"] = int(pred_iteration)
+            filter["label"] = pred_label
+            filter["raw_dataset"] = pred_raw_dataset 
+            refs.extend([docu for docu in col.find(filter)])
+    else:
+        refs = [docu for docu in col.find(filter)]
     
-    for k, entry in enumerate(all_refs):
+    for k, entry in enumerate(refs):
         print(".", end="", flush=True)
         setup = entry["setup"]
         iteration = entry["iteration"]
@@ -83,17 +96,21 @@ def main():
     parser.add_argument("--save_missing_pred", type=str, default="missing_predictions.json", 
                         help="Filepath to which to save list of missing predicitons")
     parser.add_argument("--setup", type=str, default=None, help="Resetrict new evaluations to this setup")
+    parser.add_argument("--file_with_missing", type=str, default=None, 
+                        help="If given instead of running evaluation for all entries of the reference crop in the" 
+                             "database the evaluation will only be rerun for the entries specified in this file.")
     args = parser.parse_args()
     no_prediction = run_new_crop(args.new_crop, args.ref_crop, gt_version=args.gt_version, 
                                  training_version=args.training_version, tol_distance=args.tol_distance, 
-                                 clip_distance=args.clip_distance, setup=args.setup)
+                                 clip_distance=args.clip_distance, setup=args.setup, 
+                                 file_with_missing=args.file_with_missing)
     print("Missing predictions:")
     for nop in no_prediction:
         print(nop)
     with open(args.save_missing_pred, 'w') as f:
         json.dump(list(no_prediction), f)
     print("saved to", args.save_missing_pred)
-    
+
 
 if __name__ == "__main__":
     main()
