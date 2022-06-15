@@ -1,9 +1,10 @@
-from CNNectome.validation.organelles import cremi_scores
 from enum import Enum
+
+import cremi.evaluation
+import lazy_property
 import numpy as np
 import SimpleITK as sitk
-import lazy_property
-import cremi.evaluation
+from CNNectome.validation.organelles import cremi_scores
 
 
 class EvaluatorError(Exception):
@@ -27,6 +28,9 @@ class EvaluationMetrics(str, Enum):
     mean_false_distance = "mean_false_distance"
     mean_false_negative_distance = "mean_false_negative_distance"
     mean_false_positive_distance = "mean_false_positive_distance"
+    mean_false_bdy_distance = "mean_false_bdy_distance"
+    mean_false_negative_bdy_distance = "mean_false_negative_bdy_distance"
+    mean_false_positive_bdy_distance = "mean_false_positive_bdy_distance"
     mean_false_distance_clipped = "mean_false_distance_clipped"
     mean_false_negative_distance_clipped = "mean_false_negative_distance_clipped"
     mean_false_positive_distance_clipped = "mean_false_positive_distance_clipped"
@@ -52,6 +56,9 @@ def display_name(metric):
         EvaluationMetrics.mean_false_distance: "Mean False Distance",
         EvaluationMetrics.mean_false_positive_distance: "Mean False Positive Distance",
         EvaluationMetrics.mean_false_negative_distance: "Mean False Negative Distance",
+        EvaluationMetrics.mean_false_bdy_distance: "Mean False Boundary Distance",
+        EvaluationMetrics.mean_false_positive_bdy_distance: "Mean False Positive Boundary Distance",
+        EvaluationMetrics.mean_false_negative_bdy_distance: "Mean False Negative Boundary Distance",
         EvaluationMetrics.mean_false_distance_clipped: "Mean False Distance (Clipped)",
         EvaluationMetrics.mean_false_positive_distance_clipped: "Mean False Positive Distance (Clipped)",
         EvaluationMetrics.mean_false_negative_distance_clipped: "Mean False Negative Distance (Clipped)",
@@ -79,6 +86,9 @@ def filter_params(params, metric):
         EvaluationMetrics.mean_false_distance: (),
         EvaluationMetrics.mean_false_positive_distance: (),
         EvaluationMetrics.mean_false_negative_distance: (),
+        EvaluationMetrics.mean_false_bdy_distance: (),
+        EvaluationMetrics.mean_false_positive_bdy_distance: (),
+        EvaluationMetrics.mean_false_negative_bdy_distance: (),
         EvaluationMetrics.mean_false_distance_clipped: ("clip_distance",),
         EvaluationMetrics.mean_false_negative_distance_clipped: ("clip_distance",),
         EvaluationMetrics.mean_false_positive_distance_clipped: ("clip_distance",),
@@ -107,6 +117,9 @@ def sorting(argument):
         EvaluationMetrics.mean_false_positive_distance: 1,
         EvaluationMetrics.mean_false_negative_distance: 1,
         EvaluationMetrics.mean_false_distance_clipped: 1,
+        EvaluationMetrics.mean_false_bdy_distance: 1,
+        EvaluationMetrics.mean_false_positive_bdy_distance: 1,
+        EvaluationMetrics.mean_false_negative_bdy_distance: 1,
         EvaluationMetrics.mean_false_negative_distance_clipped: 1,
         EvaluationMetrics.mean_false_positive_distance_clipped: 1,
         EvaluationMetrics.precision_with_tolerance: -1,
@@ -138,6 +151,9 @@ def limits(argument):
         EvaluationMetrics.mean_false_distance: (0, None),
         EvaluationMetrics.mean_false_positive_distance: (0, None),
         EvaluationMetrics.mean_false_negative_distance: (0, None),
+        EvaluationMetrics.mean_false_bdy_distance: (0, None),
+        EvaluationMetrics.mean_false_positive_bdy_distance: (0, None),
+        EvaluationMetrics.mean_false_negative_bdy_distance: (0, None),
         EvaluationMetrics.mean_false_distance_clipped: (0, None),
         EvaluationMetrics.mean_false_negative_distance_clipped: (0, None),
         EvaluationMetrics.mean_false_positive_distance_clipped: (0, None),
@@ -162,7 +178,6 @@ class Evaluator(object):
         resolution,
         mask,
     ):
-
         self.truth = truth_binary.astype(np.uint8)
         self.test = test_binary.astype(np.uint8)
         self.truth_empty = truth_empty
@@ -317,6 +332,24 @@ class Evaluator(object):
         else:
             return self.cremieval.mean_false_positive_distance
 
+    def mean_false_bdy_distance(self):
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_bdy_distance
+
+    def mean_false_negative_bdy_distance(self):
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_negative_bdy_distance
+
+    def mean_false_positive_bdy_distance(self):
+        if self.truth_empty or self.test_empty:
+            return np.nan
+        else:
+            return self.cremieval.mean_false_positive_bdy_distance
+
     def mean_false_distance_clipped(self):
         if self.truth_empty or self.test_empty:
             return np.nan
@@ -377,6 +410,9 @@ class Evaluator(object):
             EvaluationMetrics.mean_false_distance: self.mean_false_distance,
             EvaluationMetrics.mean_false_negative_distance: self.mean_false_negative_distance,
             EvaluationMetrics.mean_false_positive_distance: self.mean_false_positive_distance,
+            EvaluationMetrics.mean_false_bdy_distance: self.mean_false_bdy_distance,
+            EvaluationMetrics.mean_false_negative_bdy_distance: self.mean_false_negative_bdy_distance,
+            EvaluationMetrics.mean_false_positive_bdy_distance: self.mean_false_positive_bdy_distance,
             EvaluationMetrics.mean_false_distance_clipped: self.mean_false_distance_clipped,
             EvaluationMetrics.mean_false_negative_distance_clipped: self.mean_false_negative_distance_clipped,
             EvaluationMetrics.mean_false_positive_distance_clipped: self.mean_false_positive_distance_clipped,

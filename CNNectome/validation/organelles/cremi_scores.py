@@ -1,9 +1,23 @@
+import lazy_property
 import numpy as np
 import scipy.ndimage
-import lazy_property
 
 BG = 0
 MASK_OUTSIDE = 0
+
+
+def find_boundaries_masked(arr, mask=None):
+    structure = scipy.ndimage.generate_binary_structure(arr.ndim, 1)
+    dilated = scipy.ndimage.morphology.binary_dilation(
+        arr, structure=structure, mask=mask
+    )
+    eroded = scipy.ndimage.morphology.binary_erosion(
+        arr, structure=structure, mask=mask
+    )
+
+    boundaries = dilated != eroded
+    boundaries &= arr != BG
+    return boundaries
 
 
 class CremiEvaluator(object):
@@ -39,6 +53,20 @@ class CremiEvaluator(object):
         return truth_mask
 
     @lazy_property.LazyProperty
+    def truth_binary(self):
+        truth_binary = self.truth != BG
+        if self.mask is not None:
+            truth_binary = np.logical_or(truth_binary, self.mask == MASK_OUTSIDE)
+        return truth_binary
+
+    @lazy_property.LazyProperty
+    def test_binary(self):
+        test_binary = self.truth != BG
+        if self.mask is not None:
+            test_binary = np.logical_or(test_binary, self.mask == MASK_OUTSIDE)
+        return test_binary
+
+    @lazy_property.LazyProperty
     def test_edt(self):
         test_edt = scipy.ndimage.distance_transform_edt(self.test_mask, self.sampling)
         return test_edt
@@ -49,10 +77,58 @@ class CremiEvaluator(object):
         return truth_edt
 
     @lazy_property.LazyProperty
+    def truth_bdy(self):
+        truth_bdy = find_boundaries_masked(self.truth, mask=self.mask)
+        return truth_bdy
+
+    @lazy_property.LazyProperty
+    def test_bdy(self):
+        test_bdy = find_boundaries_masked(self.test, mask=self.mask)
+        return test_bdy
+
+    @lazy_property.LazyProperty
+    def signed_truth_edt(self):
+        inner_distance = scipy.ndimage.distance_transform_edt(
+            scipy.ndimage.binary_erosion(
+                self.truth_binary,
+                border_value=1,
+                structure=scipy.ndimage.generate_binary_structure(
+                    self.truth_binary.ndim, self.truth_binary.ndim
+                ),
+            ),
+            sampling=self.sampling,
+        )
+        outer_distance = scipy.ndimage.distance_transform_edt(
+            self.truth_mask, sampling=self.sampling
+        )
+        return inner_distance - outer_distance
+
+    @lazy_property.LazyProperty
+    def signed_test_edt(self):
+        inner_distance = scipy.ndimage.distance_transform_edt(
+            scipy.ndimage.binary_erosion(
+                self.test_binary,
+                border_value=1,
+                structure=scipy.ndimage.generate_binary_structure(
+                    self.test_binary.ndim, self.test_binary.ndim
+                ),
+            ),
+            sampling=self.sampling,
+        )
+        outer_distance = scipy.ndimage.distance_transform_edt(
+            self.test_mask, sampling=self.sampling
+        )
+        return inner_distance - outer_distance
+
+    @lazy_property.LazyProperty
     def false_positive_distances(self):
-        test_bin = np.invert(self.test_mask)
-        false_positive_distances = self.truth_edt[test_bin]
+        false_positive_distances = self.truth_edt[np.logical_not(self.test_mask)]
         return false_positive_distances
+
+    @lazy_property.LazyProperty
+    def false_positive_bdy_distances(self):
+        false_positive_bdy_distances = self.signed_truth_edt[self.test_bdy]
+        return false_positive_bdy_distances
 
     @lazy_property.LazyProperty
     def false_positives_with_tolerance(self):
@@ -69,6 +145,11 @@ class CremiEvaluator(object):
     @lazy_property.LazyProperty
     def false_negatives_with_tolerance(self):
         return np.sum(self.false_negative_distances > self.tol_distance)
+
+    @lazy_property.LazyProperty
+    def false_negative_bdy_distances(self):
+        false_negative_bdy_distances = self.signed_test_edt[self.truth_bdy]
+        return false_negative_bdy_distances
 
     @lazy_property.LazyProperty
     def false_negative_rate_with_tolerance(self):
@@ -127,9 +208,16 @@ class CremiEvaluator(object):
         return mean_false_positive_distance
 
     @lazy_property.LazyProperty
+    def mean_false_positive_bdy_distance(self):
+        mean_false_positive_bdy_distance = np.mean(
+            np.abs(self.false_positive_bdy_distances)
+        )
+        # return np.sum(self.truth_bdy)
+        return mean_false_positive_bdy_distance
+
+    @lazy_property.LazyProperty
     def false_negative_distances(self):
-        truth_bin = np.invert(self.truth_mask)
-        false_negative_distances = self.test_edt[truth_bin]
+        false_negative_distances = self.test_edt[np.logical_not(self.truth_mask)]
         return false_negative_distances
 
     @lazy_property.LazyProperty
@@ -138,11 +226,27 @@ class CremiEvaluator(object):
         return mean_false_negative_distance
 
     @lazy_property.LazyProperty
+    def mean_false_negative_bdy_distance(self):
+        mean_false_negative_bdy_distance = np.mean(
+            np.abs(self.false_negative_bdy_distances)
+        )
+        # return np.sum(self.test_bdy)
+        return mean_false_negative_bdy_distance
+
+    @lazy_property.LazyProperty
     def mean_false_distance(self):
         mean_false_distance = 0.5 * (
             self.mean_false_positive_distance + self.mean_false_negative_distance
         )
         return mean_false_distance
+
+    @lazy_property.LazyProperty
+    def mean_false_bdy_distance(self):
+        mean_false_bdy_distance = 0.5 * (
+            self.mean_false_positive_bdy_distance
+            + self.mean_false_negative_bdy_distance
+        )
+        return mean_false_bdy_distance
 
     @lazy_property.LazyProperty
     def mean_false_distance_clipped(self):
