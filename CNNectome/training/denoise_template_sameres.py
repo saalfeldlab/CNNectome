@@ -149,7 +149,7 @@ def build_blur_graph(sigma: float = 0.5, mode="forward"):
 
 
 def test_memory_consumption(mode="training"):
-    from CNNectome.utils.test_memory_consumption import Test
+    from CNNectome.utils.memory_consumption import Test
 
     net, input_shape, output_shape = build_net(mode=mode)
     with open("{0:}_io_names.json".format(net), "r") as f:

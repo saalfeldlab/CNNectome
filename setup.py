@@ -43,7 +43,7 @@ EXTRAS = {
     "malis_loss": ["malis @ git+https://github.com/neptunes5thmoon/malis@fix_setup"],
     "napari": ["napari"],
     "dev": ["pytest", "jupyter", "black"],
-    "tf": "tensroflow_gpu<1.15",
+    "tf": "tensorflow_gpu<1.15",
 }
 
 DEPENDENCY_LINKS = [

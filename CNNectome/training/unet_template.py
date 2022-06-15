@@ -152,7 +152,7 @@ def build_net(steps=steps_inference, mode="inference"):
 
 
 def test_memory_consumption(steps=steps_train, mode="train"):
-    from CNNectome.utils.test_memory_consumption import Test
+    from CNNectome.utils.memory_consumption import Test
 
     net, input_shape, output_shape = build_net(steps, mode=mode)
     with open("net_io_names.json", "r") as f:
