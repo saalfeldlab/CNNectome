@@ -8,6 +8,7 @@ import sys
 import zarr
 from CNNectome.utils import config_loader
 
+
 class Clefts:
     def __init__(self, to_be_evaluated, gt, inverted_mask):
         test_clefts = to_be_evaluated
@@ -97,13 +98,13 @@ def run_evaluation(experiment_name):
     for sample in ["A", "B", "C"]:
         data_path = config_loader.get_config()["synapses"]["cremi17_data_path"]
         setups_path = config_loader.get_config()["synapses"]["training_setups_path"]
-        truth_path = os.path.join(data_path, "sample_{0:}_20160501.aligned.uncompressed.hdf".format(
-            sample
-        ))
+        truth_path = os.path.join(
+            data_path, "sample_{0:}_20160501.aligned.uncompressed.hdf".format(sample)
+        )
         truth_ds = "volumes/labels/clefts"
-        mask_path = os.path.join(data_path, "sample_{0:}_cleftsorig_withvalidation.n5".format(
-            sample
-        ))
+        mask_path = os.path.join(
+            data_path, "sample_{0:}_cleftsorig_withvalidation.n5".format(sample)
+        )
         val_ds = "volumes/masks/validation"
         train_ds = "volumes/masks/training"
         truth = h5py.File(truth_path, "r")[truth_ds]
@@ -125,16 +126,18 @@ def run_evaluation(experiment_name):
         else:
             iterations = list(range(2000, 56000, 2000))
         for iteration in iterations:
-            validation_json = (os.path.join(setups_path,
+            validation_json = os.path.join(
+                setups_path,
                 "miccai_experiments/{0:}/{1:}.n5/it_{"
-                "2:}/validation.json".format(experiment_name, sample, iteration)
-            ))
+                "2:}/validation.json".format(experiment_name, sample, iteration),
+            )
             if os.path.exists(validation_json):
                 continue
             else:
-                test_path = os.path.join(setups_path, "miccai_experiments/{0:}/{1:}.n5".format(
-                    experiment_name, sample
-                ))
+                test_path = os.path.join(
+                    setups_path,
+                    "miccai_experiments/{0:}/{1:}.n5".format(experiment_name, sample),
+                )
                 test_ds = "it_{0:}".format(iteration)
                 print(test_path, test_ds)
                 test = zarr.open(test_path, mode="r")[test_ds]

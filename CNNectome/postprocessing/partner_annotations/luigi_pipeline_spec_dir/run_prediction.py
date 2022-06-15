@@ -23,8 +23,8 @@ def single_gpu_inference(path, data_eval, samples, gpu, iteration):
         net_io_names["post_dist"],
         net_io_names["cleft_dist"],
     ]
-    input_shape = (91*40, 862*4, 862*4)
-    output_shape = (71*40, 650*4, 650*4)
+    input_shape = (91 * 40, 862 * 4, 862 * 4)
+    output_shape = (71 * 40, 650 * 4, 650 * 4)
 
     prediction = TensorflowPredict(
         weight_meta_graph,
@@ -36,8 +36,10 @@ def single_gpu_inference(path, data_eval, samples, gpu, iteration):
     for k, de in enumerate(data_eval):
         for s in samples:
             print("{0:} ({1:}/{2:}), {3:}".format(de, k, len(data_eval), s))
-            raw_file = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"],
-                                    "{0:}/{1:}.n5".format(de, s))
+            raw_file = os.path.join(
+                config_loader.get_config()["synapses"]["cremieval_path"],
+                "{0:}/{1:}.n5".format(de, s),
+            )
             out_file = os.path.join(
                 path, "evaluation/{0:}/{1:}/{2:}.n5".format(iteration, de, s)
             )

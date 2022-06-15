@@ -74,9 +74,8 @@ def make_graph(
         for tgt in range(n_out):
             target.append(tf.placeholder(tf.float32, shape=output_shape))
 
-
-        compute_loss(tf.losses.absolute_difference, "L1", opt=loss_choice=="L1")
-        compute_loss(tf.losses.mean_squared_error, "L2", opt=loss_choice=="L2")
+        compute_loss(tf.losses.absolute_difference, "L1", opt=loss_choice == "L1")
+        compute_loss(tf.losses.mean_squared_error, "L2", opt=loss_choice == "L2")
 
         merged = tf.summary.merge_all()
         names["summary"] = merged.name

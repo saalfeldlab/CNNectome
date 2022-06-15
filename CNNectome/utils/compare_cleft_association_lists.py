@@ -3,6 +3,7 @@ import os
 import h5py
 import numpy as np
 from CNNectome.utils import config_loader
+
 shift = {"A": 1498, "B": 1940, "C": 10954}
 
 
@@ -70,10 +71,21 @@ def all_clefts(cleftfile):
 
 if __name__ == "__main__":
     conf = config_loader.get_config()
-    file1 = os.path.join(conf["synapses"]["cremi17_data_path"], "cleft-partners_{0:}_2017.csv")
-    file2 = os.path.join(conf["synapses"]["cremi16_data_path"], "cleft-partners-{0:}-20160501.aligned.csv")
-    newfile = os.path.join(conf["synapses"]["cremi16_data_path"], "cleft-partners-{0:}-20160501.aligned.corrected.csv")
-    clefts = os.path.join(conf["synapses"]["cremi16_data_path"], "sample_{0:}_padded_20160501.aligned.0bg.hdf")
+    file1 = os.path.join(
+        conf["synapses"]["cremi17_data_path"], "cleft-partners_{0:}_2017.csv"
+    )
+    file2 = os.path.join(
+        conf["synapses"]["cremi16_data_path"],
+        "cleft-partners-{0:}-20160501.aligned.csv",
+    )
+    newfile = os.path.join(
+        conf["synapses"]["cremi16_data_path"],
+        "cleft-partners-{0:}-20160501.aligned.corrected.csv",
+    )
+    clefts = os.path.join(
+        conf["synapses"]["cremi16_data_path"],
+        "sample_{0:}_padded_20160501.aligned.0bg.hdf",
+    )
 
     for sample in ["A", "B", "C"]:
         contained_clefts = all_clefts(clefts.format(sample))

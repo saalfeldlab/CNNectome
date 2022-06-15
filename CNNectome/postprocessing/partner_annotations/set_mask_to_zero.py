@@ -67,7 +67,9 @@ def set_mask_to_zero(
 
 def main_seg():
     samples = ["A", "B", "C"]  # ['A', 'C', 'B+', 'C+']
-    setups_path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post")
+    setups_path = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post"
+    )
     filename_src = os.path.join(setups_path, "cremi/{0:}.n5")
     dataset_src = "volumes/labels/neuron_ids_constis_slf1_sf750_cropped"
     filename_mask = os.path.join(setups_path, "cremi/{0:}.n5")

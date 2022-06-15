@@ -19,7 +19,7 @@ from gunpowder import Coordinate
 def get_output_paths(raw_data_path, setup_path, output_path):
     if output_path is None:
         basename, n5_filename = os.path.split(raw_data_path)
-        assert n5_filename.endswith('.n5')
+        assert n5_filename.endswith(".n5")
 
         # output directory, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/"
         all_data_dir, cell_identifier = os.path.split(basename)
@@ -27,10 +27,10 @@ def get_output_paths(raw_data_path, setup_path, output_path):
 
         # output file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/HeLa_Cell2_4x4x4nm_it10000.n5"
         base_n5_filename, n5 = os.path.splitext(n5_filename)
-        output_filename = base_n5_filename + '_it{0:}'.format(iteration) + n5
+        output_filename = base_n5_filename + "_it{0:}".format(iteration) + n5
         out_file = os.path.join(output_dir, output_filename)
     else:
-        assert output_path.endswith('.n5') or output_path.endswith('.n5/')
+        assert output_path.endswith(".n5") or output_path.endswith(".n5/")
         output_dir = os.path.abspath(os.path.dirname(output_path))
         out_file = os.path.abspath(output_path)
     if not os.path.exists(output_dir):
@@ -43,15 +43,20 @@ def get_output_paths(raw_data_path, setup_path, output_path):
 def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
     if factor is None:
         if rf[raw_ds].dtype == np.uint8:
-            factor = 255.
+            factor = 255.0
         elif rf[raw_ds].dtype == np.uint16:
-            factor = 256. * 256. - 1
+            factor = 256.0 * 256.0 - 1
         elif rf[raw_ds].dtype == np.float32:
-            assert rf[raw_ds].min() >= 0 and rf[raw_ds].max() <= 1,\
-            "Raw values are float but not in [0,1], I don't know how to normalize. Please provide a factor."
-            factor = 1.
+            assert (
+                rf[raw_ds].min() >= 0 and rf[raw_ds].max() <= 1
+            ), "Raw values are float but not in [0,1], I don't know how to normalize. Please provide a factor."
+            factor = 1.0
         else:
-            raise ValueError("don't know which factor to assume for data of type {0:}".format(rf[raw_ds].dtype))
+            raise ValueError(
+                "don't know which factor to assume for data of type {0:}".format(
+                    rf[raw_ds].dtype
+                )
+            )
 
     if min_sc is None or max_sc is None:
         try:
@@ -60,37 +65,74 @@ def get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc):
             if max_sc is None:
                 max_sc = rf[raw_ds].attrs["contrastAdjustment"]["max"]
         except KeyError:
-            min_sc = 0.
+            min_sc = 0.0
             max_sc = factor
             logging.warning(
                 "min_sc and max_sc not specified and contrastAdjustment not found in attributes of {0:}, will continue "
                 "with default contrast (min {1:}, max{2:}".format(
-                    os.path.join(rf.store.path, raw_ds),min_sc, max_sc
+                    os.path.join(rf.store.path, raw_ds), min_sc, max_sc
                 )
             )
 
-    scale = (factor / (float(max_sc) - float(min_sc))) * 2.
-    shift = - scale * (float(min_sc) / factor)  - 1
+    scale = (factor / (float(max_sc) - float(min_sc))) * 2.0
+    shift = -scale * (float(min_sc) / factor) - 1
 
     return factor, scale, shift
 
 
-def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, iteration, raw_ds, mask_ds, setup_path, output_path,
-                           factor, min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted):
+def prepare_cell_inference(
+    n_jobs,
+    raw_data_path,
+    dataset_id,
+    iteration,
+    raw_ds,
+    mask_ds,
+    setup_path,
+    output_path,
+    factor,
+    min_sc,
+    max_sc,
+    float_range,
+    safe_scale,
+    n_cpus,
+    finish_interrupted,
+):
     assert os.path.exists(setup_path), "Path to experiment directory does not exist"
     sys.path.append(setup_path)
     import setup_config
 
-    if raw_data_path.endswith('/'):
+    if raw_data_path.endswith("/"):
         raw_data_path = raw_data_path[:-1]
-    assert os.path.exists(raw_data_path), "Path to N5 dataset with raw data and mask does not exist"
-    assert os.path.exists(os.path.join(setup_path, "{0:}_train_checkpoint_{1:}.meta".format(setup_config.network_name,
-                                                                                            iteration)))
-    assert os.path.exists(os.path.join(setup_path, "{0:}_train_checkpoint_{1:}.index".format(setup_config.network_name,
-                                                                                             iteration)))
-    assert os.path.exists(os.path.join(setup_path, "{0:}_train_checkpoint_{1:}.data-00000-of-00001".format(
-        setup_config.network_name, iteration)))
-    assert os.path.exists(os.path.join(setup_path, setup_config.network_name + "_io_names.json"))
+    assert os.path.exists(
+        raw_data_path
+    ), "Path to N5 dataset with raw data and mask does not exist"
+    assert os.path.exists(
+        os.path.join(
+            setup_path,
+            "{0:}_train_checkpoint_{1:}.meta".format(
+                setup_config.network_name, iteration
+            ),
+        )
+    )
+    assert os.path.exists(
+        os.path.join(
+            setup_path,
+            "{0:}_train_checkpoint_{1:}.index".format(
+                setup_config.network_name, iteration
+            ),
+        )
+    )
+    assert os.path.exists(
+        os.path.join(
+            setup_path,
+            "{0:}_train_checkpoint_{1:}.data-00000-of-00001".format(
+                setup_config.network_name, iteration
+            ),
+        )
+    )
+    assert os.path.exists(
+        os.path.join(setup_path, setup_config.network_name + "_io_names.json")
+    )
     rf = zarr.open(raw_data_path, mode="r")
     assert raw_ds in rf, "Raw data not present in N5 dataset"
     if mask_ds is not None:
@@ -100,8 +142,9 @@ def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, iteration, raw_ds,
     output_dir, out_file = get_output_paths(raw_data_path, setup_path, output_path)
 
     if not finish_interrupted:
-        net_name, input_shape_vc, output_shape_vc = setup_config.build_net(steps=setup_config.steps_inference,
-                                                                        mode="inference")
+        net_name, input_shape_vc, output_shape_vc = setup_config.build_net(
+            steps=setup_config.steps_inference, mode="inference"
+        )
         voxel_size_input = setup_config.voxel_size
         voxel_size_output = setup_config.voxel_size
 
@@ -112,25 +155,34 @@ def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, iteration, raw_ds,
         full_shape_wc = Coordinate(shape_vc) * voxel_size_input
         full_shape_vc_output = full_shape_wc / voxel_size_output
 
-
         # offset file, e.g. "(...)/setup01/HeLa_Cell2_4x4x4nm/offsets_volumes_masks_foreground_shape180x180x180.json"
         if mask_ds is not None:
-            offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(mask_ds.replace("/", "_"),
-                                                                             *output_shape_wc)
+            offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(
+                mask_ds.replace("/", "_"), *output_shape_wc
+            )
         else:
-            offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format("nomask", *output_shape_wc)
+            offset_filename = "offsets_{0:}_shape{1:}x{2:}x{3:}.json".format(
+                "nomask", *output_shape_wc
+            )
         offset_file = os.path.join(output_dir, offset_filename)
 
         # prepare datasets
-        factor, scale, shift = get_contrast_adjustment(rf, raw_ds, factor, min_sc, max_sc)
+        factor, scale, shift = get_contrast_adjustment(
+            rf, raw_ds, factor, min_sc, max_sc
+        )
 
         f = zarr.open(out_file)
         for out_name in setup_config.output_names:
             if out_name not in f:
-                ds = f.empty(name=out_name+"_predicted", shape=full_shape_vc_output, compressor=numcodecs.GZip(6),
-                             dtype="uint8", chunks=chunk_shape_vc)
+                ds = f.empty(
+                    name=out_name + "_predicted",
+                    shape=full_shape_vc_output,
+                    compressor=numcodecs.GZip(6),
+                    dtype="uint8",
+                    chunks=chunk_shape_vc,
+                )
             else:
-                ds = f[out_name+"_predicted"]
+                ds = f[out_name + "_predicted"]
             ds.attrs["resolution"] = tuple(voxel_size_output)[::-1]
             ds.attrs["offset"] = (0, 0, 0)
             ds.attrs["raw_data_path"] = raw_data_path
@@ -145,14 +197,20 @@ def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, iteration, raw_ds,
 
         if not os.path.exists(offset_file):
             if mask_ds is not None:
-                generate_list_for_mask(offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus)
+                generate_list_for_mask(
+                    offset_file, output_shape_wc, raw_data_path, mask_ds, n_cpus
+                )
             else:
                 generate_full_list(offset_file, output_shape_wc, raw_data_path, raw_ds)
-        shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(setup_config.steps_inference))
+        shapes_file = os.path.join(
+            setup_path, "shapes_steps{0:}.json".format(setup_config.steps_inference)
+        )
         if not os.path.exists(shapes_file):
-            shapes = {"input_shape_vc":  tuple(int(isv) for isv in input_shape_vc),
-                      "output_shape_vc": tuple(int(osv) for osv in output_shape_vc),
-                      "chunk_shape_vc":  tuple(int(csv) for csv in chunk_shape_vc)}
+            shapes = {
+                "input_shape_vc": tuple(int(isv) for isv in input_shape_vc),
+                "output_shape_vc": tuple(int(osv) for osv in output_shape_vc),
+                "chunk_shape_vc": tuple(int(csv) for csv in chunk_shape_vc),
+            }
             with open(shapes_file, "w") as f:
                 json.dump(shapes, f)
 
@@ -162,50 +220,74 @@ def prepare_cell_inference(n_jobs, raw_data_path, dataset_id, iteration, raw_ds,
         print("Redistributing offset lists over {0:} jobs".format(n_jobs))
         redistribute_offset_lists(list(range(n_jobs)), out_file)
     else:
-        with open(offset_file, 'r') as f:
+        with open(offset_file, "r") as f:
             offset_list = json.load(f)
             offset_list_from_precomputed(offset_list, list(range(n_jobs)), out_file)
     return input_shape_vc, output_shape_vc, chunk_shape_vc
 
 
-def preprocess(data, scale=2, shift=-1., factor=None):
+def preprocess(data, scale=2, shift=-1.0, factor=None):
     return clip(scale_shift(normalize(data, factor=factor), scale, shift))
 
 
-def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, output_path=None, factor=None,
-                         min_sc=None, max_sc=None, float_range=(-1, 1), safe_scale=False, n_cpus=5):
+def single_job_inference(
+    job_no,
+    raw_data_path,
+    iteration,
+    raw_ds,
+    setup_path,
+    output_path=None,
+    factor=None,
+    min_sc=None,
+    max_sc=None,
+    float_range=(-1, 1),
+    safe_scale=False,
+    n_cpus=5,
+):
     sys.path.append(setup_path)
     import setup_config
+
     output_dir, out_file = get_output_paths(raw_data_path, setup_path, output_path)
     offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(job_no))
     if not os.path.exists(offset_file):
         return
 
-    with open(offset_file, 'r') as f:
+    with open(offset_file, "r") as f:
         offset_list = json.load(f)
 
     rf = zarr.open(raw_data_path, mode="r")
     shape_vc = rf[raw_ds].shape
-    weight_meta_graph = os.path.join(setup_path, "{0:}_train_checkpoint_{1:}".format(setup_config.network_name,
-                                                                                     iteration))
-    inference_meta_graph = os.path.join(setup_path, "{0:}_inference".format(setup_config.network_name))
+    weight_meta_graph = os.path.join(
+        setup_path,
+        "{0:}_train_checkpoint_{1:}".format(setup_config.network_name, iteration),
+    )
+    inference_meta_graph = os.path.join(
+        setup_path, "{0:}_inference".format(setup_config.network_name)
+    )
 
-    net_io_json = os.path.join(setup_path, "{0:}_io_names.json".format(setup_config.network_name))
+    net_io_json = os.path.join(
+        setup_path, "{0:}_io_names.json".format(setup_config.network_name)
+    )
     with open(net_io_json, "r") as f:
         net_io_names = json.load(f)
 
-    shapes_file = os.path.join(setup_path, "shapes_steps{0:}.json".format(setup_config.steps_inference))
+    shapes_file = os.path.join(
+        setup_path, "shapes_steps{0:}.json".format(setup_config.steps_inference)
+    )
     with open(shapes_file, "r") as f:
         shapes = json.load(f)
-    input_shape_vc, output_shape_vc, chunk_shape_vc = \
-        shapes["input_shape_vc"], shapes["output_shape_vc"], shapes["chunk_shape_vc"]
+    input_shape_vc, output_shape_vc, chunk_shape_vc = (
+        shapes["input_shape_vc"],
+        shapes["output_shape_vc"],
+        shapes["chunk_shape_vc"],
+    )
 
     input_key = net_io_names[setup_config.input_name]
     network_output_keys = []
     dataset_target_keys = []
 
     for out_name in setup_config.output_names:
-        network_output_keys.append(net_io_names[out_name+"_predicted"])
+        network_output_keys.append(net_io_names[out_name + "_predicted"])
         dataset_target_keys.append(out_name + "_predicted")
 
     voxel_size_input = setup_config.voxel_size
@@ -219,7 +301,7 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, o
         weight_meta_graph,
         inference_meta_graph,
         input_keys=input_key,
-        output_keys=network_output_keys
+        output_keys=network_output_keys,
     )
 
     t_predict = time.time()
@@ -228,22 +310,35 @@ def single_job_inference(job_no, raw_data_path, iteration, raw_ds, setup_path, o
 
     run_inference_zarr_multi_crop(
         prediction,
-        functools.partial(preprocess, factor=1./factor, scale=scale, shift=shift),
-        functools.partial(clip_float_to_uint8, float_range=float_range, safe_scale=safe_scale),
+        functools.partial(preprocess, factor=1.0 / factor, scale=scale, shift=shift),
+        functools.partial(
+            clip_float_to_uint8, float_range=float_range, safe_scale=safe_scale
+        ),
         raw_data_path,
         out_file,
         offset_list,
-        network_input_shapes_wc=[input_shape_wc, ],
+        network_input_shapes_wc=[
+            input_shape_wc,
+        ],
         network_output_shape_wc=output_shape_wc,
         chunk_shape_wc=chunk_shape_wc,
-        input_keys=[raw_ds, ],
+        input_keys=[
+            raw_ds,
+        ],
         target_keys=dataset_target_keys,
-        input_resolutions=[tuple(voxel_size_input), ],
-        target_resolutions=[tuple(voxel_size_output), ] * len(dataset_target_keys),
-        log_processed=os.path.join(os.path.dirname(offset_file),
-                                   "list_gpu_{0:}_{1:}_processed.txt".format(job_no,iteration)),
-        pad_value=int(round(-factor*(shift/scale))),
-        num_cpus=n_cpus
+        input_resolutions=[
+            tuple(voxel_size_input),
+        ],
+        target_resolutions=[
+            tuple(voxel_size_output),
+        ]
+        * len(dataset_target_keys),
+        log_processed=os.path.join(
+            os.path.dirname(offset_file),
+            "list_gpu_{0:}_{1:}_processed.txt".format(job_no, iteration),
+        ),
+        pad_value=int(round(-factor * (shift / scale))),
+        num_cpus=n_cpus,
     )
 
     t_predict = time.time() - t_predict
@@ -264,7 +359,7 @@ if __name__ == "__main__":
     parser.add_argument("--raw_data_path", type=str, default="None")
     parser.add_argument("--raw_ds", type=str, default="volumes/raw/s0")
     parser.add_argument("--mask_ds", type=str, default="volumes/masks/foreground")
-    parser.add_argument("--setup_path", type=str, default='.')
+    parser.add_argument("--setup_path", type=str, default=".")
     parser.add_argument("--output_path", type=str, default=None)
     parser.add_argument("--finish_interrupted", type=bool, default=False)
     parser.add_argument("--factor", type=int, default=None)
@@ -277,11 +372,16 @@ if __name__ == "__main__":
     action = args.action
     dataset_id = args.dataset_id
     if args.raw_data_path == "None":
-        raw_data_path = os.path.join(config_loader.get_config()["organelles"]["data_path"], dataset_id,
-                                     dataset_id+".n5")
+        raw_data_path = os.path.join(
+            config_loader.get_config()["organelles"]["data_path"],
+            dataset_id,
+            dataset_id + ".n5",
+        )
     else:
         raw_data_path = args.raw_data_path
-    assert os.path.exists(raw_data_path), "Path {raw_data:} does not exist".format(raw_data=raw_data_path)
+    assert os.path.exists(raw_data_path), "Path {raw_data:} does not exist".format(
+        raw_data=raw_data_path
+    )
     output_path = args.output_path
     iteration = args.iteration
     n_job = args.n_job
@@ -300,8 +400,23 @@ if __name__ == "__main__":
     safe_scale = args.safe_scale
     finish_interrupted = args.finish_interrupted
     if action == "prepare":
-        prepare_cell_inference(n_job, raw_data_path, dataset_id,  iteration, raw_ds, mask_ds, setup_path, output_path,
-                               factor, min_sc, max_sc, float_range, safe_scale, n_cpus, finish_interrupted)
+        prepare_cell_inference(
+            n_job,
+            raw_data_path,
+            dataset_id,
+            iteration,
+            raw_ds,
+            mask_ds,
+            setup_path,
+            output_path,
+            factor,
+            min_sc,
+            max_sc,
+            float_range,
+            safe_scale,
+            n_cpus,
+            finish_interrupted,
+        )
     # elif action == "run":
     #     input_shape_vc, output_shape_vc, chunk_shape_vc = prepare_cell_inference(n_job, raw_data_path, iteration,
     #                                                                              raw_ds, mask_ds, setup_path, factor,
@@ -310,6 +425,17 @@ if __name__ == "__main__":
     #                 setup_path, factor=factor, min_sc=min_sc, max_sc=max_sc)
 
     elif action == "inference":
-        single_job_inference(n_job, raw_data_path, iteration, raw_ds,
-                             setup_path, output_path=output_path, factor=factor, min_sc=min_sc, max_sc=max_sc,
-                             float_range=float_range, safe_scale=safe_scale, n_cpus=n_cpus)
+        single_job_inference(
+            n_job,
+            raw_data_path,
+            iteration,
+            raw_ds,
+            setup_path,
+            output_path=output_path,
+            factor=factor,
+            min_sc=min_sc,
+            max_sc=max_sc,
+            float_range=float_range,
+            safe_scale=safe_scale,
+            n_cpus=n_cpus,
+        )

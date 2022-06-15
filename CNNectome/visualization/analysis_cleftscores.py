@@ -492,7 +492,11 @@ def absolute_summary_plots():
         x += d_large
         for k, aug in enumerate(augmentations):
             for l, dt in enumerate(data_train):
-                avg_cremi_score, std_cremi_score, min_cremi_score = compute_average_cremi_score(
+                (
+                    avg_cremi_score,
+                    std_cremi_score,
+                    min_cremi_score,
+                ) = compute_average_cremi_score(
                     samples, dt, aug, de, iterations, "validation"
                 )
                 plt.errorbar(

@@ -5,11 +5,11 @@ import argparse
 
 
 def readfile(filename, startline=0):
-    f = open(filename, 'r')
+    f = open(filename, "r")
     text = f.readlines()
     print("Start reading filename from line {0:}".format(startline))
     text = text[startline:]
-    text = ''.join(text)
+    text = "".join(text)
     return text
 
 
@@ -28,7 +28,7 @@ def stats(times):
 
 
 def plot_hist(times, name=None):
-    weights = np.ones_like(times)/len(times)
+    weights = np.ones_like(times) / len(times)
     bins = np.linspace(0, 100, 100)
     plt.hist(times, bins, label=name, density=True, alpha=0.3)
 
@@ -45,11 +45,18 @@ def run(filenames, startlines):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Calculate statistics and plot histograms of times extracted from "
-                                                 "logfiles")
-    parser.add_argument('files', help='logfile', type=str, nargs='+')
-    parser.add_argument('--startlines', help='linenumber from which to start reading the associated logfile',
-                        type=int, nargs='+', default=None)
+    parser = argparse.ArgumentParser(
+        description="Calculate statistics and plot histograms of times extracted from "
+        "logfiles"
+    )
+    parser.add_argument("files", help="logfile", type=str, nargs="+")
+    parser.add_argument(
+        "--startlines",
+        help="linenumber from which to start reading the associated logfile",
+        type=int,
+        nargs="+",
+        default=None,
+    )
     args = parser.parse_args()
     startlines = args.startlines
     if startlines is None:
@@ -57,5 +64,5 @@ def main():
     run(args.files, startlines)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

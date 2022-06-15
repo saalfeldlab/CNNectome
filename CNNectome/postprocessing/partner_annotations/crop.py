@@ -78,7 +78,9 @@ def crop_to_seg(filename_src, dataset_src, filename_tgt, dataset_tgt, offset, sh
 
 def main():
     samples = ["A", "B", "C"]
-    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5")
+    filename_src = os.path.join(
+        config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5"
+    )
     data_eval = [
         "data2016-aligned",
         "data2016-unaligned",
@@ -111,11 +113,15 @@ def main():
 
 def main_seg():
     samples = ["A", "B", "C", "A+", "B+", "C+"]  # ['A', 'C', 'B+', 'C+']
-    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremi17_data_path"],
-                                "sample_{0:}_padded_20170424.aligned.0bg.n5")
+    filename_src = os.path.join(
+        config_loader.get_config()["synapses"]["cremi17_data_path"],
+        "sample_{0:}_padded_20170424.aligned.0bg.n5",
+    )
     dataset_src = "volumes/labels/neuron_ids"
-    filename_tgt = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
-                                "pre_and_post/cremi/{0:}.n5")
+    filename_tgt = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "pre_and_post/cremi/{0:}.n5",
+    )
     dataset_tgt = "volumes/labels/neuron_ids_gt_cropped"
     for sample in samples:
         print(sample)
@@ -133,7 +139,9 @@ def main_seg():
 
 def main_test_blocks():
     samples = ["A+", "B+", "C+"]
-    filename_src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5")
+    filename_src = os.path.join(
+        config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5"
+    )
     data_eval = ["data2016-aligned", "data2016-unaligned"]
     datasets_srcs = ["volumes/masks/groundtruth", "segmentation/multicut"]
     dataset_tgts = [

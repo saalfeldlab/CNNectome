@@ -11,8 +11,10 @@ from simpleference.postprocessing import *
 
 
 def single_gpu_inference(data_train, augmentation, data_eval, samples, gpu, iteration):
-    path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
-                        "data_and_augmentations/{0:}/{1:}".format(data_train, augmentation))
+    path = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "data_and_augmentations/{0:}/{1:}".format(data_train, augmentation),
+    )
     weight_meta_graph = os.path.join(path, "unet_checkpoint_{0:}".format(iteration))
     inference_meta_graph = os.path.join(path, "unet_inference")
     net_io_json = os.path.join(path, "net_io_names.json")
@@ -25,8 +27,8 @@ def single_gpu_inference(data_train, augmentation, data_eval, samples, gpu, iter
         net_io_names["post_dist"],
         net_io_names["cleft_dist"],
     ]
-    input_shape = (91*40, 862*4, 862*4)
-    output_shape = (71*40, 650*4, 650*4)
+    input_shape = (91 * 40, 862 * 4, 862 * 4)
+    output_shape = (71 * 40, 650 * 4, 650 * 4)
 
     prediction = TensorflowPredict(
         weight_meta_graph,
@@ -38,13 +40,16 @@ def single_gpu_inference(data_train, augmentation, data_eval, samples, gpu, iter
     for k, de in enumerate(data_eval):
         for s in samples:
             print("{0:} ({1:}/{2:}), {3:}".format(de, k, len(data_eval), s))
-            raw_file = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"],
-                                    "{0:}/{1:}.n5".format(de, s))
-            out_file = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"],
-                                    "data_and_augmentations/{0:}/{1:}/evaluation/{2:}/{3:}/{4:}.n5".format(data_train,
-                                                                                                           augmentation,
-                                                                                                           iteration,
-                                                                                                           de, s))
+            raw_file = os.path.join(
+                config_loader.get_config()["synapses"]["cremieval_path"],
+                "{0:}/{1:}.n5".format(de, s),
+            )
+            out_file = os.path.join(
+                config_loader.get_config()["synapses"]["cremieval_path"],
+                "data_and_augmentations/{0:}/{1:}/evaluation/{2:}/{3:}/{4:}.n5".format(
+                    data_train, augmentation, iteration, de, s
+                ),
+            )
             offset_file = os.path.join(out_file, "list_gpu_{0:}.json".format(gpu))
             with open(offset_file, "r") as f:
                 offset_list = json.load(f)
@@ -63,7 +68,7 @@ def single_gpu_inference(data_train, augmentation, data_eval, samples, gpu, iter
                 target_resolution=(40, 4, 4),
                 log_processed=os.path.join(
                     out_file, "list_gpu_{0:}processed.txt".format(gpu)
-                )
+                ),
             )
             t_predict = time.time() - t_predict
 

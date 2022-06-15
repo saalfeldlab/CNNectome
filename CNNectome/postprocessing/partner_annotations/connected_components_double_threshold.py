@@ -7,6 +7,7 @@ import logging
 import scipy.ndimage
 from CNNectome.utils import config_loader
 
+
 def cc2(
     filename_src, dataset_src_high_thr, dataset_src_low_thr, filename_tgt, dataset_tgt
 ):
@@ -46,13 +47,15 @@ def cc2(
 def main():
     thrs_mult = [[127, 42]]
     samples = ["A", "B", "C", "A+", "B+", "C+"]
-    filename_src = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
-                                "pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5"
-                                )
+    filename_src = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5",
+    )
     dataset_srcs = ["predictions_it100000/cleft_dist_cropped_thr{0:}"]
-    filename_tgt = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
-                                "pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5"
-                                )
+    filename_tgt = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "pre_and_post/pre_and_post-v3.0/cremi/{0:}.n5",
+    )
     dataset_tgts = ["predictions_it100000/cleft_dist_cropped_thr{0:}_cc{1:}"]
 
     for sample in samples:

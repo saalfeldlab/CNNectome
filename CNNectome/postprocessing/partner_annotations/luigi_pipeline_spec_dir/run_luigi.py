@@ -5,6 +5,7 @@ from partnerreport_luigi import PartnerReport
 from split_modi_luigi import SplitModi
 from CNNectome.utils import config_loader
 
+
 class AllEvaluations(luigi.WrapperTask):
     up_to_iteration = luigi.IntParameter(default=200000)
     iteration_step = luigi.IntParameter(default=10000, significant=False)
@@ -35,8 +36,12 @@ class AllEvaluations(luigi.WrapperTask):
 
 class SingleEvaluation(luigi.WrapperTask):
     iteration = luigi.IntParameter(default=186000)
-    path = luigi.Parameter(default=os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
-                                                "pre_and_post/pre_and_post-v9.0/run01/"))
+    path = luigi.Parameter(
+        default=os.path.join(
+            config_loader.get_config()["synapses"]["training_setups_path"],
+            "pre_and_post/pre_and_post-v9.0/run01/",
+        )
+    )
     data_eval = luigi.TupleParameter(default=("data2016-aligned", "data2016-unaligned"))
     samples = luigi.TupleParameter(default=("A", "B", "C", "A+", "B+", "C+"))
 

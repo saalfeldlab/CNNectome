@@ -1,6 +1,13 @@
 from gunpowder import *
 from gunpowder.tensorflow import *
-from gunpowder.contrib import AddDistance, TanhSaturate, CombineDistances, IntensityCrop, Sum, CropArray
+from gunpowder.contrib import (
+    AddDistance,
+    TanhSaturate,
+    CombineDistances,
+    IntensityCrop,
+    Sum,
+    CropArray,
+)
 from gunpowder.ext import zarr
 from gunpowder.compat import ensure_str
 import CNNectome.utils.config_loader
@@ -17,8 +24,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Union, Sequence, Tuple
 
 
-def get_label_ids_by_category(crop: Dict[str, Any],
-                              category: str) -> List[int]:
+def get_label_ids_by_category(crop: Dict[str, Any], category: str) -> List[int]:
     """
     Get all label ids from a crop that belong to a certain category
 
@@ -29,7 +35,7 @@ def get_label_ids_by_category(crop: Dict[str, Any],
     Returns:
         All label ids that belong to the `category` for that crop.
     """
-    return [ll[0] for ll in crop['labels'][category]]
+    return [ll[0] for ll in crop["labels"][category]]
 
 
 def get_all_annotated_label_ids(crop: Dict[str, Any]) -> List[int]:
@@ -42,7 +48,9 @@ def get_all_annotated_label_ids(crop: Dict[str, Any]) -> List[int]:
     Returns:
         All label ids that are annotated in the crop.
     """
-    return get_label_ids_by_category(crop, "present_annotated") + get_label_ids_by_category(crop, "absent_annotated")
+    return get_label_ids_by_category(
+        crop, "present_annotated"
+    ) + get_label_ids_by_category(crop, "absent_annotated")
 
 
 def get_crop_size(crop: Dict[str, Any]) -> int:
@@ -74,9 +82,11 @@ def get_all_labelids(labels: List[CNNectome.utils.label.Label]) -> List[int]:
     return all_labelids
 
 
-def prioritized_sampling_probabilities(crop_sizes: Union[Sequence[int], np.ndarray],
-                                       indicator: Union[Sequence[bool], np.ndarray],
-                                       prob_prioritized: float) -> List[float]:
+def prioritized_sampling_probabilities(
+    crop_sizes: Union[Sequence[int], np.ndarray],
+    indicator: Union[Sequence[bool], np.ndarray],
+    prob_prioritized: float,
+) -> List[float]:
     """
     Compute probabilities for sampling from each individual crop when using the prioritized sampling scheme. Crops
     that are prioritized will be sampled from with probability `prob_prioritized`. All other crops will be sampled
@@ -109,8 +119,9 @@ def prioritized_sampling_probabilities(crop_sizes: Union[Sequence[int], np.ndarr
     return list(prob_present + prob_absent)
 
 
-def is_prioritized(crop: Dict[str, Any],
-                   prioritized_label: CNNectome.utils.label.Label) -> bool:
+def is_prioritized(
+    crop: Dict[str, Any], prioritized_label: CNNectome.utils.label.Label
+) -> bool:
     """
     Determines whether a crop should be prioritized for training depending on whether it contains examples of the
     specified label.
@@ -126,8 +137,12 @@ def is_prioritized(crop: Dict[str, Any],
     annotated = set(get_all_annotated_label_ids(crop))
     # treating generic_label as separate case might not be necessary?
     if prioritized_label.generic_label is not None:
-        specific_labels_prioritized = set(prioritized_label.labelid) - set(prioritized_label.generic_label)
-        if not specific_labels_prioritized.isdisjoint(present) and specific_labels_prioritized.issubset(annotated):
+        specific_labels_prioritized = set(prioritized_label.labelid) - set(
+            prioritized_label.generic_label
+        )
+        if not specific_labels_prioritized.isdisjoint(
+            present
+        ) and specific_labels_prioritized.issubset(annotated):
             prioritized_crop = True
         elif not set(prioritized_label.generic_label).isdisjoint(present) and set(
             prioritized_label.generic_label
@@ -136,14 +151,16 @@ def is_prioritized(crop: Dict[str, Any],
         else:
             prioritized_crop = False
     else:
-        prioritized_crop = not set(prioritized_label.labelid).isdisjoint(present) and set(
-            prioritized_label.labelid
-        ).issubset(annotated)
+        prioritized_crop = not set(prioritized_label.labelid).isdisjoint(
+            present
+        ) and set(prioritized_label.labelid).issubset(annotated)
     return prioritized_crop
 
 
-def _label_filter(cond_f: Callable[[CNNectome.utils.label.Label], bool],
-                  labels: List[CNNectome.utils.label.Label]) -> List[CNNectome.utils.label.Label]:
+def _label_filter(
+    cond_f: Callable[[CNNectome.utils.label.Label], bool],
+    labels: List[CNNectome.utils.label.Label],
+) -> List[CNNectome.utils.label.Label]:
     """
     Filter `labels` according to the given condition.
 
@@ -157,7 +174,9 @@ def _label_filter(cond_f: Callable[[CNNectome.utils.label.Label], bool],
     return [ll for ll in labels if cond_f(ll)]
 
 
-def _get_label(name: str, labels: List[CNNectome.utils.label.Label]) -> Optional[CNNectome.utils.label.Label]:
+def _get_label(
+    name: str, labels: List[CNNectome.utils.label.Label]
+) -> Optional[CNNectome.utils.label.Label]:
     """
     Finds the (first) element of the `labels` list whose attribute labelname is `name`.
 
@@ -175,22 +194,23 @@ def _get_label(name: str, labels: List[CNNectome.utils.label.Label]) -> Optional
         return None
 
 
-def _make_crop_source(crop: Dict[str, Any],
-                      data_dir: Optional[str],
-                      subsample_variant: Optional[
-                         Union[int, str]],
-                      gt_version: str,
-                      labels: List[CNNectome.utils.label.Label],
-                      ak_raw: ArrayKey,
-                      ak_labels: ArrayKey,
-                      ak_labels_downsampled: ArrayKey,
-                      ak_mask: ArrayKey,
-                      input_size: Coordinate,
-                      output_size: Coordinate,
-                      voxel_size_input: Coordinate,
-                      voxel_size: Coordinate,
-                      crop_width: Coordinate,
-                      keep_thr: float) -> gunpowder.batch_provider_tree.BatchProviderTree:
+def _make_crop_source(
+    crop: Dict[str, Any],
+    data_dir: Optional[str],
+    subsample_variant: Optional[Union[int, str]],
+    gt_version: str,
+    labels: List[CNNectome.utils.label.Label],
+    ak_raw: ArrayKey,
+    ak_labels: ArrayKey,
+    ak_labels_downsampled: ArrayKey,
+    ak_mask: ArrayKey,
+    input_size: Coordinate,
+    output_size: Coordinate,
+    voxel_size_input: Coordinate,
+    voxel_size: Coordinate,
+    crop_width: Coordinate,
+    keep_thr: float,
+) -> gunpowder.batch_provider_tree.BatchProviderTree:
     """
     Generate a batch provider for a specific crop, including label data, raw data, generating per label mask,
     rejection based on `min_masked_voxels` and contrast scaling.
@@ -220,9 +240,13 @@ def _make_crop_source(crop: Dict[str, Any],
     """
     if data_dir is None:
         data_dir = CNNectome.utils.config_loader.get_config()["organelles"]["data_path"]
-    n5file = zarr.open(ensure_str(os.path.join(data_dir, crop["parent"])), mode='r')
-    blueprint_label_ds = "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
-    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
+    n5file = zarr.open(ensure_str(os.path.join(data_dir, crop["parent"])), mode="r")
+    blueprint_label_ds = (
+        "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
+    )
+    blueprint_labelmask_ds = (
+        "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
+    )
     blueprint_mask_ds = "volumes/masks/groundtruth/{version:}"
     if subsample_variant is None:
         if "volumes/raw/s0" in n5file:
@@ -231,56 +255,96 @@ def _make_crop_source(crop: Dict[str, Any],
             raw_ds = "volumes/raw"
     else:
         raw_ds = "volumes/subsampled/raw/{0:}".format(subsample_variant)
-    label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
-    labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
+    label_ds = blueprint_label_ds.format(
+        version=gt_version.lstrip("v"), cropno=crop["number"]
+    )
+    labelmask_ds = blueprint_labelmask_ds.format(
+        version=gt_version.lstrip("v"), cropno=crop["number"]
+    )
     mask_ds = blueprint_mask_ds.format(version=gt_version.lstrip("v"))
 
     # add sources for all groundtruth labels
     all_srcs = []
     # We should really only be adding this with the above if statement, but need it for now because we need to
     # construct masks from it as separate labelsets contain zeros
-    logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-        cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=label_ds.format(label="all"), ak=ak_labels))
+    logging.debug(
+        "Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"],
+            file=os.path.join(data_dir, crop["parent"]),
+            ds=label_ds.format(label="all"),
+            ak=ak_labels,
+        )
+    )
     all_srcs.append(
-        ZarrSource(os.path.join(data_dir, crop["parent"]),
-                   {ak_labels: label_ds.format(label="all")}
-                   )
+        ZarrSource(
+            os.path.join(data_dir, crop["parent"]),
+            {ak_labels: label_ds.format(label="all")},
+        )
         + Pad(ak_labels, Coordinate(output_size) + crop_width)
         + DownSample(ak_labels, (2, 2, 2), ak_labels_downsampled)
     )
 
     for label in _label_filter(lambda l: l.separate_labelset, labels):
-        if all(l in get_label_ids_by_category(crop, "present_annotated") for l in label.labelid):
+        if all(
+            l in get_label_ids_by_category(crop, "present_annotated")
+            for l in label.labelid
+        ):
             ds = label_ds.format(label=label.labelname)
-            assert ds in n5file, "separate dataset {ds:} not present in file {file:}".format(ds=ds,
-                                                                                             file=n5file.store.path)
+            assert (
+                ds in n5file
+            ), "separate dataset {ds:} not present in file {file:}".format(
+                ds=ds, file=n5file.store.path
+            )
         else:
             ds = label_ds.format(label="all")
-        logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-            cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=ds, ak=label.gt_key))
-        all_srcs.append(ZarrSource(os.path.join(data_dir, crop["parent"]), {label.gt_key: ds}) +
-                        Pad(label.gt_key, Coordinate(output_size) + crop_width))
+        logging.debug(
+            "Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+                cropno=crop["number"],
+                file=os.path.join(data_dir, crop["parent"]),
+                ds=ds,
+                ak=label.gt_key,
+            )
+        )
+        all_srcs.append(
+            ZarrSource(os.path.join(data_dir, crop["parent"]), {label.gt_key: ds})
+            + Pad(label.gt_key, Coordinate(output_size) + crop_width)
+        )
 
     # add mask source per label
     labelmask_srcs = []
     for label in labels:
         labelmask_ds = labelmask_ds.format(label=label.labelname)
         if labelmask_ds in n5file:  # specified mask available:
-            logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-                cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=labelmask_ds, ak=label.mask_key))
-            labelmask_srcs.append(ZarrSource(os.path.join(data_dir, crop["parent"]),
-                                             {label.mask_key: labelmask_ds}
-                                             )
-                                  + Pad(label.mask_key, Coordinate(output_size) + crop_width))
+            logging.debug(
+                "Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+                    cropno=crop["number"],
+                    file=os.path.join(data_dir, crop["parent"]),
+                    ds=labelmask_ds,
+                    ak=label.mask_key,
+                )
+            )
+            labelmask_srcs.append(
+                ZarrSource(
+                    os.path.join(data_dir, crop["parent"]),
+                    {label.mask_key: labelmask_ds},
+                )
+                + Pad(label.mask_key, Coordinate(output_size) + crop_width)
+            )
         else:
             if label.generic_label is not None:
                 specific_labels = list(set(label.labelid) - set(label.generic_label))
-                generic_condition = (all(l in get_all_annotated_label_ids(crop) for l in label.generic_label) or
-                                     all(l in get_all_annotated_label_ids(crop) for l in specific_labels))
+                generic_condition = all(
+                    l in get_all_annotated_label_ids(crop) for l in label.generic_label
+                ) or all(
+                    l in get_all_annotated_label_ids(crop) for l in specific_labels
+                )
             else:
                 generic_condition = False
 
-            if all(l in get_all_annotated_label_ids(crop) for l in label.labelid) or generic_condition:
+            if (
+                all(l in get_all_annotated_label_ids(crop) for l in label.labelid)
+                or generic_condition
+            ):
                 f = lambda val: ((val > 0) * 1).astype(np.bool)
             else:
                 f = lambda val: ((val > 0) * 0).astype(np.bool)
@@ -295,31 +359,43 @@ def _make_crop_source(crop: Dict[str, Any],
             #         {label.mask_key: ArraySpec(voxel_size=voxel_size, interpolatable=False)}
             #     )
             # )
-            all_srcs[0] += LambdaFilter(f, ak_labels_downsampled, target_key=label.mask_key, target_spec=ArraySpec(
-                dtype=np.bool, interpolatable=False))
+            all_srcs[0] += LambdaFilter(
+                f,
+                ak_labels_downsampled,
+                target_key=label.mask_key,
+                target_spec=ArraySpec(dtype=np.bool, interpolatable=False),
+            )
     all_srcs.extend(labelmask_srcs)
 
     # add raw source
-    logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-        cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=raw_ds, ak=ak_raw))
-    raw_src = (
-        ZarrSource(
-            os.path.join(data_dir, crop["parent"]),
-            {ak_raw: raw_ds},
-            array_specs={ak_raw: ArraySpec(voxel_size=voxel_size_input)})
-        + Pad(ak_raw, Coordinate(input_size), 0)
+    logging.debug(
+        "Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"],
+            file=os.path.join(data_dir, crop["parent"]),
+            ds=raw_ds,
+            ak=ak_raw,
+        )
     )
+    raw_src = ZarrSource(
+        os.path.join(data_dir, crop["parent"]),
+        {ak_raw: raw_ds},
+        array_specs={ak_raw: ArraySpec(voxel_size=voxel_size_input)},
+    ) + Pad(ak_raw, Coordinate(input_size), 0)
     all_srcs.append(raw_src)
 
     # add gt mask source
-    logging.debug("Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
-        cropno=crop["number"], file=os.path.join(data_dir, crop["parent"]), ds=mask_ds, ak=ak_mask))
-    mask_src = (
-        ZarrSource(
-            os.path.join(data_dir, crop["parent"]),
-            {ak_mask: mask_ds},
-            array_specs={ak_mask: ArraySpec(interpolatable=False, voxel_size=voxel_size)}
+    logging.debug(
+        "Adding ZarrSource ({file:}/{ds:}) for crop {cropno:}, providing {ak}".format(
+            cropno=crop["number"],
+            file=os.path.join(data_dir, crop["parent"]),
+            ds=mask_ds,
+            ak=ak_mask,
         )
+    )
+    mask_src = ZarrSource(
+        os.path.join(data_dir, crop["parent"]),
+        {ak_mask: mask_ds},
+        array_specs={ak_mask: ArraySpec(interpolatable=False, voxel_size=voxel_size)},
     )
     all_srcs.append(mask_src)
 
@@ -329,7 +405,7 @@ def _make_crop_source(crop: Dict[str, Any],
         + MergeProvider()
         + RandomLocation()
         + Reject(ak_mask, min_masked=keep_thr)
-               )
+    )
 
     # contrast adjustment
     if "volumes/raw/s0" in n5file:
@@ -338,20 +414,27 @@ def _make_crop_source(crop: Dict[str, Any],
         contr_info_ds = "volumes/raw"
     contr_adj = n5file[contr_info_ds].attrs["contrastAdjustment"]
     scale = 255.0 / (float(contr_adj["max"]) - float(contr_adj["min"]))
-    shift = - scale * float(contr_adj["min"])
-    logging.debug("Adjusting contrast with scale {scale:} and shift {shift:}".format(scale=scale, shift=shift))
-    crop_src += IntensityScaleShift(ak_raw,
-                                    scale,
-                                    shift
-                                    )
+    shift = -scale * float(contr_adj["min"])
+    logging.debug(
+        "Adjusting contrast with scale {scale:} and shift {shift:}".format(
+            scale=scale, shift=shift
+        )
+    )
+    crop_src += IntensityScaleShift(ak_raw, scale, shift)
     return crop_src
 
 
-def _network_setup(max_iteration: int,
-                   ak_raw: ArrayKey,
-                   ak_mask: ArrayKey,
-                   labels: List[CNNectome.utils.label.Label]) -> Tuple[
-                   Dict[str, str], int, Dict[str, gunpowder.array.ArrayKey], Dict[str, gunpowder.array.ArrayKey]]:
+def _network_setup(
+    max_iteration: int,
+    ak_raw: ArrayKey,
+    ak_mask: ArrayKey,
+    labels: List[CNNectome.utils.label.Label],
+) -> Tuple[
+    Dict[str, str],
+    int,
+    Dict[str, gunpowder.array.ArrayKey],
+    Dict[str, gunpowder.array.ArrayKey],
+]:
     """
     Setup the tensorflow network with its inputs and outputs to be used in the train node.
 
@@ -380,7 +463,11 @@ def _network_setup(max_iteration: int,
     if tf.train.latest_checkpoint("."):
         start_iteration = int(tf.train.latest_checkpoint(".").split("_")[-1])
         if start_iteration >= max_iteration:
-            logging.info("Network has already been trained for {0:} iterations".format(start_iteration))
+            logging.info(
+                "Network has already been trained for {0:} iterations".format(
+                    start_iteration
+                )
+            )
         else:
             logging.info("Resuming training from {0:}".format(start_iteration))
     else:
@@ -421,10 +508,10 @@ def train_until(
     dt_scaling_factor: int = 50,
     cache_size: int = 5,
     num_workers: int = 10,
-    min_masked_voxels: Union[float, int] = 17561.,
+    min_masked_voxels: Union[float, int] = 17561.0,
     voxel_size_labels: Coordinate = Coordinate((2, 2, 2)),
     voxel_size: Coordinate = Coordinate((4, 4, 4)),
-    voxel_size_input: Coordinate = Coordinate((4, 4, 4))
+    voxel_size_input: Coordinate = Coordinate((4, 4, 4)),
 ):
     """
     Training a tensorflow network to learn signed distance transforms of specified labels (organelles) using gunpowder.
@@ -459,7 +546,7 @@ def train_until(
     """
 
     keep_thr = float(min_masked_voxels) / np.prod(output_shape)
-    one_vx_thr = 1. / np.prod(output_shape)
+    one_vx_thr = 1.0 / np.prod(output_shape)
     max_distance = 2.76 * dt_scaling_factor
 
     ak_raw = ArrayKey("RAW")
@@ -470,21 +557,30 @@ def train_until(
     input_size = Coordinate(input_shape) * voxel_size_input
     output_size = Coordinate(output_shape) * voxel_size
     crop_width = Coordinate((max_distance,) * len(voxel_size_labels))
-    crop_width = crop_width//voxel_size
+    crop_width = crop_width // voxel_size
     if crop_width == 0:
         crop_width *= voxel_size
     else:
-        crop_width = (crop_width+(1,)*len(crop_width)) * voxel_size
+        crop_width = (crop_width + (1,) * len(crop_width)) * voxel_size
     # crop_width = crop_width  # (Coordinate((max_distance,) * len(voxel_size_labels))/2 )
 
     db = CNNectome.utils.cosem_db.MongoCosemDB(gt_version=gt_version)
     collection = db.access("crops", db.gt_version)
     db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
-        db_filter['dataset_id'] = dataset
-    skip = {"_id": 0, "number": 1, "labels": 1, "dataset_id": 1, "parent":1, "dimensions": 1}
+        db_filter["dataset_id"] = dataset
+    skip = {
+        "_id": 0,
+        "number": 1,
+        "labels": 1,
+        "dataset_id": 1,
+        "parent": 1,
+        "dimensions": 1,
+    }
 
-    net_io_names, start_iteration, inputs, outputs = _network_setup(max_iteration, ak_raw, ak_mask, labels)
+    net_io_names, start_iteration, inputs, outputs = _network_setup(
+        max_iteration, ak_raw, ak_mask, labels
+    )
 
     # construct batch request
     request = BatchRequest()
@@ -505,8 +601,9 @@ def train_until(
     # specify specs for output
     array_specs_pred = dict()
     for label in labels:
-        array_specs_pred[label.pred_dist_key] = ArraySpec(voxel_size=voxel_size,
-                                                          interpolatable=True)
+        array_specs_pred[label.pred_dist_key] = ArraySpec(
+            voxel_size=voxel_size, interpolatable=True
+        )
     # specify snapshot data layout
     snapshot_data = dict()
     snapshot_data[ak_raw] = "volumes/raw"
@@ -514,10 +611,12 @@ def train_until(
     if len(_label_filter(lambda l: not l.separate_labelset, labels)) > 0:
         snapshot_data[ak_labels] = "volumes/labels/gt_labels"
     for label in _label_filter(lambda l: l.separate_labelset, labels):
-        snapshot_data[label.gt_key] = "volumes/labels/gt_"+label.labelname
+        snapshot_data[label.gt_key] = "volumes/labels/gt_" + label.labelname
     for label in labels:
         snapshot_data[label.gt_dist_key] = "volumes/labels/gt_dist_" + label.labelname
-        snapshot_data[label.pred_dist_key] = "volumes/labels/pred_dist_" + label.labelname
+        snapshot_data[label.pred_dist_key] = (
+            "volumes/labels/pred_dist_" + label.labelname
+        )
         snapshot_data[label.mask_key] = "volumes/masks/" + label.labelname
 
     # specify snapshot request
@@ -529,29 +628,73 @@ def train_until(
         crop_prioritized_label_indicator = []
 
     for crop in collection.find(db_filter, skip):
-        if len(set(get_all_annotated_label_ids(crop)).intersection(set(get_all_labelids(labels)))) > 0:
+        if (
+            len(
+                set(get_all_annotated_label_ids(crop)).intersection(
+                    set(get_all_labelids(labels))
+                )
+            )
+            > 0
+        ):
             logging.info("Adding crop number {0:}".format(crop["number"]))
             if voxel_size_input != voxel_size:
-                for subsample_variant in range(int(np.prod(voxel_size_input/voxel_size))):
+                for subsample_variant in range(
+                    int(np.prod(voxel_size_input / voxel_size))
+                ):
                     crop_srcs.append(
-                        _make_crop_source(crop, data_dir, subsample_variant, gt_version, labels, ak_raw, ak_labels,
-                                          ak_labels_downsampled, ak_mask, input_size, output_size, voxel_size_input,
-                                          voxel_size, crop_width, keep_thr))
+                        _make_crop_source(
+                            crop,
+                            data_dir,
+                            subsample_variant,
+                            gt_version,
+                            labels,
+                            ak_raw,
+                            ak_labels,
+                            ak_labels_downsampled,
+                            ak_mask,
+                            input_size,
+                            output_size,
+                            voxel_size_input,
+                            voxel_size,
+                            crop_width,
+                            keep_thr,
+                        )
+                    )
                     crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
                     crop_prioritized = is_prioritized(crop, prioritized_label)
-                    logging.info(f"Crop {crop['number']} is {'not ' if not crop_prioritized else ''}prioritized")
+                    logging.info(
+                        f"Crop {crop['number']} is {'not ' if not crop_prioritized else ''}prioritized"
+                    )
                     crop_prioritized_label_indicator.extend(
-                        [crop_prioritized] * int(np.prod(voxel_size_input/voxel_size))
+                        [crop_prioritized] * int(np.prod(voxel_size_input / voxel_size))
                     )
             else:
-                crop_srcs.append(_make_crop_source(crop, data_dir, None, gt_version, labels, ak_raw, ak_labels,
-                                                   ak_labels_downsampled, ak_mask, input_size, output_size,
-                                                   voxel_size_input, voxel_size, crop_width, keep_thr))
+                crop_srcs.append(
+                    _make_crop_source(
+                        crop,
+                        data_dir,
+                        None,
+                        gt_version,
+                        labels,
+                        ak_raw,
+                        ak_labels,
+                        ak_labels_downsampled,
+                        ak_mask,
+                        input_size,
+                        output_size,
+                        voxel_size_input,
+                        voxel_size,
+                        crop_width,
+                        keep_thr,
+                    )
+                )
                 crop_sizes.append(get_crop_size(crop))
                 if prioritized_label is not None:
                     crop_prioritized = is_prioritized(crop, prioritized_label)
-                    logging.info(f"Crop {crop['number']} is {'not ' if not crop_prioritized else ''}prioritized")
+                    logging.info(
+                        f"Crop {crop['number']} is {'not ' if not crop_prioritized else ''}prioritized"
+                    )
                     crop_prioritized_label_indicator.append(crop_prioritized)
 
     if prioritized_label is not None:
@@ -561,26 +704,26 @@ def train_until(
     else:
         sampling_probs = crop_sizes
     print(sampling_probs)
-    pipeline = (tuple(crop_srcs)
-                + RandomProvider(sampling_probs)
-                )
+    pipeline = tuple(crop_srcs) + RandomProvider(sampling_probs)
 
-    pipeline += Normalize(ak_raw, 1.0/255)
-    pipeline += IntensityCrop(ak_raw, 0., 1.)
+    pipeline += Normalize(ak_raw, 1.0 / 255)
+    pipeline += IntensityCrop(ak_raw, 0.0, 1.0)
 
     # augmentations
-    pipeline = (pipeline
-                + fuse.SimpleAugment()
-                + fuse.ElasticAugment(voxel_size,
-                                      (100, 100, 100),
-                                      (10., 10., 10.),
-                                      (0, math.pi / 2.),
-                                      spatial_dims=3,
-                                      subsample=8
-                                      )
-                + fuse.IntensityAugment(ak_raw, 0.25, 1.75, -0.5, 0.35)
-                + GammaAugment(ak_raw, 0.5, 2.)
-                )
+    pipeline = (
+        pipeline
+        + fuse.SimpleAugment()
+        + fuse.ElasticAugment(
+            voxel_size,
+            (100, 100, 100),
+            (10.0, 10.0, 10.0),
+            (0, math.pi / 2.0),
+            spatial_dims=3,
+            subsample=8,
+        )
+        + fuse.IntensityAugment(ak_raw, 0.25, 1.75, -0.5, 0.35)
+        + GammaAugment(ak_raw, 0.5, 2.0)
+    )
 
     pipeline += IntensityScaleShift(ak_raw, 2, -1)
 
@@ -610,14 +753,14 @@ def train_until(
             (microtubules_out.gt_dist_key, centrosome.gt_dist_key),
             microtubules_out.gt_dist_key,
             (microtubules_out.mask_key, centrosome.mask_key),
-            microtubules_out.mask_key
+            microtubules_out.mask_key,
         )
     if microtubules is not None and centrosome is not None:
         pipeline += CombineDistances(
             (microtubules.gt_dist_key, centrosome.gt_dist_key),
             microtubules.gt_dist_key,
             (microtubules.mask_key, centrosome.mask_key),
-            microtubules.mask_key
+            microtubules.mask_key,
         )
 
     # add the distal_app and subdistal_app to the centrosomes
@@ -626,7 +769,7 @@ def train_until(
             (distal_app.gt_dist_key, subdistal_app.gt_dist_key, centrosome.gt_dist_key),
             centrosome.gt_dist_key,
             (distal_app.mask_key, subdistal_app.mask_key, centrosome.mask_key),
-            centrosome.mask_key
+            centrosome.mask_key,
         )
 
     arrays_that_need_to_be_cropped = []
@@ -647,50 +790,50 @@ def train_until(
     for label in _label_filter(lambda l: l.scale_loss, labels):
         if balance_global:
             pipeline += BalanceGlobalByThreshold(
-                label.gt_dist_key,
-                label.scale_key,
-                label.frac_pos,
-                label.frac_neg
+                label.gt_dist_key, label.scale_key, label.frac_pos, label.frac_neg
             )
         else:
             pipeline += BalanceByThreshold(
-                label.gt_dist_key,
-                label.scale_key,
-                mask=(label.mask_key, ak_mask)
-                )
-    pipeline += Sum([l.mask_key for l in labels], ak_labelmasks_comb, sum_array_spec=ArraySpec(
-                    dtype=np.uint8, interpolatable=False))
+                label.gt_dist_key, label.scale_key, mask=(label.mask_key, ak_mask)
+            )
+    pipeline += Sum(
+        [l.mask_key for l in labels],
+        ak_labelmasks_comb,
+        sum_array_spec=ArraySpec(dtype=np.uint8, interpolatable=False),
+    )
     pipeline += Reject(ak_labelmasks_comb, min_masked=one_vx_thr)
 
-    pipeline = (pipeline
-                + PreCache(cache_size=cache_size,
-                           num_workers=num_workers)
-                + Train(net_name,
-                        optimizer=net_io_names["optimizer"],
-                        loss=net_io_names[loss_name],
-                        inputs=inputs,
-                        summary=net_io_names["summary"],
-                        log_dir="log",
-                        outputs=outputs,
-                        gradients={},
-                        log_every=10,
-                        save_every=500,
-                        array_specs=array_specs_pred,
-                        )
-                + Snapshot(snapshot_data,
-                           every=500,
-                           output_filename="batch_{iteration}.hdf",
-                           output_dir="snapshots/",
-                           additional_request=snapshot_request,
-                           )
-                + PrintProfilingStats(every=50)
-                )
+    pipeline = (
+        pipeline
+        + PreCache(cache_size=cache_size, num_workers=num_workers)
+        + Train(
+            net_name,
+            optimizer=net_io_names["optimizer"],
+            loss=net_io_names[loss_name],
+            inputs=inputs,
+            summary=net_io_names["summary"],
+            log_dir="log",
+            outputs=outputs,
+            gradients={},
+            log_every=10,
+            save_every=500,
+            array_specs=array_specs_pred,
+        )
+        + Snapshot(
+            snapshot_data,
+            every=500,
+            output_filename="batch_{iteration}.hdf",
+            output_dir="snapshots/",
+            additional_request=snapshot_request,
+        )
+        + PrintProfilingStats(every=50)
+    )
 
     logging.info("Starting training...")
     with build(pipeline) as pp:
-        for i in range(start_iteration, max_iteration+1):
+        for i in range(start_iteration, max_iteration + 1):
             start_it = time.time()
             pp.request_batch(request)
             time_it = time.time() - start_it
-            logging.info("it{0:}: {1:}".format(i+1, time_it))
+            logging.info("it{0:}: {1:}".format(i + 1, time_it))
     logging.info("Training finished")

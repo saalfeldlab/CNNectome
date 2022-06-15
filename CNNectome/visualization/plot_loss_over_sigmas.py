@@ -48,7 +48,7 @@ def plot_config():
     ax.spines["left"].set(linewidth=2)
     ax.spines["bottom"].set(linewidth=2)
     ax.tick_params(axis="both", labelsize=20.0)
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     return colors
 
 
@@ -63,16 +63,26 @@ def plot_sigmas(directories, n_iter, save_file=None, errors=True, max_sigma=None
         stds = get_stat(np.std, directory, sigmas, n_iter)
         print("Standard dev: {0:}".format(stds))
         amin = np.argmin(avgs)
-        print("---- MIN: sigma {0:} - loss {1:}+-{2:}".format(sigmas[amin], avgs[amin], stds[amin]))
+        print(
+            "---- MIN: sigma {0:} - loss {1:}+-{2:}".format(
+                sigmas[amin], avgs[amin], stds[amin]
+            )
+        )
         stdse = get_stat(lambda x: np.std(x) / len(x) ** 0.5, directory, sigmas, n_iter)
-        plt.plot(sigmas, avgs, linewidth=2.0, color=color, label=os.path.basename(directory),)
+        plt.plot(
+            sigmas,
+            avgs,
+            linewidth=2.0,
+            color=color,
+            label=os.path.basename(directory),
+        )
         if errors:
             plt.fill_between(
                 sigmas,
                 np.array(avgs) - np.array(stds),
                 np.array(avgs) + np.array(stds),
                 alpha=0.3,
-                color=color
+                color=color,
             )
             plt.fill_between(
                 sigmas,
@@ -82,7 +92,7 @@ def plot_sigmas(directories, n_iter, save_file=None, errors=True, max_sigma=None
                 color=color,
             )
 
-    plt.title(', '.join([os.path.basename(directory) for directory in directories]))
+    plt.title(", ".join([os.path.basename(directory) for directory in directories]))
     plt.xlabel("sigma", fontsize=30)
     plt.ylabel("average loss", fontsize=30)
     plt.ylim(bottom=0)
@@ -94,7 +104,8 @@ def plot_sigmas(directories, n_iter, save_file=None, errors=True, max_sigma=None
         plt.savefig(save_file, transparent=False)
     elif len(directories) == 1:
         plt.savefig(
-            os.path.join(directories[0], "avg_loss_over_sigma"), transparent=False,
+            os.path.join(directories[0], "avg_loss_over_sigma"),
+            transparent=False,
         )
 
     plt.show()
@@ -106,7 +117,7 @@ if __name__ == "__main__":
         "directory",
         type=str,
         help="directory with jsons containing costs; plot will be saved here",
-        nargs='+'
+        nargs="+",
     )
     parser.add_argument(
         "--n_iter",
@@ -115,22 +126,21 @@ if __name__ == "__main__":
         help="If given only the first n_iter entries in the costs will be used to compute the statistics",
     )
     parser.add_argument(
-        "--max_sigma",
-        type=float,
-        default=None,
-        help="Stop sigma-axis at this value."
+        "--max_sigma", type=float, default=None, help="Stop sigma-axis at this value."
     )
     parser.add_argument(
         "--save_file",
         type=str,
         default=None,
-        help=("If given plot will be saved here. Otherwise plot will only be saved if only a single directory is "
-              "given (in that directory).")
+        help=(
+            "If given plot will be saved here. Otherwise plot will only be saved if only a single directory is "
+            "given (in that directory)."
+        ),
     )
     parser.add_argument(
         "--no_errors",
-        action='store_true',
-        help="If given plot will not contain error bands"
+        action="store_true",
+        help="If given plot will not contain error bands",
     )
     args = parser.parse_args()
     dirs = [os.path.abspath(dir) for dir in args.directory]
@@ -138,4 +148,10 @@ if __name__ == "__main__":
         save_file = os.path.abspath(args.save_file)
     else:
         save_file = None
-    plot_sigmas(dirs, args.n_iter, save_file=save_file, errors=not (args.no_errors), max_sigma=args.max_sigma)
+    plot_sigmas(
+        dirs,
+        args.n_iter,
+        save_file=save_file,
+        errors=not (args.no_errors),
+        max_sigma=args.max_sigma,
+    )

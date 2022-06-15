@@ -21,11 +21,14 @@ def make_net(
     names = dict()
     input_size = unet.min_input_shape
     if unet.padding == "valid":
-        assert np.all(np.array(added_context) % np.array(unet.step_valid_shape) == 0), "input shape not suitable for " \
-                                                                                       "valid padding"
+        assert np.all(np.array(added_context) % np.array(unet.step_valid_shape) == 0), (
+            "input shape not suitable for " "valid padding"
+        )
     else:
         if not np.all(np.array(added_context) > 0):
-            logging.warning("Small input shape does not generate any output elements free of influence from padding")
+            logging.warning(
+                "Small input shape does not generate any output elements free of influence from padding"
+            )
 
     input_size_actual = (np.array(input_size) + np.array(added_context)).astype(np.int)
 
@@ -95,22 +98,22 @@ def make_net(
 
         l2_total = tf.add_n(loss_l2)
         tf.summary.scalar("l2_total", l2_total)
-        l2_gp_readout = tf.reshape(l2_total, (1,)*3)
+        l2_gp_readout = tf.reshape(l2_total, (1,) * 3)
         names["L2"] = l2_gp_readout.name
 
         l1_total = tf.add_n(loss_l1)
         tf.summary.scalar("l1_total", l1_total)
-        l1_gp_readout = tf.reshape(l1_total, (1,)*3)
+        l1_gp_readout = tf.reshape(l1_total, (1,) * 3)
         names["L1"] = l1_gp_readout.name
 
         l2_gauss_total = tf.add_n(loss_l2_gauss)
         tf.summary.scalar("l2_gauss_total", l2_gauss_total)
-        l2_gauss_gp_readout = tf.reshape(l2_gauss_total, (1,)*3)
+        l2_gauss_gp_readout = tf.reshape(l2_gauss_total, (1,) * 3)
         names["L2gauss"] = l2_gauss_gp_readout.name
 
         l1_gauss_total = tf.add_n(loss_l1_gauss)
         tf.summary.scalar("l1_gauss_total", l1_gauss_total)
-        l1_gauss_gp_readout = tf.reshape(l1_gauss_total, (1,)*3)
+        l1_gauss_gp_readout = tf.reshape(l1_gauss_total, (1,) * 3)
         names["L1gauss"] = l1_gauss_gp_readout.name
 
         if loss_name == "L2":

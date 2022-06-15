@@ -16,8 +16,8 @@ logging.basicConfig(level=logging.INFO)
 # running parameters
 max_iteration = 500000
 baseline_iterations = 50000
-cache_size=5
-num_workers=10
+cache_size = 5
+num_workers = 10
 
 # voxel size parameters
 voxel_size = Coordinate((8,) * 3)
@@ -31,53 +31,63 @@ sigma = 0.5
 padding = "valid"
 constant_upsample = True
 trans_equivariant = True
-feature_widths_down = [12, 12 * 3, 12 * 3 ** 2, 12 * 3 ** 3]
-feature_widths_up = [12, 12 * 3, 12 * 3 ** 2, 12 * 3 ** 3]
+feature_widths_down = [12, 12 * 3, 12 * 3**2, 12 * 3**3]
+feature_widths_up = [12, 12 * 3, 12 * 3**2, 12 * 3**3]
 downsampling_factors = [(2,) * 3, (2,) * 3, (2,) * 3]
 kernel_sizes_down = [
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3],
-    [(3,) * 3, (3,) * 3]
-]
-kernel_sizes_up = [
     [(3,) * 3, (3,) * 3],
-    [(3,) * 3, (3,) * 3],
-    [(3,) * 3, (3,) * 3]
 ]
+kernel_sizes_up = [[(3,) * 3, (3,) * 3], [(3,) * 3, (3,) * 3], [(3,) * 3, (3,) * 3]]
 n_out = 1
 input_name = "raw_input"
-output_names = ["raw",]
+output_names = [
+    "raw",
+]
 
 # additional network parameters for upsampling network
 final_kernel_size = [(3,) * 3, (3,) * 3]
 final_feature_width = 12 * 6
 
 # groundtruth source parameters
-data_path="/nrs/cosem/heinrichl/scale-pyramids/"
+data_path = "/nrs/cosem/heinrichl/scale-pyramids/"
 gt_version = "v0003"
 completion_min = 5
 
 
 # augmentations
-augmentations = ["simple", "elastic", "intensity", "gamma", "poisson", "impulse_noise", "defect"]
+augmentations = [
+    "simple",
+    "elastic",
+    "intensity",
+    "gamma",
+    "poisson",
+    "impulse_noise",
+    "defect",
+]
 intensity_scale_range = (0.75, 1.25)
 intensity_shift_range = (-0.2, 0.2)
-gamma_range = (0.75, 4/3.)
+gamma_range = (0.75, 4 / 3.0)
 impulse_noise_prob = 0.05
 prob_missing = 0.05
 prob_low_contrast = 0.05
 contrast_scale = 0.1
 
 # groundtruth construction parameters
-min_masked_voxels = 17561.
+min_masked_voxels = 17561.0
 no_of_variants = 8
 target_matches = []
 
 # Noise2Noise
 for subsample_variant in itertools.permutations(range(no_of_variants), 2):
-    target_matches.append(("volumes/subsampled/raw/{0:}".format(subsample_variant[0]),
-                           "volumes/subsampled/raw/{0:}".format(subsample_variant[1])))
+    target_matches.append(
+        (
+            "volumes/subsampled/raw/{0:}".format(subsample_variant[0]),
+            "volumes/subsampled/raw/{0:}".format(subsample_variant[1]),
+        )
+    )
 # Noise2S1
 # for subsample_variant in range(no_of_variants):
 #     target_matches.append(("volumes/subsampled/raw/{0:}".format(subsample_variant), "volumes/raw/s1"))
@@ -96,8 +106,15 @@ def build_net(steps=steps_inference, mode="inference"):
         input_voxel_size=voxel_size,
         input_fov=voxel_size,
     )
-    net, input_shape, output_shape = make_net(unet, n_out, steps,  input_name=input_name,
-                                              output_names=output_names, loss_name=loss_name, mode=mode)
+    net, input_shape, output_shape = make_net(
+        unet,
+        n_out,
+        steps,
+        input_name=input_name,
+        output_names=output_names,
+        loss_name=loss_name,
+        mode=mode,
+    )
 
     logging.info(
         "Built {0:} with input shape {1:} and output_shape {2:}".format(
@@ -110,10 +127,20 @@ def build_net(steps=steps_inference, mode="inference"):
 
 def build_blur_graph(sigma):
     _, input_shape, output_shape = build_net(steps=steps_train, mode="train")
-    blur_graph, input_shape, output_shape = make_graph(input_shape, output_shape, sigma,
-               input_name=input_name, output_names=output_names, loss_name=loss_name, mode="train")
-    logging.info("Built {0:} with sigma {1:}, input_shape{2:} and output_shape{3:}".format(blur_graph, sigma,
-                                                                                           input_shape, output_shape))
+    blur_graph, input_shape, output_shape = make_graph(
+        input_shape,
+        output_shape,
+        sigma,
+        input_name=input_name,
+        output_names=output_names,
+        loss_name=loss_name,
+        mode="train",
+    )
+    logging.info(
+        "Built {0:} with sigma {1:}, input_shape{2:} and output_shape{3:}".format(
+            blur_graph, sigma, input_shape, output_shape
+        )
+    )
     return blur_graph, input_shape, output_shape
 
 
@@ -122,11 +149,20 @@ def build_blur_graph_trainable(sigma):
     # output_shape = Coordinate((40, 40, 40))
     _, input_shape, output_shape = build_net(steps=steps_train, mode="train")
     tf.reset_default_graph()
-    blur_graph, input_shape, output_shape = make_graph_trainable(input_shape, output_shape, sigma,
-                                                       input_name=input_name, output_names=output_names,
-                                                       loss_name=loss_name, mode="train")
-    logging.info("Built {0:} with sigma {1:}, input_shape{2:} and output_shape{3:}".format(blur_graph, sigma,
-                                                                                           input_shape, output_shape))
+    blur_graph, input_shape, output_shape = make_graph_trainable(
+        input_shape,
+        output_shape,
+        sigma,
+        input_name=input_name,
+        output_names=output_names,
+        loss_name=loss_name,
+        mode="train",
+    )
+    logging.info(
+        "Built {0:} with sigma {1:}, input_shape{2:} and output_shape{3:}".format(
+            blur_graph, sigma, input_shape, output_shape
+        )
+    )
     return blur_graph, input_shape, output_shape
 
 
@@ -153,7 +189,7 @@ def baseline_eval(sigma):
         prob_low_contrast=prob_low_contrast,
         contrast_scale=contrast_scale,
         min_masked_voxels=min_masked_voxels,
-        voxel_size=voxel_size
+        voxel_size=voxel_size,
     )
     with open("costs_sigma{0:}.json".format(sigma), "w") as f:
         json.dump(costs, f)
@@ -182,7 +218,7 @@ def baseline_optimize(sigma):
         prob_low_contrast=prob_low_contrast,
         contrast_scale=contrast_scale,
         min_masked_voxels=min_masked_voxels,
-        voxel_size=voxel_size
+        voxel_size=voxel_size,
     )
 
 
@@ -199,8 +235,12 @@ def test_memory_consumption(steps=steps_train, mode="train"):
     ).astype(np.float32)
     for n, out_name in zip(range(n_out), output_names):
         if mode.lower() == "train" or mode.lower() == "training":
-            input_arrays[net_io_names[out_name+"_target"]] = np.random.random(output_shape).astype(np.float32)
-        requested_outputs[out_name + "_predicted"] = net_io_names[out_name + "_predicted"]
+            input_arrays[net_io_names[out_name + "_target"]] = np.random.random(
+                output_shape
+            ).astype(np.float32)
+        requested_outputs[out_name + "_predicted"] = net_io_names[
+            out_name + "_predicted"
+        ]
 
     t = Test(
         net,
@@ -236,30 +276,65 @@ def train(steps=steps_train):
         prob_low_contrast=prob_low_contrast,
         contrast_scale=contrast_scale,
         min_masked_voxels=min_masked_voxels,
-        voxel_size=voxel_size
+        voxel_size=voxel_size,
     )
 
 
 def inference(steps=steps_inference):
     net_name, input_shape, output_shape = build_net(steps=steps, mode="inference")
     outputs = [out_name + "_predicted" for out_name in output_names]
-    single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, coordinate=coordinate,
-                           output_file=output_file, voxel_size_input=voxel_size, voxel_size_output=voxel_size)
+    single_block_inference(
+        net_name,
+        input_shape,
+        output_shape,
+        ckpt,
+        outputs,
+        input_file,
+        coordinate=coordinate,
+        output_file=output_file,
+        voxel_size_input=voxel_size,
+        voxel_size_output=voxel_size,
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Build, train or test memory consumption for a U-Net")
-    parser.add_argument("script", type=str, help="Pick script that should be run",
-                        choices=["train", "build", "test_mem", "inference", "baseline"], default="train")
-    parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
-                                               "training network", choices=["training", "inference"],
-                        )
+    parser = argparse.ArgumentParser(
+        "Build, train or test memory consumption for a U-Net"
+    )
+    parser.add_argument(
+        "script",
+        type=str,
+        help="Pick script that should be run",
+        choices=["train", "build", "test_mem", "inference", "baseline"],
+        default="train",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        help="for build and test_mem specify whether to run for inference or "
+        "training network",
+        choices=["training", "inference"],
+    )
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
-    parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
-    parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
-    parser.add_argument("--coordinate", type=int, help="upper left coordinate of block to predict from (input)",
-                        default=(0, 0, 0), nargs='+')
-    parser.add_argument("--sigma", type=float, help="sigma for gaussian blurring", default=sigma)
+    parser.add_argument(
+        "--input_file", type=str, help="n5 file for input data to predict from"
+    )
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        help="n5 file to write inference output to",
+        default="prediction.n5",
+    )
+    parser.add_argument(
+        "--coordinate",
+        type=int,
+        help="upper left coordinate of block to predict from (input)",
+        default=(0, 0, 0),
+        nargs="+",
+    )
+    parser.add_argument(
+        "--sigma", type=float, help="sigma for gaussian blurring", default=sigma
+    )
     args = parser.parse_args()
     mode = args.mode
     ckpt = args.ckpt
@@ -279,8 +354,9 @@ if __name__ == "__main__":
             raise ValueError("script inference should not be run with mode training")
         else:
             mode = "inference"
-        assert ckpt is not None and input_file is not None, \
-            "ckpt and input_file need to be given to run inference"
+        assert (
+            ckpt is not None and input_file is not None
+        ), "ckpt and input_file need to be given to run inference"
 
     elif args.script == "baseline" and mode is None:
         mode = "training"
@@ -290,7 +366,9 @@ if __name__ == "__main__":
     elif mode == "training":
         steps = steps_train
     else:
-        raise ValueError("mode needs to be given to run script {0:}".format(args.script))
+        raise ValueError(
+            "mode needs to be given to run script {0:}".format(args.script)
+        )
 
     if args.script == "train":
         train(steps)

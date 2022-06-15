@@ -1,45 +1,77 @@
 from CNNectome.utils.label import Label
 
 hierarchy = dict()
-hierarchy['ecs'] = Label('ecs', 1)
-hierarchy['plasma_membrane'] = Label('plasma_membrane', 2)
-hierarchy['mito'] = Label('mito', (3, 4, 5))
-hierarchy['mito_membrane'] = Label('mito_membrane', 3, scale_loss=False, scale_key=hierarchy['mito'].scale_key)
-hierarchy['mito_DNA'] = Label('mito_DNA', 5, scale_loss=False, scale_key=hierarchy['mito'].scale_key)
-hierarchy['golgi'] = Label('golgi', (6, 7))
-hierarchy['golgi_membrane'] = Label('golgi_membrane', 6)
-hierarchy['vesicle'] = Label('vesicle', (8, 9))
-hierarchy['vesicle_membrane'] = Label('vesicle_membrane', 8, scale_loss=False, scale_key=hierarchy['vesicle'].scale_key)
-hierarchy['MVB'] = Label('MVB', (10, 11), )
-hierarchy['MVB_membrane'] = Label('MVB_membrane', 10, scale_loss=False, scale_key=hierarchy['MVB'].scale_key)
-hierarchy['lysosome'] = Label('lysosome', (12, 13))
-hierarchy['lysosome_membrane'] = Label('lysosome_membrane', 12, scale_loss=False,
-                                       scale_key=hierarchy['lysosome'].scale_key)
-hierarchy['LD'] = Label('LD', (14, 15))
-hierarchy['LD_membrane'] = Label('LD_membrane', 14, scale_loss=False, scale_key=hierarchy['LD'].scale_key)
-hierarchy['er'] = Label('er', (16, 17, 18, 19, 20, 21, 22, 23))
-hierarchy['er_membrane'] = Label('er_membrane', (16, 18, 20), scale_loss=False, scale_key=hierarchy['er'].scale_key)
-hierarchy['ERES'] = Label('ERES', (18, 19))
-hierarchy['ERES_membrane'] = Label('ERES_membrane', 18, scale_loss=False, scale_key=hierarchy['ERES'].scale_key)
-hierarchy['nucleus'] = Label('nucleus', (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37)
-hierarchy['nucleolus'] = Label('nucleolus', 29, separate_labelset=True)
-hierarchy['NE'] = Label('NE', (20, 21, 22, 23))
-hierarchy['NE_membrane'] = Label('NE_membrane', (20, 22, 23), scale_loss=False, scale_key=hierarchy['NE'].scale_key)
-hierarchy['nuclear_pore'] = Label('nuclear_pore', (22, 23))
-hierarchy['nuclear_pore_out'] = Label('nuclear_pore_out', 22, scale_loss=False,
-                                      scale_key=hierarchy['nuclear_pore'].scale_key)
-hierarchy['chromatin'] = Label('chromatin', (24, 25, 26, 27))
-hierarchy['NHChrom'] = Label('NHChrom', 25)
-hierarchy['EChrom'] = Label('EChrom', 26)
-hierarchy['NEChrom'] = Label('NEChrom', 27)
-hierarchy['microtubules'] = Label('microtubules', (30, 36))
-hierarchy['microtubules_out'] = Label('microtubules_out', 30, scale_loss=False,
-                                      scale_key=hierarchy['microtubules'].scale_key)
-hierarchy['centrosome'] = Label('centrosome', 31, add_constant=2, separate_labelset=True)
-hierarchy['distal_app'] = Label('distal_app', 32)
-hierarchy['subdistal_app'] = Label('subdistal_app', 33)
-hierarchy['ribosomes'] = Label('ribosomes', 34, add_constant=8, separate_labelset=True)
-hierarchy['cytosol'] = Label('cytosol', 35)
+hierarchy["ecs"] = Label("ecs", 1)
+hierarchy["plasma_membrane"] = Label("plasma_membrane", 2)
+hierarchy["mito"] = Label("mito", (3, 4, 5))
+hierarchy["mito_membrane"] = Label(
+    "mito_membrane", 3, scale_loss=False, scale_key=hierarchy["mito"].scale_key
+)
+hierarchy["mito_DNA"] = Label(
+    "mito_DNA", 5, scale_loss=False, scale_key=hierarchy["mito"].scale_key
+)
+hierarchy["golgi"] = Label("golgi", (6, 7))
+hierarchy["golgi_membrane"] = Label("golgi_membrane", 6)
+hierarchy["vesicle"] = Label("vesicle", (8, 9))
+hierarchy["vesicle_membrane"] = Label(
+    "vesicle_membrane", 8, scale_loss=False, scale_key=hierarchy["vesicle"].scale_key
+)
+hierarchy["MVB"] = Label(
+    "MVB",
+    (10, 11),
+)
+hierarchy["MVB_membrane"] = Label(
+    "MVB_membrane", 10, scale_loss=False, scale_key=hierarchy["MVB"].scale_key
+)
+hierarchy["lysosome"] = Label("lysosome", (12, 13))
+hierarchy["lysosome_membrane"] = Label(
+    "lysosome_membrane", 12, scale_loss=False, scale_key=hierarchy["lysosome"].scale_key
+)
+hierarchy["LD"] = Label("LD", (14, 15))
+hierarchy["LD_membrane"] = Label(
+    "LD_membrane", 14, scale_loss=False, scale_key=hierarchy["LD"].scale_key
+)
+hierarchy["er"] = Label("er", (16, 17, 18, 19, 20, 21, 22, 23))
+hierarchy["er_membrane"] = Label(
+    "er_membrane", (16, 18, 20), scale_loss=False, scale_key=hierarchy["er"].scale_key
+)
+hierarchy["ERES"] = Label("ERES", (18, 19))
+hierarchy["ERES_membrane"] = Label(
+    "ERES_membrane", 18, scale_loss=False, scale_key=hierarchy["ERES"].scale_key
+)
+hierarchy["nucleus"] = Label(
+    "nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37
+)
+hierarchy["nucleolus"] = Label("nucleolus", 29, separate_labelset=True)
+hierarchy["NE"] = Label("NE", (20, 21, 22, 23))
+hierarchy["NE_membrane"] = Label(
+    "NE_membrane", (20, 22, 23), scale_loss=False, scale_key=hierarchy["NE"].scale_key
+)
+hierarchy["nuclear_pore"] = Label("nuclear_pore", (22, 23))
+hierarchy["nuclear_pore_out"] = Label(
+    "nuclear_pore_out",
+    22,
+    scale_loss=False,
+    scale_key=hierarchy["nuclear_pore"].scale_key,
+)
+hierarchy["chromatin"] = Label("chromatin", (24, 25, 26, 27))
+hierarchy["NHChrom"] = Label("NHChrom", 25)
+hierarchy["EChrom"] = Label("EChrom", 26)
+hierarchy["NEChrom"] = Label("NEChrom", 27)
+hierarchy["microtubules"] = Label("microtubules", (30, 36))
+hierarchy["microtubules_out"] = Label(
+    "microtubules_out",
+    30,
+    scale_loss=False,
+    scale_key=hierarchy["microtubules"].scale_key,
+)
+hierarchy["centrosome"] = Label(
+    "centrosome", 31, add_constant=2, separate_labelset=True
+)
+hierarchy["distal_app"] = Label("distal_app", 32)
+hierarchy["subdistal_app"] = Label("subdistal_app", 33)
+hierarchy["ribosomes"] = Label("ribosomes", 34, add_constant=8, separate_labelset=True)
+hierarchy["cytosol"] = Label("cytosol", 35)
 
 short_names = dict()
 short_names["actin"] = "Actin"

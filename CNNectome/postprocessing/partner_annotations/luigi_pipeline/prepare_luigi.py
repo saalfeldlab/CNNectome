@@ -16,7 +16,8 @@ class CheckCheckpoint(luigi.ExternalTask):
             return 0.0
 
     def output(self):
-        base = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
+        base = os.path.join(
+            config_loader.get_config()["synapses"]["training_setups_path"],
             "data_and_augmentations",
             self.dt,
             self.aug,

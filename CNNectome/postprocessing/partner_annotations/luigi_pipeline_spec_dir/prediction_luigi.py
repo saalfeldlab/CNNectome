@@ -45,7 +45,9 @@ class Predict(luigi.Task):
 
     def run(self):
 
-        src = os.path.join(config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5")
+        src = os.path.join(
+            config_loader.get_config()["synapses"]["cremieval_path"], "{0:}/{1:}.n5"
+        )
         tgt = os.path.join(os.path.dirname(self.input().fn), "{0:}", "{1:}.n5")
         output_shape = (71, 650, 650)
         gpu_list = []
@@ -136,7 +138,8 @@ class Predict(luigi.Task):
         # todo: figure out how to run this in separate processes that know about the gpu without the explicit
         #  shell script
         with ProcessPoolExecutor(max_workers=len(gpu_list)) as pp:
-            tasks = [single_gpu_inference(
+            tasks = [
+                single_gpu_inference(
                     self.path,
                     json.dumps(list(data_eval)).replace(" ", "").replace('"', '\\"'),
                     json.dumps(list(self.samples)).replace(" ", "").replace('"', '\\"'),

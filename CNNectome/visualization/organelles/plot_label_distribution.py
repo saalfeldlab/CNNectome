@@ -92,7 +92,15 @@ def get_raw_stats(stats):
     )
 
 
-def plot_hist(counts, label_names, order=None, count_labels=None, colors=None, plotfile=None, transparent=True):
+def plot_hist(
+    counts,
+    label_names,
+    order=None,
+    count_labels=None,
+    colors=None,
+    plotfile=None,
+    transparent=True,
+):
     # plt.style.use('dark_background')
     fs = 40
     # flist = matplotlib.font_manager.get_fontconfig_fonts()
@@ -122,7 +130,7 @@ def plot_hist(counts, label_names, order=None, count_labels=None, colors=None, p
     # plt.rcParams['axes.labelcolor'] = COLOR
     # plt.rcParams['xtick.color'] = COLOR
     # plt.rcParams['ytick.color'] = COLOR
-    plt.ylim([5 * 10 ** 3, 0.8 * 10 ** 9])
+    plt.ylim([5 * 10**3, 0.8 * 10**9])
     plt.xlim([-width, x[-1] + width * 2])
 
     shift = (len(counts) * width + (len(counts) - 1) * 0.01) / 2 - width / 2
@@ -181,12 +189,25 @@ def plot_hist(counts, label_names, order=None, count_labels=None, colors=None, p
 
 def main():
     parser = argparse.ArgumentParser("")
-    parser.add_argument("--json", type=str,
-                        help="json file with statistics, can be generated with `utils/compute_label_distribution.py`")
-    parser.add_argument("--plotfile", type=str, help="Location in which to save figure.")
-    parser.add_argument("--transparent", action="store_true", help="whether to save with transparent background")
+    parser.add_argument(
+        "--json",
+        type=str,
+        help="json file with statistics, can be generated with `utils/compute_label_distribution.py`",
+    )
+    parser.add_argument(
+        "--plotfile", type=str, help="Location in which to save figure."
+    )
+    parser.add_argument(
+        "--transparent",
+        action="store_true",
+        help="whether to save with transparent background",
+    )
     args = parser.parse_args()
-    plot_hist(*get_raw_stats(get_data(args.json)), plotfile=args.plotfile, transparent=args.transparent)
+    plot_hist(
+        *get_raw_stats(get_data(args.json)),
+        plotfile=args.plotfile,
+        transparent=args.transparent
+    )
 
 
 if __name__ == "__main__":

@@ -805,8 +805,10 @@ class FindPartners(luigi.Task):
 def main():
     logging.debug("Starting to run partner finding")
     samples = ("A", "B", "C", "A+", "B+", "C+")
-    inp = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"],
-                       "pre_and_post/pre_and_post-v9.0/run01/evaluation/186000/data2016-aligned/cc.msg")
+    inp = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"],
+        "pre_and_post/pre_and_post-v9.0/run01/evaluation/186000/data2016-aligned/cc.msg",
+    )
     output = os.path.join(os.path.dirname(inp), "partners{0:}.msg")
     de = "data2016-aligned"
     thr = 127

@@ -512,23 +512,34 @@ def main(samples):
         "B+": "sample_B+_median_aff_0.8_cf_hq_dq_dm1_mf0.87_sizefiltered750.n5",
         "C+": "sample_C+_85_aff_0.8_cf_hq_dq_dm1_mf0.75_sizefiltered750.n5",
     }
-    setups_path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post")
+    setups_path = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post"
+    )
     cremi_path = config_loader.get_config()["synapses"]["cremi17_data_path"]
     for sample in samples:
-        filename_tgt = os.path.join(setups_path,
-                                    "pre_and_post-v3.0/cremi/{0:}_predictions_it400000_baseline_thr{1:}_st50_dt90.hdf".format(sample,
-                                                                                                            thr))
-        syn_file = os.path.join(setups_path, "pre_and_post-v3.0/cremi/{0:}.n5".format(sample))
+        filename_tgt = os.path.join(
+            setups_path,
+            "pre_and_post-v3.0/cremi/{0:}_predictions_it400000_baseline_thr{1:}_st50_dt90.hdf".format(
+                sample, thr
+            ),
+        )
+        syn_file = os.path.join(
+            setups_path, "pre_and_post-v3.0/cremi/{0:}.n5".format(sample)
+        )
         cleft_cc_ds = "predictions_it400000/cleft_dist_cropped_thr{0:}_cc".format(thr)
         if "+" in sample:
             seg_file = os.path.join(setups_path, segf_name[sample])
             seg_ds = "main"
-            raw_file = os.path.join(cremi_path, "sample_{0:}_padded_aligned.n5".format(sample))
+            raw_file = os.path.join(
+                cremi_path, "sample_{0:}_padded_aligned.n5".format(sample)
+            )
             raw_ds = "volumes/raw"
         else:
             seg_file = syn_file
             seg_ds = "volumes/labels/neuron_ids_cropped"
-            raw_file = os.path.join(cremi_path, "sample_{0:}_padded_20170424.aligned.0bg.n5".format(sample))
+            raw_file = os.path.join(
+                cremi_path, "sample_{0:}_padded_20170424.aligned.0bg.n5".format(sample)
+            )
             raw_ds = "volumes/raw"
         # seg_file = '/nrs/saalfeld/heinrichl/synapses/pre_and_post/cremi/{0:}.n5'.format(sample)
         # seg_ds  = 'volumes/labels/neuron_ids_mc_sf750_cropped'
@@ -551,14 +562,30 @@ def main(samples):
         mm.cremi_file.close()
 
         mm.extract_dat(
-            os.path.join(setups_path,
-                         "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(sample, thr)),
-            os.path.join(setups_path,
-                         "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(sample, thr)),
-            os.path.join(setups_path,
-                         "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(sample, thr)),
-            os.path.join(setups_path,
-                         "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(sample, thr)),
+            os.path.join(
+                setups_path,
+                "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(
+                    sample, thr
+                ),
+            ),
+            os.path.join(
+                setups_path,
+                "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(
+                    sample, thr
+                ),
+            ),
+            os.path.join(
+                setups_path,
+                "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(
+                    sample, thr
+                ),
+            ),
+            os.path.join(
+                setups_path,
+                "pre_and_post-v3.0/cremi/{0:}_400000_baseline_thr{1:}_st50_dt90.dat".format(
+                    sample, thr
+                ),
+            ),
         )
 
 

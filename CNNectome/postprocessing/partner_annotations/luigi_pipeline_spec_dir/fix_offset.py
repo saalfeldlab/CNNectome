@@ -37,7 +37,9 @@ for it in [10000]:
                 ):
                     print(
                         os.path.join(
-                            config_loader.get_config()["synapses"]["training_setups_path"],
+                            config_loader.get_config()["synapses"][
+                                "training_setups_path"
+                            ],
                             "data_and_augmentations",
                             dt,
                             aug,
@@ -50,7 +52,9 @@ for it in [10000]:
                     for s in samples:
                         assert os.path.exists(
                             os.path.join(
-                                config_loader.get_config()["synapses"]["training_setups_path"],
+                                config_loader.get_config()["synapses"][
+                                    "training_setups_path"
+                                ],
                                 "data_and_augmentations",
                                 dt,
                                 aug,
@@ -63,7 +67,9 @@ for it in [10000]:
                     for s in samples:
                         f = h5py.File(
                             os.path.join(
-                                config_loader.get_config()["synapses"]["cremieval_path"],
+                                config_loader.get_config()["synapses"][
+                                    "cremieval_path"
+                                ],
                                 "data_and_augmentations",
                                 dt,
                                 aug,

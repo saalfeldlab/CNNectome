@@ -20,7 +20,7 @@ import time
 def make_cleft_to_prepostsyn_neuron_id_dict(
     csv_files, filter_comments_pre, filter_comments_post
 ):
-    ''' Construct dictionaries mapping cleft id to ids of pre- and postsynaptic neurons from csv-files.
+    """Construct dictionaries mapping cleft id to ids of pre- and postsynaptic neurons from csv-files.
 
     Retrieves cleft to neuron id mapping from csv-files. The mappings can be filtered based on comments in the
     partner annotations. Partner annotations having a comment contained in `filter_comments_pre` will not be added to
@@ -42,7 +42,7 @@ def make_cleft_to_prepostsyn_neuron_id_dict(
     Returns:
         Two dicts mapping cleft ids to ids of pre- and postsynaptic neurons, respectively and tow dicts mapping cleft
         ids to ids of pre- and postynaptic neurons that have been filtered out
-    '''
+    """
     cleft_to_pre = dict()
     cleft_to_post = dict()
     cleft_to_pre_filtered = dict()
@@ -88,9 +88,13 @@ def make_cleft_to_prepostsyn_neuron_id_dict(
                         cleft_to_pre[int(row["cleft"])] = {int(row["pre_label"])}
                 else:
                     try:
-                        cleft_to_pre_filtered[int(row["cleft"])].add(int(row["pre_label"]))
+                        cleft_to_pre_filtered[int(row["cleft"])].add(
+                            int(row["pre_label"])
+                        )
                     except KeyError:
-                        cleft_to_pre_filtered[int(row["cleft"])] = {int(row["pre_label"])}
+                        cleft_to_pre_filtered[int(row["cleft"])] = {
+                            int(row["pre_label"])
+                        }
 
                 if add_post and int(row["post_label"]) > 0:
                     try:
@@ -99,9 +103,13 @@ def make_cleft_to_prepostsyn_neuron_id_dict(
                         cleft_to_post[int(row["cleft"])] = {int(row["post_label"])}
                 else:
                     try:
-                        cleft_to_post_filtered[int(row["cleft"])].add(int(row["post_label"]))
+                        cleft_to_post_filtered[int(row["cleft"])].add(
+                            int(row["post_label"])
+                        )
                     except KeyError:
-                        cleft_to_post_filtered[int(row["cleft"])] = {int(row["post_label"])}
+                        cleft_to_post_filtered[int(row["cleft"])] = {
+                            int(row["post_label"])
+                        }
 
     return cleft_to_pre, cleft_to_post, cleft_to_pre_filtered, cleft_to_post_filtered
 
@@ -127,7 +135,7 @@ def train_until(
     min_masked_voxels=17561.0,
     voxel_size=Coordinate((40, 4, 4)),
 ):
-    '''
+    """
     Trains a network to predict signed distance boundaries of synapses.
 
     Args:
@@ -159,7 +167,8 @@ def train_until(
 
     Returns:
         None.
-    '''
+    """
+
     def label_filter(cond_f):
         return [ll for ll in labels if cond_f(ll)]
 
@@ -220,11 +229,11 @@ def train_until(
     output_size = Coordinate(output_shape) * voxel_size
     pad_width = input_size - output_size + voxel_size * Coordinate((20, 20, 20))
     crop_width = Coordinate((max_distance,) * len(voxel_size))
-    crop_width = crop_width//voxel_size
-    if crop_width ==0:
+    crop_width = crop_width // voxel_size
+    if crop_width == 0:
         crop_width *= voxel_size
     else:
-        crop_width = (crop_width+(1,)*len(crop_width)) * voxel_size
+        crop_width = (crop_width + (1,) * len(crop_width)) * voxel_size
 
     net_io_names, start_iteration, inputs, outputs = network_setup()
 
@@ -258,7 +267,7 @@ def train_until(
         ak_training: "volumes/masks/training",
         ak_clefts: "volumes/labels/gt_clefts",
         ak_neurons: "volumes/labels/gt_neurons",
-        ak_integral: "volumes/masks/gt_integral"
+        ak_integral: "volumes/masks/gt_integral",
     }
 
     # specify snapshot data layout
@@ -278,8 +287,14 @@ def train_until(
         for sample in samples
     ]
 
-    cleft_to_pre, cleft_to_post, cleft_to_pre_filtered, cleft_to_post_filtered = \
-        make_cleft_to_prepostsyn_neuron_id_dict(csv_files, filter_comments_pre, filter_comments_post)
+    (
+        cleft_to_pre,
+        cleft_to_post,
+        cleft_to_pre_filtered,
+        cleft_to_post_filtered,
+    ) = make_cleft_to_prepostsyn_neuron_id_dict(
+        csv_files, filter_comments_pre, filter_comments_post
+    )
 
     data_providers = []
 

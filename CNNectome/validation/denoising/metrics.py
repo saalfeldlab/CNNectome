@@ -4,6 +4,7 @@ import skimage.metrics
 import typing
 import logging
 
+
 def crop_to(arr: np.ndarray, target_shape: typing.Tuple[int]) -> np.ndarray:
     """
     Center-crops an array to a desired shape. If the difference in shapes is not even the offset of the resulting array
@@ -17,9 +18,11 @@ def crop_to(arr: np.ndarray, target_shape: typing.Tuple[int]) -> np.ndarray:
         Numpy array center-cropped to target_shape
     """
     if arr.shape != target_shape:
-        logging.info("Cropping array of shape {0:} to shape {1:}".format(arr.shape, target_shape))
+        logging.info(
+            "Cropping array of shape {0:} to shape {1:}".format(arr.shape, target_shape)
+        )
         offset = (np.array(arr.shape) - np.array(target_shape)) // 2
-        sl = tuple(slice(o, o+s, 1) for o, s in zip(offset, target_shape))
+        sl = tuple(slice(o, o + s, 1) for o, s in zip(offset, target_shape))
         return arr[sl]
     else:
         logging.info("Array already has desired shape {0:}".format(target_shape))
@@ -40,10 +43,13 @@ def compute_metric(arr: np.ndarray, ref_arr: np.ndarray, metric: str) -> float:
 
     """
     logging.info("Computing metric {0:}".format(metric))
-    logging.info("Test array shape: {0:}, Reference array shape {1:}".format(arr.shape, ref_arr.shape))
+    logging.info(
+        "Test array shape: {0:}, Reference array shape {1:}".format(
+            arr.shape, ref_arr.shape
+        )
+    )
     arr = crop_to(arr, ref_arr.shape)
     if metric == "structural_similarity":
         return skimage.metrics.structural_similarity(arr, ref_arr)
     else:
         raise NotImplementedError("No implementation for metric {0:}".format(metric))
-

@@ -54,7 +54,14 @@ class PartnerReport(luigi.Task):
             test = CremiFile(test, "a")
             synaptic_partners_eval = SynapticPartners()
             print(test.read_annotations())
-            fscore, precision, recall, fp, fn, filtered_matches = synaptic_partners_eval.fscore(
+            (
+                fscore,
+                precision,
+                recall,
+                fp,
+                fn,
+                filtered_matches,
+            ) = synaptic_partners_eval.fscore(
                 test.read_annotations(),
                 truth.read_annotations(),
                 truth.read_neuron_ids(),

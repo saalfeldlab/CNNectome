@@ -25,7 +25,9 @@ offsets = {
 
 
 def crop_main(it):
-    setups_path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post")
+    setups_path = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post"
+    )
     samples = ["A+", "B+", "C+", "A", "B", "C"]
     filename_src = os.path.join(setups_path, "pre_and_post-v6.3/cremi/{0:}.n5")
     dataset_srcs = [
@@ -58,17 +60,15 @@ def crop_main(it):
 def thr_main(it):
     thrs_mult = [[127, 42]]
     samples = ["A", "B", "C", "A+", "B+", "C+"]
-    setups_path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post")
-    filename_src = os.path.join(
-        setups_path, "pre_and_post-v6.3/cremi/{0:}.n5"
+    setups_path = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post"
     )
+    filename_src = os.path.join(setups_path, "pre_and_post-v6.3/cremi/{0:}.n5")
     dataset_srcs = [
         "predictions_it{0:}/cleft_dist_cropped".format(it),
         "predictions_it{0:}/cleft_dist_cropped".format(it),
     ]
-    filename_tgt = os.path.join(
-        setups_path, "pre_and_post-v6.3/cremi/{0:}.n5"
-    )
+    filename_tgt = os.path.join(setups_path, "pre_and_post-v6.3/cremi/{0:}.n5")
     dataset_tgts = [
         "predictions_it{0:}".format(it) + "/cleft_dist_cropped_thr{0:}",
         "predictions_it{0:}".format(it) + "/cleft_dist_cropped_thr{0:}",
@@ -92,14 +92,12 @@ def cc_main(it):
 
     thrs_mult = [[127, 42]]
     samples = ["A", "B", "C", "A+", "B+", "C+"]
-    setups_path = os.path.join(config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post")
-    filename_src = os.path.join(
-        setups_path, "pre_and_post-v6.3/cremi/{0:}.n5"
+    setups_path = os.path.join(
+        config_loader.get_config()["synapses"]["training_setups_path"], "pre_and_post"
     )
+    filename_src = os.path.join(setups_path, "pre_and_post-v6.3/cremi/{0:}.n5")
     dataset_srcs = ["predictions_it{0:}".format(it) + "/cleft_dist_cropped_thr{0:}"]
-    filename_tgt = os.path.join(
-        setups_path, "pre_and_post-v6.3/cremi/{0:}.n5"
-    )
+    filename_tgt = os.path.join(setups_path, "pre_and_post-v6.3/cremi/{0:}.n5")
     dataset_tgts = [
         "predictions_it{0:}".format(it) + "/cleft_dist_cropped_thr{0:}_cc{1:}"
     ]

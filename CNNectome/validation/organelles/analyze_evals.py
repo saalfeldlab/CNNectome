@@ -5,66 +5,87 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from CNNectome.utils import config_loader, cosem_db
-from CNNectome.utils.crop_utils import (check_label_in_crop,
-                                        get_label_ids_by_category)
+from CNNectome.utils.crop_utils import check_label_in_crop, get_label_ids_by_category
 from CNNectome.utils.hierarchy import hierarchy
 from CNNectome.utils.setup_utils import autodiscover_labels
-from CNNectome.validation.organelles.check_consistency import \
-    max_iteration_for_analysis
+from CNNectome.validation.organelles.check_consistency import max_iteration_for_analysis
 from CNNectome.validation.organelles.run_evaluation import *
 
 
-def _best_automatic(db: cosem_db.MongoCosemDB,
-                    label: str,
-                    setups: Sequence[str],
-                    cropno: Union[Sequence[str], Sequence[int]],
-                    metric: str,
-                    raw_ds: Optional[Sequence[str]] = None,
-                    tol_distance: int = 40,
-                    clip_distance: int = 200,
-                    threshold: int = 127,
-                    test: bool = False) -> Dict[str, Any]:
+def _best_automatic(
+    db: cosem_db.MongoCosemDB,
+    label: str,
+    setups: Sequence[str],
+    cropno: Union[Sequence[str], Sequence[int]],
+    metric: str,
+    raw_ds: Optional[Sequence[str]] = None,
+    tol_distance: int = 40,
+    clip_distance: int = 200,
+    threshold: int = 127,
+    test: bool = False,
+) -> Dict[str, Any]:
     metric_params = dict()
     metric_params["clip_distance"] = clip_distance
     metric_params["tol_distance"] = tol_distance
     filtered_params = filter_params(metric_params, metric)
 
-    setups = [setup for setup in setups if label in [lbl.labelname for lbl in autodiscover_labels(setup)]]
+    setups = [
+        setup
+        for setup in setups
+        if label in [lbl.labelname for lbl in autodiscover_labels(setup)]
+    ]
     # in test mode the remaining validation crops are used for determining best configuration
     if test:
         cropnos_query = [crop["number"] for crop in db.get_all_validation_crops()]
         for cno in cropno:
             cropnos_query.pop(cropnos_query.index(str(cno)))
-        cropnos_query = [cno for cno in cropnos_query if check_label_in_crop(hierarchy[label], db.get_crop_by_number(cno))]
+        cropnos_query = [
+            cno
+            for cno in cropnos_query
+            if check_label_in_crop(hierarchy[label], db.get_crop_by_number(cno))
+        ]
     else:
         cropnos_query = cropno
     if len(cropnos_query) == 0:  # if no crops remain return without result
-        final = {"value": None, "iteration": None, "label": label, "metric": metric, "metric_params": filtered_params,
-                 "refined": False, "threshold": threshold, "setup": setups[0] if len(setups) == 1 else None,
-                 "crop": cropno[0] if len(cropno) == 1 else {"$in": cropno}}
+        final = {
+            "value": None,
+            "iteration": None,
+            "label": label,
+            "metric": metric,
+            "metric_params": filtered_params,
+            "refined": False,
+            "threshold": threshold,
+            "setup": setups[0] if len(setups) == 1 else None,
+            "crop": cropno[0] if len(cropno) == 1 else {"$in": cropno},
+        }
         if raw_ds is not None:
             final["raw_dataset"] = raw_ds[0] if len(raw_ds) == 1 else {"$in": raw_ds}
         return final
 
     # find max iterations and put corresponding conditions in query
     conditions = []
-    for setup in setups:  # several setups if both iteration and setup are being optimized ("across-setups")
+    for (
+        setup
+    ) in (
+        setups
+    ):  # several setups if both iteration and setup are being optimized ("across-setups")
 
         max_its = []
 
         for cno in cropnos_query:
-            maxit_query = {"label": label,
-                           "crop": str(cno),
-                           "threshold": threshold,
-                           "refined": False,
-                           "setup": setup}
+            maxit_query = {
+                "label": label,
+                "crop": str(cno),
+                "threshold": threshold,
+                "refined": False,
+                "setup": setup,
+            }
             if raw_ds is not None:
                 maxit_query["raw_dataset"] = {"$in": raw_ds}
             maxit, valid = max_iteration_for_analysis(maxit_query, db)
             max_its.append(maxit)
 
-        conditions.append({"setup": setup,
-                           "iteration": {"$lte": max(max_its)}})
+        conditions.append({"setup": setup, "iteration": {"$lte": max(max_its)}})
 
     if len(conditions) > 1:
         match_query = {"$or": conditions}
@@ -75,21 +96,26 @@ def _best_automatic(db: cosem_db.MongoCosemDB,
     aggregator = []
 
     # match
-    match_query.update({"crop": {"$in": cropnos_query},
-                        "label": label,
-                        "metric": metric,
-                        "metric_params": filtered_params,
-                        "threshold": threshold,
-                        "value": {"$ne": np.nan},
-                        "refined": False})
+    match_query.update(
+        {
+            "crop": {"$in": cropnos_query},
+            "label": label,
+            "metric": metric,
+            "metric_params": filtered_params,
+            "threshold": threshold,
+            "value": {"$ne": np.nan},
+            "refined": False,
+        }
+    )
     if raw_ds is not None:
         match_query["raw_dataset"] = {"$in": raw_ds}
     aggregator.append({"$match": match_query})
 
     # for each combination of setup and iteration, and raw_dataset if relevant, average across the matched results
-    crossval_group = {"_id": {"setup": "$setup",
-                              "iteration": "$iteration"},
-                      "score": {"$avg": "$value"}}
+    crossval_group = {
+        "_id": {"setup": "$setup", "iteration": "$iteration"},
+        "score": {"$avg": "$value"},
+    }
     if raw_ds is not None:
         crossval_group["_id"]["raw_dataset"] = "$raw_dataset"
     aggregator.append({"$group": crossval_group})
@@ -101,9 +127,7 @@ def _best_automatic(db: cosem_db.MongoCosemDB,
     aggregator.append({"$limit": 1})
 
     # extract setup and iteration, and raw_dataset if relevant, in the end
-    projection = {"setup": "$_id.setup",
-                  "iteration": "$_id.iteration",
-                  "_id": 0}
+    projection = {"setup": "$_id.setup", "iteration": "$_id.iteration", "_id": 0}
     if raw_ds is not None:
         projection["raw_dataset"] = "$_id.raw_dataset"
     aggregator.append({"$project": projection})
@@ -126,14 +150,16 @@ def _best_automatic(db: cosem_db.MongoCosemDB,
 
     all_best = []
     for cno in cropno:
-        query_best = {"label": label,
-                      "crop": str(cno),
-                      "metric": metric,
-                      "setup": best_config["setup"],
-                      "metric_params": filtered_params,
-                      "threshold": threshold,
-                      "iteration": best_config["iteration"],
-                      "refined": False}
+        query_best = {
+            "label": label,
+            "crop": str(cno),
+            "metric": metric,
+            "setup": best_config["setup"],
+            "metric_params": filtered_params,
+            "threshold": threshold,
+            "iteration": best_config["iteration"],
+            "refined": False,
+        }
         if raw_ds is not None:
             query_best["raw_dataset"] = best_config["raw_dataset"]
         best_this = db.find(query_best)
@@ -148,25 +174,33 @@ def _best_automatic(db: cosem_db.MongoCosemDB,
     final["value"] = np.mean([ab["value"] for ab in all_best])
 
     # assemble all entries that are shared by the best result for each crop
-    all_keys = set(all_best[0].keys()).intersection(*(d.keys() for d in all_best)) - {"value"}
+    all_keys = set(all_best[0].keys()).intersection(*(d.keys() for d in all_best)) - {
+        "value"
+    }
     for k in all_keys:
         if all([ab[k] == all_best[0][k] for ab in all_best]):
             final[k] = all_best[0][k]
     return final
 
 
-def _best_manual(db: cosem_db.MongoCosemDB,
-                 label: str,
-                 setups: Sequence[str],
-                 cropno: Union[int, str],
-                 raw_ds: Optional[Sequence[str]] = None) -> Optional[
-      Dict[str, Union[str, int, bool]]]:
+def _best_manual(
+    db: cosem_db.MongoCosemDB,
+    label: str,
+    setups: Sequence[str],
+    cropno: Union[int, str],
+    raw_ds: Optional[Sequence[str]] = None,
+) -> Optional[Dict[str, Union[str, int, bool]]]:
 
     # read csv file containing results of manual evaluation, first for best iteration
     c = db.get_crop_by_number(str(cropno))
-    csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
-                                     "manual")
-    csv_file_iterations = open(os.path.join(csv_folder_manual, c["dataset_id"] + "_iteration.csv"), "r")
+    csv_folder_manual = os.path.join(
+        config_loader.get_config()["organelles"]["evaluation_path"],
+        db.training_version,
+        "manual",
+    )
+    csv_file_iterations = open(
+        os.path.join(csv_folder_manual, c["dataset_id"] + "_iteration.csv"), "r"
+    )
     fieldnames = ["setup", "labelname", "iteration", "raw_dataset"]
     reader = csv.DictReader(csv_file_iterations, fieldnames)
 
@@ -175,45 +209,55 @@ def _best_manual(db: cosem_db.MongoCosemDB,
     for row in reader:
         if row["labelname"] == label and row["setup"] in setups:
             if raw_ds is None or row["raw_dataset"] in raw_ds:
-                manual_result = {"setup": row["setup"],
-                                 "label": row["labelname"],
-                                 "iteration": int(row["iteration"]),
-                                 "raw_dataset": row["raw_dataset"],
-                                 "crop": str(cropno),
-                                 "metric": "manual"}
+                manual_result = {
+                    "setup": row["setup"],
+                    "label": row["labelname"],
+                    "iteration": int(row["iteration"]),
+                    "raw_dataset": row["raw_dataset"],
+                    "crop": str(cropno),
+                    "metric": "manual",
+                }
                 best_manuals.append(manual_result)
-    if len(best_manuals) == 0:  # no manual evaluations with the given constraints were done
+    if (
+        len(best_manuals) == 0
+    ):  # no manual evaluations with the given constraints were done
         return None
     elif len(best_manuals) == 1:  # if there's only one match it has to be the best one
         return best_manuals[0]
     else:  # if there's several matches check the setup results for overall best
         # read csv file containing results of manual evaluations, now for best setup per label/crop
-        csv_file_setups = open(os.path.join(csv_folder_manual, c["dataset_id"] + "_setup.csv"), "r")
+        csv_file_setups = open(
+            os.path.join(csv_folder_manual, c["dataset_id"] + "_setup.csv"), "r"
+        )
         reader = csv.DictReader(csv_file_setups, fieldnames)
         for row in reader:
             if row["labelname"] == label and row["setup"] in setups:
                 if raw_ds is None or row["raw_dataset"] in raw_ds:
-                    manual_result_best = {"setup": row["setup"],
-                                          "label": row["labelname"],
-                                          "iteration": int(row["iteration"]),
-                                          "raw_dataset": row["raw_dataset"],
-                                          "crop": str(cropno),
-                                          "metric": "manual",
-                                          "refined": False}
+                    manual_result_best = {
+                        "setup": row["setup"],
+                        "label": row["labelname"],
+                        "iteration": int(row["iteration"]),
+                        "raw_dataset": row["raw_dataset"],
+                        "crop": str(cropno),
+                        "metric": "manual",
+                        "refined": False,
+                    }
                     return manual_result_best
     return None
 
 
-def best_result(db: cosem_db.MongoCosemDB,
-                label: str,
-                setups: Union[str, Sequence[str]],
-                cropno: Union[str, int, Sequence[str], Sequence[int]],
-                metric: str,
-                raw_ds: Union[None, str, Sequence[str]] = None,
-                tol_distance: int = 40,
-                clip_distance: int = 200,
-                threshold: int = 127,
-                test: bool = False) -> Optional[Dict[str, Any]]:
+def best_result(
+    db: cosem_db.MongoCosemDB,
+    label: str,
+    setups: Union[str, Sequence[str]],
+    cropno: Union[str, int, Sequence[str], Sequence[int]],
+    metric: str,
+    raw_ds: Union[None, str, Sequence[str]] = None,
+    tol_distance: int = 40,
+    clip_distance: int = 200,
+    threshold: int = 127,
+    test: bool = False,
+) -> Optional[Dict[str, Any]]:
     """
     Function to find the best result as measured by a given metric.
 
@@ -239,27 +283,39 @@ def best_result(db: cosem_db.MongoCosemDB,
         raw_ds = [raw_ds]
     if isinstance(setups, str):
         setups = [setups]
-    if isinstance(cropno, str) or isinstance(cropno,int):
+    if isinstance(cropno, str) or isinstance(cropno, int):
         cropno = [cropno]
     if metric == "manual":
         assert len(cropno) == 1, "Manual validation only applicable to a single crop"
         return _best_manual(db, label, setups, cropno[0], raw_ds=raw_ds)
     else:
-        return _best_automatic(db, label, setups, cropno, metric, raw_ds=raw_ds, tol_distance=tol_distance,
-                               clip_distance=clip_distance, threshold=threshold, test=test)
+        return _best_automatic(
+            db,
+            label,
+            setups,
+            cropno,
+            metric,
+            raw_ds=raw_ds,
+            tol_distance=tol_distance,
+            clip_distance=clip_distance,
+            threshold=threshold,
+            test=test,
+        )
 
 
-def get_diff(db: cosem_db.MongoCosemDB,
-             label: str,
-             setups: Union[str, Sequence[str]],
-             cropno: str,
-             metric_best: str,
-             metric_compare: str,
-             raw_ds: Optional[str] = None,
-             tol_distance: int = 40,
-             clip_distance: int = 200,
-             threshold: int = 127,
-             test: bool = False) -> Dict[str, Any]:
+def get_diff(
+    db: cosem_db.MongoCosemDB,
+    label: str,
+    setups: Union[str, Sequence[str]],
+    cropno: str,
+    metric_best: str,
+    metric_compare: str,
+    raw_ds: Optional[str] = None,
+    tol_distance: int = 40,
+    clip_distance: int = 200,
+    threshold: int = 127,
+    test: bool = False,
+) -> Dict[str, Any]:
     """
     Compare two metrics by measuring performance using `metric_compare` but picking the best configuration using
     metric `metric_best`.
@@ -281,12 +337,23 @@ def get_diff(db: cosem_db.MongoCosemDB,
     Returns:
         Dictionary with evaluation result measured by `metric_compare` but optimized using `metric_best`.
     """
-    best_config = best_result(db, label, setups, cropno, metric_best, raw_ds=raw_ds, tol_distance=tol_distance,
-                             clip_distance=clip_distance, threshold=threshold, test=test)
+    best_config = best_result(
+        db,
+        label,
+        setups,
+        cropno,
+        metric_best,
+        raw_ds=raw_ds,
+        tol_distance=tol_distance,
+        clip_distance=clip_distance,
+        threshold=threshold,
+        test=test,
+    )
     query_metric2 = best_config.copy()
     query_metric2["metric"] = metric_compare
-    query_metric2["metric_params"] = filter_params({"clip_distance": clip_distance, "tol_distance": tol_distance},
-                                                   metric_compare)
+    query_metric2["metric_params"] = filter_params(
+        {"clip_distance": clip_distance, "tol_distance": tol_distance}, metric_compare
+    )
 
     if best_config["metric"] != "manual":
         try:
@@ -299,23 +366,37 @@ def get_diff(db: cosem_db.MongoCosemDB,
     return compare_setup
 
 
-def _get_csv_files(csv_folder_manual: str, domain: str, cropno: Sequence[Union[int, str]],
-                   db: cosem_db.MongoCosemDB) -> List[str]:
+def _get_csv_files(
+    csv_folder_manual: str,
+    domain: str,
+    cropno: Sequence[Union[int, str]],
+    db: cosem_db.MongoCosemDB,
+) -> List[str]:
     if cropno is None:
         csv_result_files = os.listdir(csv_folder_manual)
-        csv_result_files = [fn for fn in csv_result_files if fn.endswith("_{0:}.csv".format(domain))]
+        csv_result_files = [
+            fn for fn in csv_result_files if fn.endswith("_{0:}.csv".format(domain))
+        ]
     else:
         csv_result_files = []
         for cno in cropno:
             crop = db.get_crop_by_number(cno)
-            csv_result_files.append(os.path.join(csv_folder_manual, crop["dataset_id"] + "_{0:}.csv".format(domain)))
+            csv_result_files.append(
+                os.path.join(
+                    csv_folder_manual, crop["dataset_id"] + "_{0:}.csv".format(domain)
+                )
+            )
     return csv_result_files
 
 
-def _get_setup_queries(cropno: Sequence[Union[int, str]],
-                       db: cosem_db.MongoCosemDB) -> List[Dict[str, Union[str, Sequence[str]]]]:
-    csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
-                                     "manual")
+def _get_setup_queries(
+    cropno: Sequence[Union[int, str]], db: cosem_db.MongoCosemDB
+) -> List[Dict[str, Union[str, Sequence[str]]]]:
+    csv_folder_manual = os.path.join(
+        config_loader.get_config()["organelles"]["evaluation_path"],
+        db.training_version,
+        "manual",
+    )
     csv_result_files = _get_csv_files(csv_folder_manual, "setup", cropno, db)
     setup_queries = []
     for csv_f in csv_result_files:
@@ -326,13 +407,22 @@ def _get_setup_queries(cropno: Sequence[Union[int, str]],
 
         reader = csv.DictReader(f, fieldnames)
         for row in reader:
-            if any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in
-                   hierarchy[row["labelname"]].labelid):
+            if any(
+                lbl in get_label_ids_by_category(crop, "present_annotated")
+                for lbl in hierarchy[row["labelname"]].labelid
+            ):
                 # find the csv files with the list of setups compared for each label (4nm or 8nm)
                 if row["raw_dataset"] == "volumes/raw/s0":
-                    ff = open(os.path.join(csv_folder_manual, "compared_4nm_setups.csv"), "r")
-                elif row["raw_dataset"] == "volumes/subsampled/raw/0" or row["raw_dataset"] == "volumes/raw/s1":
-                    ff = open(os.path.join(csv_folder_manual, "compared_8nm_setups.csv"), "r")
+                    ff = open(
+                        os.path.join(csv_folder_manual, "compared_4nm_setups.csv"), "r"
+                    )
+                elif (
+                    row["raw_dataset"] == "volumes/subsampled/raw/0"
+                    or row["raw_dataset"] == "volumes/raw/s1"
+                ):
+                    ff = open(
+                        os.path.join(csv_folder_manual, "compared_8nm_setups.csv"), "r"
+                    )
                 else:
                     raise ValueError("The raw_dataset {0:} ".format(row["raw_dataset"]))
                 # get that list of compared setups from the csv file
@@ -342,17 +432,24 @@ def _get_setup_queries(cropno: Sequence[Union[int, str]],
                         setups = compare_row[1:]
                         break
                 # collect result
-                query = {"label": row["labelname"],
-                         "raw_dataset": row["raw_dataset"],
-                         "setups": setups,
-                         "crop": crop["number"]}
+                query = {
+                    "label": row["labelname"],
+                    "raw_dataset": row["raw_dataset"],
+                    "setups": setups,
+                    "crop": crop["number"],
+                }
                 setup_queries.append(query)
     return setup_queries
 
 
-def _get_iteration_queries(cropno: Sequence[Union[int, str]], db: cosem_db.MongoCosemDB) -> List[Dict[str, str]]:
-    csv_folder_manual = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
-                                     "manual")
+def _get_iteration_queries(
+    cropno: Sequence[Union[int, str]], db: cosem_db.MongoCosemDB
+) -> List[Dict[str, str]]:
+    csv_folder_manual = os.path.join(
+        config_loader.get_config()["organelles"]["evaluation_path"],
+        db.training_version,
+        "manual",
+    )
     csv_result_files = _get_csv_files(csv_folder_manual, "iteration", cropno, db)
     iteration_queries = []
     for csv_f in csv_result_files:
@@ -363,20 +460,25 @@ def _get_iteration_queries(cropno: Sequence[Union[int, str]], db: cosem_db.Mongo
 
         reader = csv.DictReader(f, fieldnames)
         for row in reader:
-            if any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in
-                   hierarchy[row["labelname"]].labelid):
-                query = {"label": row["labelname"],
-                         "raw_dataset": row["raw_dataset"],
-                         "setups": [row["setup"]],
-                         "crop": crop["number"]}
+            if any(
+                lbl in get_label_ids_by_category(crop, "present_annotated")
+                for lbl in hierarchy[row["labelname"]].labelid
+            ):
+                query = {
+                    "label": row["labelname"],
+                    "raw_dataset": row["raw_dataset"],
+                    "setups": [row["setup"]],
+                    "crop": crop["number"],
+                }
                 iteration_queries.append(query)
     return iteration_queries
 
 
-def get_manual_comparisons(db: cosem_db.MongoCosemDB,
-                           cropno: Union[None, str, int, Sequence[Union[str, int]]] = None,
-                           mode: str = "across-setups") -> \
-        List[Union[Dict[str, str], Dict[str, Union[str, Sequence[str]]]]]:
+def get_manual_comparisons(
+    db: cosem_db.MongoCosemDB,
+    cropno: Union[None, str, int, Sequence[Union[str, int]]] = None,
+    mode: str = "across-setups",
+) -> List[Union[Dict[str, str], Dict[str, Union[str, Sequence[str]]]]]:
     """
     Read best configurations optimized manually from corresponding csv files and translate into dictionary that can be
     used for queries to the database with automatic evaluations.
@@ -397,15 +499,18 @@ def get_manual_comparisons(db: cosem_db.MongoCosemDB,
     elif mode == "per-setup":
         all_queries = _get_iteration_queries(cropno, db)
     elif mode == "all":
-        all_queries = _get_iteration_queries(cropno, db) + _get_setup_queries(cropno, db)
+        all_queries = _get_iteration_queries(cropno, db) + _get_setup_queries(
+            cropno, db
+        )
     else:
         raise ValueError("Unknown mode {mode:}".format(mode=mode))
     return all_queries
 
 
-def get_refined_comparisons(db: cosem_db.MongoCosemDB,
-                            cropno: Union[None, str, int, Sequence[Union[str, int]]] = None) -> List[
-    Dict[str, Any]]:
+def get_refined_comparisons(
+    db: cosem_db.MongoCosemDB,
+    cropno: Union[None, str, int, Sequence[Union[str, int]]] = None,
+) -> List[Dict[str, Any]]:
     """
     Get list of queries for predictions that have been refined (as read from csv file)
 
@@ -416,8 +521,11 @@ def get_refined_comparisons(db: cosem_db.MongoCosemDB,
     Returns:
         List of queries for which refined predictions exist.
     """
-    csv_folder_refined = os.path.join(config_loader.get_config()["organelles"]["evaluation_path"], db.training_version,
-                                     "refined")
+    csv_folder_refined = os.path.join(
+        config_loader.get_config()["organelles"]["evaluation_path"],
+        db.training_version,
+        "refined",
+    )
     # get list of csv files relevant for crops
     if cropno is None:
         csv_result_files = os.listdir(csv_folder_refined)
@@ -427,7 +535,9 @@ def get_refined_comparisons(db: cosem_db.MongoCosemDB,
         csv_result_files = []
         for cno in cropno:
             crop = db.get_crop_by_number(cno)
-            csv_result_files.append(os.path.join(csv_folder_refined, crop["dataset_id"] + "_setup.csv"))
+            csv_result_files.append(
+                os.path.join(csv_folder_refined, crop["dataset_id"] + "_setup.csv")
+            )
 
     # collect entries from those csv files
     queries = []
@@ -440,25 +550,31 @@ def get_refined_comparisons(db: cosem_db.MongoCosemDB,
         reader = csv.DictReader(f, fieldnames)
         for row in reader:
             # only consider results that we can evaluate automatically (actually contained in the crop)
-            if any(lbl in get_label_ids_by_category(crop, "present_annotated") for lbl in
-                   hierarchy[row["labelname"]].labelid):
-                query = {"label": row["labelname"],
-                         "raw_dataset": row["raw_dataset"],
-                         "setup": row["setup"],
-                         "crop": crop["number"],
-                         "iteration": int(row["iteration"])}
+            if any(
+                lbl in get_label_ids_by_category(crop, "present_annotated")
+                for lbl in hierarchy[row["labelname"]].labelid
+            ):
+                query = {
+                    "label": row["labelname"],
+                    "raw_dataset": row["raw_dataset"],
+                    "setup": row["setup"],
+                    "crop": crop["number"],
+                    "iteration": int(row["iteration"]),
+                }
                 queries.append(query)
     return queries
 
 
-def compare_evaluation_methods(db: cosem_db.MongoCosemDB,
-                               metric_compare: str,  # may not be manual
-                               metric_bestby: str,  # may be manual
-                               queries: List[Union[Dict[str, str], Dict[str, Union[str, Sequence[str]]]]],
-                               tol_distance: int = 40,
-                               clip_distance: int = 200,
-                               threshold: int = 127,
-                               test: bool = False) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+def compare_evaluation_methods(
+    db: cosem_db.MongoCosemDB,
+    metric_compare: str,  # may not be manual
+    metric_bestby: str,  # may be manual
+    queries: List[Union[Dict[str, str], Dict[str, Union[str, Sequence[str]]]]],
+    tol_distance: int = 40,
+    clip_distance: int = 200,
+    threshold: int = 127,
+    test: bool = False,
+) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     """
     Compare different metrics for evaluation by picking one metric (`metric_compare`) to report results and optimizing
     the configuration (iteration/iteration+setup) with that metric on the one hand and the metric `metric_bestby` on
@@ -482,29 +598,54 @@ def compare_evaluation_methods(db: cosem_db.MongoCosemDB,
     comparisons = []
     for qu in queries:
         for setup in qu["setups"]:
-            test_query = {"setup": setup,
-                          "crop": qu["crop"],
-                          "label": qu["label"],
-                          "raw_dataset": qu["raw_dataset"],
-                          "metric": {"$in": [metric_compare, metric_bestby]}}
+            test_query = {
+                "setup": setup,
+                "crop": qu["crop"],
+                "label": qu["label"],
+                "raw_dataset": qu["raw_dataset"],
+                "metric": {"$in": [metric_compare, metric_bestby]},
+            }
             if len(db.find(test_query)) == 0:
-                raise RuntimeError("No results found in database for {0:}".format(test_query))
-        best_setup = best_result(db, qu["label"], qu["setups"], qu["crop"], metric_compare, raw_ds=qu["raw_dataset"],
-                                 tol_distance=tol_distance, clip_distance=clip_distance, threshold=threshold,
-                                 test=test)
-        compare_setup = get_diff(db, qu["label"], qu["setups"], qu["crop"], metric_bestby, metric_compare,
-                                 raw_ds=qu["raw_dataset"], tol_distance=tol_distance, clip_distance=clip_distance,
-                                 threshold=threshold, test=test)
+                raise RuntimeError(
+                    "No results found in database for {0:}".format(test_query)
+                )
+        best_setup = best_result(
+            db,
+            qu["label"],
+            qu["setups"],
+            qu["crop"],
+            metric_compare,
+            raw_ds=qu["raw_dataset"],
+            tol_distance=tol_distance,
+            clip_distance=clip_distance,
+            threshold=threshold,
+            test=test,
+        )
+        compare_setup = get_diff(
+            db,
+            qu["label"],
+            qu["setups"],
+            qu["crop"],
+            metric_bestby,
+            metric_compare,
+            raw_ds=qu["raw_dataset"],
+            tol_distance=tol_distance,
+            clip_distance=clip_distance,
+            threshold=threshold,
+            test=test,
+        )
         comparisons.append((best_setup, compare_setup))
     return comparisons
 
 
-def compare_refined(db: cosem_db.MongoCosemDB,
-                    metric: str,
-                    queries: Sequence[Dict[str, Any]],
-                    tol_distance: int = 40,
-                    clip_distance: int = 200,
-                    threshold: int = 127) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+def compare_refined(
+    db: cosem_db.MongoCosemDB,
+    metric: str,
+    queries: Sequence[Dict[str, Any]],
+    tol_distance: int = 40,
+    clip_distance: int = 200,
+    threshold: int = 127,
+) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     """
     For given queries read corresponding refined and unrefined results from the database for the given metric.
 
@@ -523,8 +664,9 @@ def compare_refined(db: cosem_db.MongoCosemDB,
     comparisons = []
     for qu in queries:
         qu["metric"] = metric
-        qu["metric_params"] = filter_params({"clip_distance": clip_distance, "tol_distance": tol_distance},
-                                            metric)
+        qu["metric_params"] = filter_params(
+            {"clip_distance": clip_distance, "tol_distance": tol_distance}, metric
+        )
         qu["refined"] = True
         refined = db.find(qu)
         assert len(refined) == 1, f"len(refined)={len(refined)}, qu: {qu}"
@@ -540,17 +682,19 @@ def compare_refined(db: cosem_db.MongoCosemDB,
     return comparisons
 
 
-def compare_setups(db: cosem_db.MongoCosemDB,
-                   setups_compare: Sequence[Sequence[str]],
-                   labels: Sequence[str],
-                   metric: str,
-                   raw_ds: Optional[Sequence[str]] = None,
-                   crops: Optional[Sequence[Union[str, int]]] = None,
-                   tol_distance: int = 40,
-                   clip_distance: int = 200,
-                   threshold: int = 127,
-                   mode: str = "across-setups",
-                   test: bool = False) -> List[List[Optional[Dict[str, Any]]]]:
+def compare_setups(
+    db: cosem_db.MongoCosemDB,
+    setups_compare: Sequence[Sequence[str]],
+    labels: Sequence[str],
+    metric: str,
+    raw_ds: Optional[Sequence[str]] = None,
+    crops: Optional[Sequence[Union[str, int]]] = None,
+    tol_distance: int = 40,
+    clip_distance: int = 200,
+    threshold: int = 127,
+    mode: str = "across-setups",
+    test: bool = False,
+) -> List[List[Optional[Dict[str, Any]]]]:
     """
     Flexibly query comparisons from the evaluation database. `setups_compare` and optionally `raw_ds` define sets of
     settings that should be compared.
@@ -588,11 +732,23 @@ def compare_setups(db: cosem_db.MongoCosemDB,
                     else:
                         rd = raw_ds[k]
                     comp.append(
-                        best_result(db, lbl, setups, cropno, metric, raw_ds=rd, tol_distance=tol_distance,
-                                    clip_distance=clip_distance, threshold=threshold, test=test)
+                        best_result(
+                            db,
+                            lbl,
+                            setups,
+                            cropno,
+                            metric,
+                            raw_ds=rd,
+                            tol_distance=tol_distance,
+                            clip_distance=clip_distance,
+                            threshold=threshold,
+                            test=test,
+                        )
                     )
                 comparisons.append(comp)
-    elif mode == "per-setup":  # find best result for each combination of setup and label
+    elif (
+        mode == "per-setup"
+    ):  # find best result for each combination of setup and label
         for cropno in crops:
             comps = [[] for _ in labels]
             for k, setups in enumerate(setups_compare):
@@ -602,8 +758,18 @@ def compare_setups(db: cosem_db.MongoCosemDB,
                     rd = raw_ds[k]
                 for kk, (lbl, setup) in enumerate(zip(labels, setups)):
                     comps[kk].append(
-                        best_result(db, lbl, setup, cropno, metric, raw_ds=rd, tol_distance=tol_distance,
-                                    clip_distance=clip_distance, threshold=threshold, test=test)
+                        best_result(
+                            db,
+                            lbl,
+                            setup,
+                            cropno,
+                            metric,
+                            raw_ds=rd,
+                            tol_distance=tol_distance,
+                            clip_distance=clip_distance,
+                            threshold=threshold,
+                            test=test,
+                        )
                     )
             comparisons.extend(comps)
     return comparisons

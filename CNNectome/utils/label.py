@@ -16,14 +16,16 @@ class Label(object):
         add_constant=None,
         separate_labelset=False,
         frac_pos=0.5,
-        frac_neg=0.5
+        frac_neg=0.5,
     ):
 
         self.labelname = labelname
         if not isinstance(labelid, collections.Iterable) and labelid is not None:
             labelid = (labelid,)
         self.labelid = labelid
-        if generic_label is not None and not isinstance(generic_label, collections.Iterable):
+        if generic_label is not None and not isinstance(
+            generic_label, collections.Iterable
+        ):
             generic_label = (generic_label,)
         self.generic_label = generic_label
         self.targetid = targetid

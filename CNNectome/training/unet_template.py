@@ -13,8 +13,8 @@ logging.basicConfig(level=logging.INFO)
 
 # running parameters
 max_iteration = 500000
-cache_size=5
-num_workers=10
+cache_size = 5
+num_workers = 10
 
 # voxel size parameters
 voxel_size_labels = Coordinate((2,) * 3)
@@ -28,23 +28,19 @@ loss_name = "loss_total"
 padding = "valid"
 constant_upsample = True
 trans_equivariant = True
-feature_widths_down = [12, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3]
-feature_widths_up = [12 * 6, 12 * 6, 12 * 6 ** 2, 12 * 6 ** 3]
+feature_widths_down = [12, 12 * 6, 12 * 6**2, 12 * 6**3]
+feature_widths_up = [12 * 6, 12 * 6, 12 * 6**2, 12 * 6**3]
 downsampling_factors = [(2,) * 3, (3,) * 3, (3,) * 3]
 kernel_sizes_down = [
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3],
     [(3,) * 3, (3,) * 3],
-    [(3,) * 3, (3,) * 3]
-]
-kernel_sizes_up = [
     [(3,) * 3, (3,) * 3],
-    [(3,) * 3, (3,) * 3],
-    [(3,) * 3, (3,) * 3]
 ]
+kernel_sizes_up = [[(3,) * 3, (3,) * 3], [(3,) * 3, (3,) * 3], [(3,) * 3, (3,) * 3]]
 
 # additional network parameters for upsampling network
-upsample_factor = tuple(voxel_size_input/voxel_size)
+upsample_factor = tuple(voxel_size_input / voxel_size)
 final_kernel_size = [(3,) * 3, (3,) * 3]
 final_feature_width = 12 * 6
 
@@ -54,41 +50,64 @@ completion_min = 5
 
 
 # groundtruth construction parameters
-min_masked_voxels = 17561.
+min_masked_voxels = 17561.0
 dt_scaling_factor = 50
 labels = list()
 labels.append(Label("ecs", 1))
 labels.append(Label("plasma_membrane", 2))
 labels.append(Label("mito", (3, 4, 5)))
-labels.append(Label("mito_membrane", 3, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("mito_membrane", 3, scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("mito_DNA", 5, scale_loss=False, scale_key=labels[-2].scale_key))
 labels.append(Label("golgi", (6, 7)))
 labels.append(Label("golgi_membrane", 6))
 labels.append(Label("vesicle", (8, 9)))
-labels.append(Label("vesicle_membrane", 8, scale_loss=False, scale_key=labels[-1].scale_key))
-labels.append(Label("MVB", (10, 11), ))
-labels.append(Label("MVB_membrane", 10, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("vesicle_membrane", 8, scale_loss=False, scale_key=labels[-1].scale_key)
+)
+labels.append(
+    Label(
+        "MVB",
+        (10, 11),
+    )
+)
+labels.append(
+    Label("MVB_membrane", 10, scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("lysosome", (12, 13)))
-labels.append(Label("lysosome_membrane", 12, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("lysosome_membrane", 12, scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("LD", (14, 15)))
-labels.append(Label("LD_membrane", 14, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("LD_membrane", 14, scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("er", (16, 17, 18, 19, 20, 21, 22, 23)))
-labels.append(Label("er_membrane", (16, 18, 20), scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("er_membrane", (16, 18, 20), scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("ERES", (18, 19)))
-labels.append(Label("nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37))
+labels.append(
+    Label("nucleus", (20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 37), generic_label=37)
+)
 labels.append(Label("nucleolus", 29, separate_labelset=True))
 labels.append(Label("NE", (20, 21, 22, 23)))
-labels.append(Label("NE_membrane", (20, 22, 23), scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("NE_membrane", (20, 22, 23), scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("nuclear_pore", (22, 23)))
-labels.append(Label("nuclear_pore_out", 22, scale_loss=False, scale_key=labels[-1].scale_key))
+labels.append(
+    Label("nuclear_pore_out", 22, scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("chromatin", (24, 25, 26, 27)))
 labels.append(Label("NHChrom", 25))
 labels.append(Label("EChrom", 26))
 labels.append(Label("NEChrom", 27))
 labels.append(Label("microtubules", (30, 36)))
-labels.append(Label("microtubules_out", (30,),
-                    scale_loss=False,
-                    scale_key=labels[-1].scale_key))
+labels.append(
+    Label("microtubules_out", (30,), scale_loss=False, scale_key=labels[-1].scale_key)
+)
 labels.append(Label("centrosome", 31, add_constant=2, separate_labelset=True))
 labels.append(Label("distal_app", 32))
 labels.append(Label("subdistal_app", 33))
@@ -109,11 +128,20 @@ def build_net(steps=steps_inference, mode="inference"):
         input_fov=voxel_size,
     )
     if voxel_size == voxel_size_input:
-        net, input_shape, output_shape = make_net(unet, labels, steps, loss_name=loss_name, mode=mode)
+        net, input_shape, output_shape = make_net(
+            unet, labels, steps, loss_name=loss_name, mode=mode
+        )
     else:
-        net, input_shape, output_shape = make_net_upsample(unet, labels, steps, upsample_factor,
-                                                           final_kernel_size, final_feature_width,
-                                                           loss_name=loss_name, mode=mode)
+        net, input_shape, output_shape = make_net_upsample(
+            unet,
+            labels,
+            steps,
+            upsample_factor,
+            final_kernel_size,
+            final_feature_width,
+            loss_name=loss_name,
+            mode=mode,
+        )
     logging.info(
         "Built {0:} with input shape {1:} and output_shape {2:}".format(
             net, input_shape, output_shape
@@ -136,8 +164,9 @@ def test_memory_consumption(steps=steps_train, mode="train"):
     ).astype(np.float32)
     for l in labels:
         if mode.lower() == "train" or mode.lower() == "training":
-            input_arrays[net_io_names["mask"]] = np.random.randint(0, 1, output_shape).astype(
-                np.float32)
+            input_arrays[net_io_names["mask"]] = np.random.randint(
+                0, 1, output_shape
+            ).astype(np.float32)
             input_arrays[net_io_names["gt_" + l.labelname]] = np.random.random(
                 output_shape
             ).astype(np.float32)
@@ -179,29 +208,62 @@ def train(steps=steps_train):
         min_masked_voxels=min_masked_voxels,
         voxel_size_labels=voxel_size_labels,
         voxel_size=voxel_size,
-        voxel_size_input=voxel_size_input
+        voxel_size_input=voxel_size_input,
     )
 
 
 def inference(steps=steps_inference):
     net_name, input_shape, output_shape = build_net(steps=steps, mode="inference")
     outputs = [l.labelname for l in labels]
-    single_block_inference(net_name, input_shape, output_shape, ckpt, outputs, input_file, coordinate=coordinate,
-                           output_file=output_file, voxel_size_input=voxel_size_input, voxel_size_output=voxel_size)
+    single_block_inference(
+        net_name,
+        input_shape,
+        output_shape,
+        ckpt,
+        outputs,
+        input_file,
+        coordinate=coordinate,
+        output_file=output_file,
+        voxel_size_input=voxel_size_input,
+        voxel_size_output=voxel_size,
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Build, train or test memory consumption for a U-Net")
-    parser.add_argument("script", type=str, help="Pick script that should be run",
-                        choices=["train", "build", "test_mem", "inference"], default="train")
-    parser.add_argument("--mode", type=str, help="for build and test_mem specify whether to run for inference or "
-                                               "training network", choices=["training", "inference"],
-                        )
+    parser = argparse.ArgumentParser(
+        "Build, train or test memory consumption for a U-Net"
+    )
+    parser.add_argument(
+        "script",
+        type=str,
+        help="Pick script that should be run",
+        choices=["train", "build", "test_mem", "inference"],
+        default="train",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        help="for build and test_mem specify whether to run for inference or "
+        "training network",
+        choices=["training", "inference"],
+    )
     parser.add_argument("--ckpt", type=str, help="checkpoint file to use for inference")
-    parser.add_argument("--input_file", type=str, help="n5 file for input data to predict from")
-    parser.add_argument("--output_file", type=str, help="n5 file to write inference output to", default="prediction.n5")
-    parser.add_argument("--coordinate", type=int, help="upper left coordinate of block to predict from (input)",
-                        default=(0, 0, 0), nargs='+')
+    parser.add_argument(
+        "--input_file", type=str, help="n5 file for input data to predict from"
+    )
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        help="n5 file to write inference output to",
+        default="prediction.n5",
+    )
+    parser.add_argument(
+        "--coordinate",
+        type=int,
+        help="upper left coordinate of block to predict from (input)",
+        default=(0, 0, 0),
+        nargs="+",
+    )
     args = parser.parse_args()
     mode = args.mode
     ckpt = args.ckpt
@@ -220,15 +282,18 @@ if __name__ == "__main__":
             raise ValueError("script inference should not be run with mode training")
         else:
             mode = "inference"
-        assert ckpt is not None and input_file is not None, \
-            "ckpt and input_file need to be given to run inference"
+        assert (
+            ckpt is not None and input_file is not None
+        ), "ckpt and input_file need to be given to run inference"
 
     if mode == "inference":
         steps = steps_inference
     elif mode == "training":
         steps = steps_train
     else:
-        raise ValueError("mode needs to be given to run script {0:}".format(args.script))
+        raise ValueError(
+            "mode needs to be given to run script {0:}".format(args.script)
+        )
 
     if args.script == "train":
         train(steps)

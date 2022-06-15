@@ -176,9 +176,12 @@ class SerialUNet(object):
         self.input_fov = input_fov
         self.input_voxel_size = input_voxel_size
         self.constant_upsample = constant_upsample
-        self.min_input_shape, self.step_valid_shape, self.min_output_shape, self.min_bottom_shape = (
-            self.compute_minimal_shapes()
-        )
+        (
+            self.min_input_shape,
+            self.step_valid_shape,
+            self.min_output_shape,
+            self.min_bottom_shape,
+        ) = self.compute_minimal_shapes()
 
     def compute_minimal_shapes(self):
         # compute minimal shape in the bottom layer (after the convolutions s.t. the upward path can still be evaluated

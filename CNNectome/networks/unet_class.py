@@ -10,7 +10,6 @@ bool_dim_expandable = typing.Union[bool, typing.Sequence[bool]]
 
 
 class UNet(object):
-
     def __init__(
         self,
         num_fmaps_down: typing.Sequence[int],
@@ -49,11 +48,19 @@ class UNet(object):
         self.kernel_size_up = kernel_size_up
         if not isinstance(skip_connections, (list, tuple)):
             if skip_connections is True:
-                self.skip_connections = [True, ] * len(self.downsample_factors)
+                self.skip_connections = [
+                    True,
+                ] * len(self.downsample_factors)
             elif skip_connections is False:
-                self.skip_connections = [False, ] * len(self.downsample_factors)
+                self.skip_connections = [
+                    False,
+                ] * len(self.downsample_factors)
             else:
-                raise ValueError("Can't handle input for skip connections: {0:}".format(skip_connections))
+                raise ValueError(
+                    "Can't handle input for skip connections: {0:}".format(
+                        skip_connections
+                    )
+                )
         else:
             self.skip_connections = skip_connections
         self.activation = activation
@@ -63,11 +70,16 @@ class UNet(object):
         self.trans_equivariant = trans_equivariant
         self.enforce_even_context = enforce_even_context
         self.input_voxel_size = input_voxel_size
-        self.min_input_shape, self.step_valid_shape, self.min_output_shape, self.min_bottom_shape = (
-            self.compute_minimal_shapes()
-        )
+        (
+            self.min_input_shape,
+            self.step_valid_shape,
+            self.min_output_shape,
+            self.min_bottom_shape,
+        ) = self.compute_minimal_shapes()
 
-    def compute_minimal_shapes(self) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def compute_minimal_shapes(
+        self,
+    ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Computes the minimal input shape, shape at the bootleneck and output shape as well as suitable step sizes
         (additional context) for the given U-Net configuration. This is computed for U-Nets with `valid` padding as
@@ -103,9 +115,10 @@ class UNet(object):
             )
 
             if self.enforce_even_context:
-                assert np.all(total_pad % 2 == 0), \
-                    "Kernels {kernels:} on level {lv:} of U-Net (upsampling path) not compatible with enforcing an " \
+                assert np.all(total_pad % 2 == 0), (
+                    "Kernels {kernels:} on level {lv:} of U-Net (upsampling path) not compatible with enforcing an "
                     "even context".format(kernels=kernels, lv=lv)
+                )
 
             # for translational equivariance U-Net includes cropping to the stride of the downsampling factors
             if self.trans_equivariant:
@@ -122,11 +135,15 @@ class UNet(object):
                 # when even context are enforced the padding needs to be even so trans_equivariant will crop +1
                 # factors if the otherwise resulting padding is odd
                 if self.enforce_even_context:
-                    total_pad += (total_pad%2)*np.prod(self.downsample_factors[lv:], axis=0)
+                    total_pad += (total_pad % 2) * np.prod(
+                        self.downsample_factors[lv:], axis=0
+                    )
 
             for l in range(lv + 1):
-                min_bottom_right[l] += total_pad # add the padding added by convolution
-                min_bottom_right[l] /= self.downsample_factors[lv] # divide by downsampling factor of current level
+                min_bottom_right[l] += total_pad  # add the padding added by convolution
+                min_bottom_right[l] /= self.downsample_factors[
+                    lv
+                ]  # divide by downsampling factor of current level
 
         # round up the fractions potentially introduced by downsampling factor division
         min_bottom_right = np.ceil(min_bottom_right)
@@ -137,10 +154,14 @@ class UNet(object):
         # PART 2: calculate the minimum input shape by propagating from the "bottom right" to the input of the U-Net
         min_input_shape = np.copy(min_bottom_right)
 
-        for lv in range(len(self.kernel_size_down))[::-1]:  # go backwards through downsampling path
+        for lv in range(len(self.kernel_size_down))[
+            ::-1
+        ]:  # go backwards through downsampling path
 
             if lv != len(self.kernel_size_down) - 1:  # unless bottom layer
-                min_input_shape *= self.downsample_factors[lv]  # calculate shape before downsampling
+                min_input_shape *= self.downsample_factors[
+                    lv
+                ]  # calculate shape before downsampling
 
             # calculate shape before convolutions on current level
             kernels = np.copy(self.kernel_size_down[lv])
@@ -148,9 +169,10 @@ class UNet(object):
                 [np.array(k) - np.array((1.0, 1.0, 1.0)) for k in kernels], axis=0
             )
             if self.enforce_even_context:
-                assert np.all(total_pad % 2 == 0), \
-                    "Kernels {kernels:} on level {lv:} of U-Net (downsampling path) not compatible with enforcing an " \
+                assert np.all(total_pad % 2 == 0), (
+                    "Kernels {kernels:} on level {lv:} of U-Net (downsampling path) not compatible with enforcing an "
                     "even context".format(kernels=kernels, lv=lv)
+                )
 
             min_input_shape += total_pad
 
@@ -160,8 +182,12 @@ class UNet(object):
 
         # PART 3: calculate the minimum output shape by propagating from the "bottom right" to the output of the U-Net
         min_output_shape = np.copy(min_bottom_right)
-        for lv in range(len(self.downsample_factors))[::-1]: # go through upsampling path
-            min_output_shape *= self.downsample_factors[lv] # calculate shape after upsampling
+        for lv in range(len(self.downsample_factors))[
+            ::-1
+        ]:  # go through upsampling path
+            min_output_shape *= self.downsample_factors[
+                lv
+            ]  # calculate shape after upsampling
 
             # calculate shape after convolutions on current level
             kernels = np.copy(self.kernel_size_up[lv])
@@ -193,7 +219,9 @@ class UNet(object):
         layer: int = 0,
         fov: typing.Optional[typing.Tuple[int, int, int]] = None,
         voxel_size: typing.Optional[typing.Tuple[int, int, int]] = None,
-    ) -> typing.Tuple[tf.Tensor, typing.Tuple[int, int, int], typing.Tuple[int, int, int]]:
+    ) -> typing.Tuple[
+        tf.Tensor, typing.Tuple[int, int, int], typing.Tuple[int, int, int]
+    ]:
 
         """Create a U-Net::
             f_in --> f_left --------------------------->> f_right--> f_out
@@ -353,21 +381,33 @@ class UNet(object):
                         g_out_upsampled,
                         factor=factor_product,
                         kernel_sizes=kernel_size_up[layer],
-                        enforce_even_context=self.enforce_even_context
+                        enforce_even_context=self.enforce_even_context,
                     )
-                    logging.info(prefix + "after crop_to_factor: " + str(g_out_upsampled.shape))
-                if skip_connections[layer]: # can skip this step if there's no skip conneciton here
+                    logging.info(
+                        prefix + "after crop_to_factor: " + str(g_out_upsampled.shape)
+                    )
+                if skip_connections[
+                    layer
+                ]:  # can skip this step if there's no skip conneciton here
                     # copy-crop
                     f_left = ops3d.crop_zyx(
-                        f_left, g_out_upsampled.get_shape().as_list(), enforce_even_context=self.enforce_even_context
+                        f_left,
+                        g_out_upsampled.get_shape().as_list(),
+                        enforce_even_context=self.enforce_even_context,
                     )
                     logging.info(prefix + "f_left_cropped: " + str(f_left.shape))
             else:
                 if f_left.get_shape() != g_out_upsampled.get_shape():
                     g_out_upsampled = ops3d.crop_zyx(
-                        g_out_upsampled, f_left.get_shape().as_list(), enforce_even_context=False
+                        g_out_upsampled,
+                        f_left.get_shape().as_list(),
+                        enforce_even_context=False,
                     )
-                    logging.info(prefix + "g_out_upsampled_cropped: " + str(g_out_upsampled.shape))
+                    logging.info(
+                        prefix
+                        + "g_out_upsampled_cropped: "
+                        + str(g_out_upsampled.shape)
+                    )
             if skip_connections[layer]:
                 f_right = tf.concat([f_left, g_out_upsampled], 1)
             else:

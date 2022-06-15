@@ -8,7 +8,12 @@ from CNNectome.utils.label import *
 
 class Test:
     def __init__(
-        self, meta_graph_filename, requested_outputs, optimizer=None, loss=None, mode="training"
+        self,
+        meta_graph_filename,
+        requested_outputs,
+        optimizer=None,
+        loss=None,
+        mode="training",
     ):
         self.meta_graph_filename = meta_graph_filename
         self.graph = None

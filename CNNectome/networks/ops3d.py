@@ -225,30 +225,43 @@ def upsample(
 def gaussian_blur(fmaps_in, sigma):
     def gauss_kernel(sigma):
         if sigma < 0:
-            kernel_1d = np.array([0., 1., 0.], dtype=np.float32)
+            kernel_1d = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         else:
             kernel_size = max(3, 2 * int(3 * sigma + 0.5) + 1)
             kernel_1d = np.zeros(kernel_size, dtype=np.float32)
             x = int(kernel_size / 2)
             while x >= 0:
-                val = np.exp(-x**2/(2*sigma*sigma))
-                kernel_1d[int(kernel_size/2) - x] = val
-                kernel_1d[int(kernel_size/2) + x] = val
+                val = np.exp(-(x**2) / (2 * sigma * sigma))
+                kernel_1d[int(kernel_size / 2) - x] = val
+                kernel_1d[int(kernel_size / 2) + x] = val
                 x -= 1
-        kernel = kernel_1d[:,None,None]* kernel_1d[None,:,None]* kernel_1d[None,None,:]
+        kernel = (
+            kernel_1d[:, None, None]
+            * kernel_1d[None, :, None]
+            * kernel_1d[None, None, :]
+        )
         kernel /= np.sum(kernel)
         return kernel
+
     gaussian_kernel = tf.convert_to_tensor(gauss_kernel(sigma))
     gaussian_kernel = gaussian_kernel[..., tf.newaxis, tf.newaxis]
-    fmaps = tf.nn.conv3d(fmaps_in, gaussian_kernel, padding="SAME", data_format="NCDHW", strides=[1,1,1,1,1], name="gaussian_blur")
+    fmaps = tf.nn.conv3d(
+        fmaps_in,
+        gaussian_kernel,
+        padding="SAME",
+        data_format="NCDHW",
+        strides=[1, 1, 1, 1, 1],
+        name="gaussian_blur",
+    )
     return fmaps
 
 
 def gaussian_blur_var(fmaps_in, sigma):
     def gauss_kernel(sigma):
         def identity():
-            kernel_1d = np.array([0., 1., 0.], dtype=np.float32)
+            kernel_1d = np.array([0.0, 1.0, 0.0], dtype=np.float32)
             return kernel_1d
+
         def construct(sigma):
             kernel_size = tf.math.maximum(3, 2 * tf.cast(3 * sigma + 0.5, tf.int32) + 1)
             x = tf.cast(tf.cast(kernel_size / 2, tf.int32), tf.float32)
@@ -263,15 +276,30 @@ def gaussian_blur_var(fmaps_in, sigma):
             #     return y
 
             # x, kernel_1d = tf.while_loop(while_cond, while_body, (x, kernel_1d), return_same_structure=True)
-            kernel_1d = tf.math.exp(-kernel_1d**2/(2*sigma*sigma))
+            kernel_1d = tf.math.exp(-(kernel_1d**2) / (2 * sigma * sigma))
             return kernel_1d
-        kernel_1d = tf.cond(tf.math.greater(0., sigma), identity, lambda: construct(sigma))
-        kernel = kernel_1d[:, None, None] * kernel_1d[None, :, None] * kernel_1d[None, None, :]
+
+        kernel_1d = tf.cond(
+            tf.math.greater(0.0, sigma), identity, lambda: construct(sigma)
+        )
+        kernel = (
+            kernel_1d[:, None, None]
+            * kernel_1d[None, :, None]
+            * kernel_1d[None, None, :]
+        )
         kernel /= np.sum(kernel)
         return kernel
+
     gaussian_kernel = tf.convert_to_tensor(gauss_kernel(sigma))
     gaussian_kernel = gaussian_kernel[..., tf.newaxis, tf.newaxis]
-    fmaps = tf.nn.conv3d(fmaps_in, gaussian_kernel, padding="SAME", data_format="NCDHW", strides=[1,1,1,1,1], name="gaussian_blur")
+    fmaps = tf.nn.conv3d(
+        fmaps_in,
+        gaussian_kernel,
+        padding="SAME",
+        data_format="NCDHW",
+        strides=[1, 1, 1, 1, 1],
+        name="gaussian_blur",
+    )
     return fmaps
 
 
@@ -286,7 +314,7 @@ def crop_zyx(fmaps_in, shape, enforce_even_context=False):
 
     in_shape = fmaps_in.get_shape().as_list()
     if enforce_even_context:
-        assert all((in_shape[k]-shape[k]) % 2 == 0 for k in range(2,5))
+        assert all((in_shape[k] - shape[k]) % 2 == 0 for k in range(2, 5))
     offset = [
         0,  # batch
         0,  # channel
@@ -343,11 +371,15 @@ def crop_to_factor(fmaps_in, factor, kernel_sizes, enforce_even_context=False):
         n * f + c for n, c, f in zip(ns, convolution_crop, factor)
     )
     if enforce_even_context:
-        for k, (ts, cs, f) in enumerate(zip(target_spatial_shape, spatial_shape, factor)):
+        for k, (ts, cs, f) in enumerate(
+            zip(target_spatial_shape, spatial_shape, factor)
+        ):
             if (cs - ts) % 2 != 0:  # if the crop is not even
-                assert f % 2 != 0, \
-                    "Even context is not feasible with incoming shape {shape:} and factor {factor:}".format(
-                        shape=shape, factor=factor)
+                assert (
+                    f % 2 != 0
+                ), "Even context is not feasible with incoming shape {shape:} and factor {factor:}".format(
+                    shape=shape, factor=factor
+                )
                 ns[k] -= 1
         target_spatial_shape = tuple(
             n * f + c for n, c, f in zip(ns, convolution_crop, factor)
@@ -369,7 +401,9 @@ def crop_to_factor(fmaps_in, factor, kernel_sizes, enforce_even_context=False):
             "crop_to_factor: target_spatial_shape = {0:}".format(target_spatial_shape)
         )
         logging.debug("crop_to_factor: target_shape ={0:}".format(target_shape))
-        fmaps = crop_zyx(fmaps_in, target_shape, enforce_even_context=enforce_even_context)
+        fmaps = crop_zyx(
+            fmaps_in, target_shape, enforce_even_context=enforce_even_context
+        )
     else:
         fmaps = fmaps_in
 

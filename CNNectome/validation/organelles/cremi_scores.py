@@ -1,11 +1,21 @@
 import numpy as np
 import scipy.ndimage
 import lazy_property
+
 BG = 0
 MASK_OUTSIDE = 0
 
+
 class CremiEvaluator(object):
-    def __init__(self, truth, test, sampling=(1, 1, 1), clip_distance=200, tol_distance=40, mask=None):
+    def __init__(
+        self,
+        truth,
+        test,
+        sampling=(1, 1, 1),
+        clip_distance=200,
+        tol_distance=40,
+        mask=None,
+    ):
         self.test = test
         self.truth = truth
         self.sampling = sampling
@@ -18,14 +28,14 @@ class CremiEvaluator(object):
         # todo: more involved masking
         test_mask = self.test == BG
         if self.mask is not None:
-            test_mask = np.logical_or(test_mask, self.mask==MASK_OUTSIDE)
+            test_mask = np.logical_or(test_mask, self.mask == MASK_OUTSIDE)
         return test_mask
 
     @lazy_property.LazyProperty
     def truth_mask(self):
         truth_mask = self.truth == BG
         if self.mask is not None:
-            truth_mask = np.logical_or(truth_mask, self.mask==MASK_OUTSIDE)
+            truth_mask = np.logical_or(truth_mask, self.mask == MASK_OUTSIDE)
         return truth_mask
 
     @lazy_property.LazyProperty
@@ -63,36 +73,52 @@ class CremiEvaluator(object):
     @lazy_property.LazyProperty
     def false_negative_rate_with_tolerance(self):
         condition_positive = len(self.false_negative_distances)
-        return float(self.false_negatives_with_tolerance)/float(condition_positive)
+        return float(self.false_negatives_with_tolerance) / float(condition_positive)
 
     @lazy_property.LazyProperty
     def true_positives_with_tolerance(self):
         all_pos = np.sum(np.invert(self.test_mask & self.truth_mask))
-        return all_pos - self.false_negatives_with_tolerance - self.false_positives_with_tolerance
+        return (
+            all_pos
+            - self.false_negatives_with_tolerance
+            - self.false_positives_with_tolerance
+        )
 
     @lazy_property.LazyProperty
     def precision_with_tolerance(self):
-        return float(self.true_positives_with_tolerance)/float(self.true_positives_with_tolerance + self.false_positives_with_tolerance)
+        return float(self.true_positives_with_tolerance) / float(
+            self.true_positives_with_tolerance + self.false_positives_with_tolerance
+        )
 
     @lazy_property.LazyProperty
     def recall_with_tolerance(self):
-        return float(self.true_positives_with_tolerance)/float(self.true_positives_with_tolerance + self.false_negatives_with_tolerance)
+        return float(self.true_positives_with_tolerance) / float(
+            self.true_positives_with_tolerance + self.false_negatives_with_tolerance
+        )
 
     @lazy_property.LazyProperty
     def f1_score_with_tolerance(self):
         if self.recall_with_tolerance == 0 and self.precision_with_tolerance == 0:
             return np.nan
         else:
-            return 2 * (self.recall_with_tolerance * self.precision_with_tolerance) / (self.recall_with_tolerance + self.precision_with_tolerance)
+            return (
+                2
+                * (self.recall_with_tolerance * self.precision_with_tolerance)
+                / (self.recall_with_tolerance + self.precision_with_tolerance)
+            )
 
     @lazy_property.LazyProperty
     def mean_false_positive_distances_clipped(self):
-        mean_false_positive_distance_clipped = np.mean(np.clip(self.false_positive_distances, None, self.clip_distance))
+        mean_false_positive_distance_clipped = np.mean(
+            np.clip(self.false_positive_distances, None, self.clip_distance)
+        )
         return mean_false_positive_distance_clipped
 
     @lazy_property.LazyProperty
     def mean_false_negative_distances_clipped(self):
-        mean_false_negative_distance_clipped = np.mean(np.clip(self.false_negative_distances, None, self.clip_distance))
+        mean_false_negative_distance_clipped = np.mean(
+            np.clip(self.false_negative_distances, None, self.clip_distance)
+        )
         return mean_false_negative_distance_clipped
 
     @lazy_property.LazyProperty
@@ -113,10 +139,15 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def mean_false_distance(self):
-        mean_false_distance = 0.5 * (self.mean_false_positive_distance + self.mean_false_negative_distance)
+        mean_false_distance = 0.5 * (
+            self.mean_false_positive_distance + self.mean_false_negative_distance
+        )
         return mean_false_distance
 
     @lazy_property.LazyProperty
     def mean_false_distance_clipped(self):
-        mean_false_distance_clipped = 0.5 * (self.mean_false_positive_distances_clipped + self.mean_false_negative_distances_clipped)
+        mean_false_distance_clipped = 0.5 * (
+            self.mean_false_positive_distances_clipped
+            + self.mean_false_negative_distances_clipped
+        )
         return mean_false_distance_clipped

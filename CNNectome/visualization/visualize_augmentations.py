@@ -9,6 +9,7 @@ import json
 import collections
 from CNNectome.utils import config_loader
 
+
 def train_until(
     max_iteration, data_sources, input_shape, output_shape, augmentor, snapshotname
 ):
@@ -178,36 +179,70 @@ if __name__ == "__main__":
     augmentors = [
         None,
         SimpleAugment(transpose_only=[1, 2]),
-        ElasticAugment((4, 40, 40), (0., 0., 0.), (math.pi/8, math.pi / 2),
-                      prob_slip=0, prob_shift=0, max_misalign=0,
-                      subsample=8),
+        ElasticAugment(
+            (4, 40, 40),
+            (0.0, 0.0, 0.0),
+            (math.pi / 8, math.pi / 2),
+            prob_slip=0,
+            prob_shift=0,
+            max_misalign=0,
+            subsample=8,
+        ),
         IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True),
-        ElasticAugment((4, 50, 50), (0., 6., 6.), (0, 0),
-                     prob_slip=0, prob_shift=0, max_misalign=0,
-                     subsample=1),
-        (ElasticAugment((4,40,40),(0.,0.,0.), (0,0),
-                       prob_slip = 0.05, prob_shift = 0.02, max_misalign=20,
-                       subsample=8)+
-        DefectAugment(ArrayKeys.RAW,
-                      prob_missing=0.03,
-                      prob_low_contrast=0.01,
-                      prob_artifact=0.03,
-                      artifact_source=artifact_source,
-                      artifacts=ArrayKeys.RAW,
-                      artifacts_mask=ArrayKeys.ALPHA_MASK,
-                      contrast_scale=0.5)),
-        (SimpleAugment(transpose_only=[1, 2]) +
-        IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
-        DefectAugment(ArrayKeys.RAW,
-                     prob_missing=0.03,
-                     prob_low_contrast=0.01,
-                     prob_artifact=0.03,
-                     artifact_source=artifact_source,
-                     artifacts=ArrayKeys.RAW,
-                     artifacts_mask=ArrayKeys.ALPHA_MASK,
-                     contrast_scale=0.5))
+        ElasticAugment(
+            (4, 50, 50),
+            (0.0, 6.0, 6.0),
+            (0, 0),
+            prob_slip=0,
+            prob_shift=0,
+            max_misalign=0,
+            subsample=1,
+        ),
+        (
+            ElasticAugment(
+                (4, 40, 40),
+                (0.0, 0.0, 0.0),
+                (0, 0),
+                prob_slip=0.05,
+                prob_shift=0.02,
+                max_misalign=20,
+                subsample=8,
+            )
+            + DefectAugment(
+                ArrayKeys.RAW,
+                prob_missing=0.03,
+                prob_low_contrast=0.01,
+                prob_artifact=0.03,
+                artifact_source=artifact_source,
+                artifacts=ArrayKeys.RAW,
+                artifacts_mask=ArrayKeys.ALPHA_MASK,
+                contrast_scale=0.5,
+            )
+        ),
+        (
+            SimpleAugment(transpose_only=[1, 2])
+            + IntensityAugment(ArrayKeys.RAW, 0.9, 1.1, -0.1, 0.1, z_section_wise=True)
+            + DefectAugment(
+                ArrayKeys.RAW,
+                prob_missing=0.03,
+                prob_low_contrast=0.01,
+                prob_artifact=0.03,
+                artifact_source=artifact_source,
+                artifacts=ArrayKeys.RAW,
+                artifacts_mask=ArrayKeys.ALPHA_MASK,
+                contrast_scale=0.5,
+            )
+        ),
     ]
-    names = ['none', 'flip', 'rotate', 'intensity', 'elastic', 'elastic+defect', 'flip+intensity+defect']
+    names = [
+        "none",
+        "flip",
+        "rotate",
+        "intensity",
+        "elastic",
+        "elastic+defect",
+        "flip+intensity+defect",
+    ]
 
     for augmentor, snapshotname in zip(augmentors, names):
         train_until(

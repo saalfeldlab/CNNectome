@@ -49,7 +49,15 @@ def evaluate_multrec(test, truth):
 def evaluate_multrecgt(test, truth, add_in_file=False):
     synaptic_partners_eval = SynapticPartnersMultRecGt()
     if add_in_file:
-        fscore, precision, recall, fp, fn, filtered_matches, annot = synaptic_partners_eval.fscore(
+        (
+            fscore,
+            precision,
+            recall,
+            fp,
+            fn,
+            filtered_matches,
+            annot,
+        ) = synaptic_partners_eval.fscore(
             test.read_annotations(),
             truth.read_annotations(),
             truth.read_neuron_ids(),
@@ -59,7 +67,14 @@ def evaluate_multrecgt(test, truth, add_in_file=False):
 
         test.write_annotations(annot)
     else:
-        fscore, precision, recall, fp, fn, filtered_matches = synaptic_partners_eval.fscore(
+        (
+            fscore,
+            precision,
+            recall,
+            fp,
+            fn,
+            filtered_matches,
+        ) = synaptic_partners_eval.fscore(
             test.read_annotations(),
             truth.read_annotations(),
             truth.read_neuron_ids(),
@@ -80,9 +95,9 @@ def main(s, mode=0, data=None):
     samples = [(s.split("/")[-1]).split("_")[0]]
     for sample in samples:
         logging.info("evaluating synapse predictions for sample {0:}".format(sample))
-        truth_fn = (os.path.join(
+        truth_fn = os.path.join(
             config_loader.get_config()["synapses"]["cremi17_data_path"],
-            "sample_{0:}_padded_20170424.aligned.hdf".format(sample))
+            "sample_{0:}_padded_20170424.aligned.hdf".format(sample),
         )
         if data is not None:
             logging.info(

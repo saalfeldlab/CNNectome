@@ -46,14 +46,16 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
             masks.append(tf.placeholder(tf.float32, shape=output_shape))
             gt.append(tf.placeholder(tf.float32, shape=output_shape))
             w.append(tf.placeholder(tf.float32, shape=output_shape))
-            #cw.append(l.class_weight)
+            # cw.append(l.class_weight)
 
         lb = []
         lub = []
         for output_it, gt_it, w_it, m_it, label in zip(
             network_outputs, gt, w, masks, labels
         ):
-            lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it * mask))
+            lb.append(
+                tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it * mask)
+            )
             lub.append(tf.losses.mean_squared_error(gt_it, output_it, m_it * mask))
             names[label.labelname] = output_it.name
             names["gt_" + label.labelname] = gt_it.name
@@ -115,8 +117,16 @@ def make_net(unet, labels, added_steps, loss_name="loss_total", mode="train"):
     return net_name, input_size_actual, output_shape
 
 
-def make_net_upsample(unet, labels, added_steps, upsample_factor, final_kernel_size, final_feature_width,
-    loss_name="loss_total", mode="train"):
+def make_net_upsample(
+    unet,
+    labels,
+    added_steps,
+    upsample_factor,
+    final_kernel_size,
+    final_feature_width,
+    loss_name="loss_total",
+    mode="train",
+):
     names = dict()
     input_size = unet.min_input_shape
     input_size_actual = (input_size + added_steps * unet.step_valid_shape).astype(
@@ -134,7 +144,7 @@ def make_net_upsample(unet, labels, added_steps, upsample_factor, final_kernel_s
         name="up_final",
         fov=fov,
         voxel_size=anisotropy,
-        constant_upsample=unet.constant_upsample
+        constant_upsample=unet.constant_upsample,
     )
     conv_last_fmap_up, fov = ops3d.conv_pass(
         last_fmap_up,
@@ -176,14 +186,16 @@ def make_net_upsample(unet, labels, added_steps, upsample_factor, final_kernel_s
             masks.append(tf.placeholder(tf.float32, shape=output_shape))
             gt.append(tf.placeholder(tf.float32, shape=output_shape))
             w.append(tf.placeholder(tf.float32, shape=output_shape))
-            #cw.append(l.class_weight)
+            # cw.append(l.class_weight)
 
         lb = []
         lub = []
         for output_it, gt_it, w_it, m_it, label in zip(
             network_outputs, gt, w, masks, labels
         ):
-            lb.append(tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it * mask))
+            lb.append(
+                tf.losses.mean_squared_error(gt_it, output_it, w_it * m_it * mask)
+            )
             lub.append(tf.losses.mean_squared_error(gt_it, output_it, m_it * mask))
             names[label.labelname] = output_it.name
             names["gt_" + label.labelname] = gt_it.name

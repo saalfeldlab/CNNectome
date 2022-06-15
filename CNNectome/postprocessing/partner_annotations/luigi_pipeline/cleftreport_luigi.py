@@ -126,19 +126,15 @@ class CleftReport(luigi.Task):
                 s + ".n5",
             )
             test = np.array(
-                zarr.open(testfile, mode="r")[
-                    "clefts_cropped_thr" + str(thr)
-                ][:]
+                zarr.open(testfile, mode="r")["clefts_cropped_thr" + str(thr)][:]
             )
             truth = np.array(
-                zarr.open(truthfile, mode="r")[
-                    "volumes/labels/clefts_cropped"
-                ][:]
+                zarr.open(truthfile, mode="r")["volumes/labels/clefts_cropped"][:]
             )
             mask = np.array(
-                zarr.open(truthfile, mode="r")[
-                    "volumes/masks/" + self.m + "_cropped"
-                ][:]
+                zarr.open(truthfile, mode="r")["volumes/masks/" + self.m + "_cropped"][
+                    :
+                ]
             )
             clefts_evaluation = Clefts(test, truth, np.logical_not(mask))
             results[s] = dict()

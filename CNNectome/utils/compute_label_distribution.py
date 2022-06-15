@@ -8,12 +8,16 @@ import logging
 from CNNectome.utils.label import Label
 from CNNectome.utils import config_loader
 from CNNectome.utils.cosem_db import MongoCosemDB
-from scipy.ndimage.morphology import generate_binary_structure,binary_dilation, binary_erosion, distance_transform_edt
+from scipy.ndimage.morphology import (
+    generate_binary_structure,
+    binary_dilation,
+    binary_erosion,
+    distance_transform_edt,
+)
 from typing import Any, Dict, List, Optional, Tuple
 
 
-def distance(labelfield: np.ndarray,
-             **kwargs: Any) -> np.ndarray:
+def distance(labelfield: np.ndarray, **kwargs: Any) -> np.ndarray:
     """
     Compute signed distance transform of binary labelfield.
 
@@ -24,18 +28,20 @@ def distance(labelfield: np.ndarray,
     Returns:
         Signed distance transform
     """
-    inner_distance = distance_transform_edt(binary_erosion(labelfield, border_value=1,
-                                                           structure=generate_binary_structure(labelfield.ndim,
-                                                                                               labelfield.ndim)),
-                                            **kwargs)
+    inner_distance = distance_transform_edt(
+        binary_erosion(
+            labelfield,
+            border_value=1,
+            structure=generate_binary_structure(labelfield.ndim, labelfield.ndim),
+        ),
+        **kwargs
+    )
     outer_distance = distance_transform_edt(np.logical_not(labelfield), **kwargs)
     result = inner_distance - outer_distance
     return result
 
 
-def count_with_add(labelfield: np.ndarray,
-                   labelid: int,
-                   add_constant: int) -> int:
+def count_with_add(labelfield: np.ndarray, labelid: int, add_constant: int) -> int:
     """
     Count effective frequency of label that is computationally expanded.
 
@@ -52,9 +58,9 @@ def count_with_add(labelfield: np.ndarray,
     return np.sum(distances > 0)
 
 
-def one_crop(crop: Dict[str, Any],
-             labels: List[Label],
-             gt_version: str = "v0003") -> Tuple[Dict[int, int], Dict[int, int]]:
+def one_crop(
+    crop: Dict[str, Any], labels: List[Label], gt_version: str = "v0003"
+) -> Tuple[Dict[int, int], Dict[int, int]]:
     """
     Calculate the distribution of `labels` for one particular crop.
 
@@ -68,10 +74,18 @@ def one_crop(crop: Dict[str, Any],
     """
     data_dir = config_loader.get_config()["organelles"]["data_path"]
     n5file = zarr.open(str(os.path.join(data_dir, crop["parent"])), mode="r")
-    blueprint_label_ds = "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
-    blueprint_labelmask_ds = "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
-    labelmask_ds = blueprint_labelmask_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
-    label_ds = blueprint_label_ds.format(version=gt_version.lstrip("v"), cropno=crop["number"])
+    blueprint_label_ds = (
+        "volumes/groundtruth/{version:}/crop{cropno:}/labels/{{label:}}"
+    )
+    blueprint_labelmask_ds = (
+        "volumes/groundtruth/{version:}/crop{cropno:}/masks/{{label:}}"
+    )
+    labelmask_ds = blueprint_labelmask_ds.format(
+        version=gt_version.lstrip("v"), cropno=crop["number"]
+    )
+    label_ds = blueprint_label_ds.format(
+        version=gt_version.lstrip("v"), cropno=crop["number"]
+    )
     pos = dict()
     neg = dict()
     for l in labels:
@@ -79,13 +93,15 @@ def one_crop(crop: Dict[str, Any],
         neg[l.labelid[0]] = 0
 
     labelfield = np.array(n5file[label_ds.format(label="all")])
-    hist, be = np.histogram(labelfield, bins=sorted([l.labelid[0] for l in labels]+[100]))
+    hist, be = np.histogram(
+        labelfield, bins=sorted([l.labelid[0] for l in labels] + [100])
+    )
     counts = dict()
     for b, h in zip(be, hist):
         counts[b] = h
 
-    present_annotated = [ll[0] for ll in crop['labels']["present_annotated"]]
-    not_present_annotated = [ll[0] for ll in crop['labels']["absent_annotated"]]
+    present_annotated = [ll[0] for ll in crop["labels"]["present_annotated"]]
+    not_present_annotated = [ll[0] for ll in crop["labels"]["absent_annotated"]]
 
     for ll in present_annotated:
         if ll == 34:
@@ -99,10 +115,17 @@ def one_crop(crop: Dict[str, Any],
             maskfield = np.array(n5file[labelmask_ds])
             size = np.sum(maskfield)
         else:
-            size = crop["dimensions"]["x"]*crop["dimensions"]["y"]*crop["dimensions"]["z"]*8
+            size = (
+                crop["dimensions"]["x"]
+                * crop["dimensions"]["y"]
+                * crop["dimensions"]["z"]
+                * 8
+            )
         if label.separate_labelset:
             sep_labelfield = np.array(n5file[label_ds.format(label=label.labelname)])
-            hist, be = np.histogram(sep_labelfield, bins = sorted([l.labelid[0] for l in labels]+[100]))
+            hist, be = np.histogram(
+                sep_labelfield, bins=sorted([l.labelid[0] for l in labels] + [100])
+            )
             counts_separate = dict()
             for b, h in zip(be, hist):
                 counts_separate[b] = h
@@ -127,16 +150,23 @@ def one_crop(crop: Dict[str, Any],
             label = [lli for lli in labels if lli.labelid[0] == ll][0]
         except IndexError:
             continue
-        size = crop["dimensions"]["x"] * crop["dimensions"]["y"] * crop["dimensions"]["z"] * 8
+        size = (
+            crop["dimensions"]["x"]
+            * crop["dimensions"]["y"]
+            * crop["dimensions"]["z"]
+            * 8
+        )
         neg[label.labelid[0]] += size
     return pos, neg
 
 
-def label_dist(labels: List[Label],
-               completion_min: int = 6,
-               dataset: Optional[str] = None,
-               gt_version: str = "v0003",
-               save: Optional[str] = None) -> Dict[str, Dict[int, int]]:
+def label_dist(
+    labels: List[Label],
+    completion_min: int = 6,
+    dataset: Optional[str] = None,
+    gt_version: str = "v0003",
+    save: Optional[str] = None,
+) -> Dict[str, Dict[int, int]]:
     """
     Compute label distribution.
 
@@ -155,7 +185,14 @@ def label_dist(labels: List[Label],
     db_filter = {"completion": {"$gte": completion_min}}
     if dataset is not None:
         db_filter["dataset_id"] = dataset
-    skip = {"_id": 0, "number": 1, "labels": 1, "parent": 1, "dimensions": 1, "dataset_id": 1}
+    skip = {
+        "_id": 0,
+        "number": 1,
+        "labels": 1,
+        "parent": 1,
+        "dimensions": 1,
+        "dataset_id": 1,
+    }
     positives = dict()
     negatives = dict()
     for ll in labels:
@@ -187,10 +224,20 @@ def label_dist(labels: List[Label],
 
 def main() -> None:
     parser = argparse.ArgumentParser("Calculate the distribution of labels.")
-    parser.add_argument("--dataset", type=str, help=("Dataset id for which to calculate label distribution. If None "
-                        "calculate across all datasets."))
-    parser.add_argument("--gt_version", type=str, default="v0003", help="Version of groundtruth.")
-    parser.add_argument("--save", type=str, help="File to save results to as json", default=".")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        help=(
+            "Dataset id for which to calculate label distribution. If None "
+            "calculate across all datasets."
+        ),
+    )
+    parser.add_argument(
+        "--gt_version", type=str, default="v0003", help="Version of groundtruth."
+    )
+    parser.add_argument(
+        "--save", type=str, help="File to save results to as json", default="."
+    )
     args = parser.parse_args()
 
     labels = list()
@@ -198,12 +245,22 @@ def main() -> None:
     labels.append(Label("plasma_membrane", 2))
     labels.append(Label("mito_lumen", 4))
     labels.append(Label("mito_membrane", 3))
-    labels.append(Label("mito_DNA", 5,))
+    labels.append(
+        Label(
+            "mito_DNA",
+            5,
+        )
+    )
     labels.append(Label("golgi_lumen", 7))
     labels.append(Label("golgi_membrane", 6))
-    labels.append(Label("vesicle_lumen",  9))
+    labels.append(Label("vesicle_lumen", 9))
     labels.append(Label("vesicle_membrane", 8))
-    labels.append(Label("MVB_lumen",  11, ))
+    labels.append(
+        Label(
+            "MVB_lumen",
+            11,
+        )
+    )
     labels.append(Label("MVB_membrane", 10))
     labels.append(Label("lysosome_lumen", 13))
     labels.append(Label("lysosome_membrane", 12))
@@ -224,7 +281,7 @@ def main() -> None:
     labels.append(Label("NHChrom", 25))
     labels.append(Label("EChrom", 26))
     labels.append(Label("NEChrom", 27))
-    labels.append(Label("microtubules_in",  36))
+    labels.append(Label("microtubules_in", 36))
     labels.append(Label("microtubules_out", 30))
     labels.append(Label("centrosome", 31, add_constant=2, separate_labelset=True))
     labels.append(Label("distal_app", 32))
