@@ -8,13 +8,14 @@ MASK_OUTSIDE = 0
 
 def find_boundaries_masked(arr, mask=None):
     structure = scipy.ndimage.generate_binary_structure(arr.ndim, 1)
+    if mask is not None:
+        arr[np.logical_not(mask.astype(np.bool))] = 1
     dilated = scipy.ndimage.morphology.binary_dilation(
         arr, structure=structure, mask=mask
     )
     eroded = scipy.ndimage.morphology.binary_erosion(
-        arr, structure=structure, mask=mask
+        arr, structure=structure, mask=mask, border_value=1
     )
-
     boundaries = dilated != eroded
     boundaries &= arr != BG
     return boundaries
@@ -61,7 +62,7 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def test_binary(self):
-        test_binary = self.truth != BG
+        test_binary = self.test != BG
         if self.mask is not None:
             test_binary = np.logical_or(test_binary, self.mask == MASK_OUTSIDE)
         return test_binary
@@ -132,6 +133,8 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def false_positives_with_tolerance(self):
+        if self.tol_distance is None:
+            raise ValueError("For metrics with tolerance, tol_distance cannot be None.")
         return np.sum(self.false_positive_distances > self.tol_distance)
 
     @lazy_property.LazyProperty
@@ -144,6 +147,8 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def false_negatives_with_tolerance(self):
+        if self.tol_distance is None:
+            raise ValueError("For metrics with tolerance, tol_distance cannot be None.")
         return np.sum(self.false_negative_distances > self.tol_distance)
 
     @lazy_property.LazyProperty
@@ -190,6 +195,10 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def mean_false_positive_distances_clipped(self):
+        if self.clip_distance is None:
+            raise ValueError(
+                "For metrics with clipped distances, clip_distance cannot be None."
+            )
         mean_false_positive_distance_clipped = np.mean(
             np.clip(self.false_positive_distances, None, self.clip_distance)
         )
@@ -197,6 +206,10 @@ class CremiEvaluator(object):
 
     @lazy_property.LazyProperty
     def mean_false_negative_distances_clipped(self):
+        if self.clip_distance is None:
+            raise ValueError(
+                "For metrics with clipped distances, clip_distance cannot be None."
+            )
         mean_false_negative_distance_clipped = np.mean(
             np.clip(self.false_negative_distances, None, self.clip_distance)
         )
