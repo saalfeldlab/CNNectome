@@ -3,7 +3,7 @@ tensorflow_gpu == 1.14.0
 numpy == 1.19.5
 scipy == 1.5.4
 h5py == 3.1.0
-joblib == 1.0.0
+joblib == 1.2.0
 lazy-property == 0.0.1
 scikit-image == 0.17.2
 matplotlib == 3.3.4
