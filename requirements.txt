@@ -1,5 +1,5 @@
 python_version == 3.6.12
-tensorflow_gpu == 1.14.0
+tensorflow_gpu == 2.9.3
 numpy == 1.19.5
 scipy == 1.5.4
 h5py == 3.1.0
